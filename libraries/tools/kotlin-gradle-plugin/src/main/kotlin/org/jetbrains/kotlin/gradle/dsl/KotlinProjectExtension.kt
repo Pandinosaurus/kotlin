@@ -16,9 +16,11 @@
 
 package org.jetbrains.kotlin.gradle.dsl
 
+import groovy.lang.Closure
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import org.gradle.api.internal.plugins.DslObject
+import org.gradle.util.ConfigureUtil
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinAndroidTarget
@@ -34,6 +36,9 @@ internal fun Project.createKotlinExtension(extensionClass: KClass<out KotlinProj
     DslObject(kotlinExt).extensions.create("experimental", ExperimentalExtension::class.java)
     return kotlinExtension
 }
+
+internal val Project.kotlinExtensionOrNull: KotlinProjectExtension?
+    get() = extensions.findByName(KOTLIN_PROJECT_EXTENSION_NAME) as KotlinProjectExtension?
 
 internal val Project.kotlinExtension: KotlinProjectExtension
     get() = extensions.getByName(KOTLIN_PROJECT_EXTENSION_NAME) as KotlinProjectExtension
@@ -58,6 +63,8 @@ open class KotlinProjectExtension {
 
 abstract class KotlinSingleTargetExtension : KotlinProjectExtension() {
     abstract val target: KotlinTarget
+
+    open fun target(body: Closure<out KotlinTarget>) = ConfigureUtil.configure(body, target)
 }
 
 abstract class KotlinSingleJavaTargetExtension : KotlinSingleTargetExtension() {
@@ -67,15 +74,21 @@ abstract class KotlinSingleJavaTargetExtension : KotlinSingleTargetExtension() {
 open class KotlinJvmProjectExtension : KotlinSingleJavaTargetExtension() {
     override lateinit var target: KotlinWithJavaTarget<KotlinJvmOptions>
         internal set
+
+    open fun target(body: KotlinWithJavaTarget<KotlinJvmOptions>.() -> Unit) = target.run(body)
 }
 
 open class Kotlin2JsProjectExtension : KotlinSingleJavaTargetExtension() {
     override lateinit var target: KotlinWithJavaTarget<KotlinJsOptions>
         internal set
+
+    open fun target(body: KotlinWithJavaTarget<KotlinJsOptions>.() -> Unit) = target.run(body)
 }
 
 open class KotlinJsProjectExtension : KotlinSingleTargetExtension() {
     override lateinit var target: KotlinOnlyTarget<KotlinJsCompilation>
+
+    open fun target(body: KotlinOnlyTarget<KotlinJsCompilation>.() -> Unit) = target.run(body)
 
     @Deprecated(
         "Needed for IDE import using the MPP import mechanism",
@@ -88,11 +101,15 @@ open class KotlinJsProjectExtension : KotlinSingleTargetExtension() {
 open class KotlinCommonProjectExtension : KotlinSingleJavaTargetExtension() {
     override lateinit var target: KotlinWithJavaTarget<KotlinMultiplatformCommonOptions>
         internal set
+
+    open fun target(body: KotlinWithJavaTarget<KotlinMultiplatformCommonOptions>.() -> Unit) = target.run(body)
 }
 
 open class KotlinAndroidProjectExtension : KotlinSingleTargetExtension() {
     override lateinit var target: KotlinAndroidTarget
         internal set
+
+    open fun target(body: KotlinAndroidTarget.() -> Unit) = target.run(body)
 }
 
 open class ExperimentalExtension {

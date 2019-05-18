@@ -5,20 +5,42 @@
 
 package org.jetbrains.kotlin.gradle.testing
 
+import org.gradle.internal.serialize.PlaceholderException
+
 /**
  * Class to be shown in default Gradle tests console reporter.
  *
  * Example console output:
  * ```
- *  clientTest.CommonTest.test1 FAILED
- *     org.jetbrains.kotlin.gradle.testing.KotlinTestFailure
+ *  sample.SampleTests.testMe FAILED
+ *      AssertionError at mpplib2/src/commonTest/kotlin/sample/SampleTests.kt:9
  * ```
  */
-class KotlinTestFailure(message: String?, private val stackTrace: String?) : Throwable(message) {
-    override fun fillInStackTrace(): Throwable = this
+class KotlinTestFailure(
+    className: String,
+    message: String?,
+    val stackTraceString: String?,
+    private val stackTrace: List<StackTraceElement>? = null,
+    val expected: String? = null,
+    val actual: String? = null
+) : PlaceholderException(
+    className,
+    message,
+    null,
+    null,
+    null,
+    null
+) {
+    override fun getStackTrace(): Array<StackTraceElement> =
+        stackTrace?.toTypedArray() ?: arrayOf()
+
+    override fun fillInStackTrace(): Throwable {
+        return this
+    }
+
     override fun toString(): String =
-        if (stackTrace != null) {
-            if (message != null && message !in stackTrace) message + "\n" + stackTrace
-            else stackTrace
+        if (stackTraceString != null) {
+            if (message != null && message!! !in stackTraceString) message + "\n" + stackTraceString
+            else stackTraceString
         } else message ?: "Test failed"
 }

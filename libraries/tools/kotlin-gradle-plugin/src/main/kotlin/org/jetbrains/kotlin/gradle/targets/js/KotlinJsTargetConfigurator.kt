@@ -5,13 +5,34 @@
 
 package org.jetbrains.kotlin.gradle.targets.js
 
-import org.jetbrains.kotlin.gradle.plugin.*
+import org.jetbrains.kotlin.gradle.plugin.Kotlin2JsSourceSetProcessor
+import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetProcessor
+import org.jetbrains.kotlin.gradle.plugin.KotlinTargetConfigurator
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinOnlyTarget
+import org.jetbrains.kotlin.gradle.targets.js.nodejs.nodeJs
 import org.jetbrains.kotlin.gradle.tasks.KotlinTasksProvider
 
-class KotlinJsTargetConfigurator(kotlinPluginVersion: String) :
-        KotlinTargetConfigurator<KotlinJsCompilation>(true, true, kotlinPluginVersion) {
+open class KotlinJsTargetConfigurator(kotlinPluginVersion: String) :
+    KotlinTargetConfigurator<KotlinJsCompilation>(true, true, kotlinPluginVersion) {
+
+    override fun configureTarget(target: KotlinOnlyTarget<KotlinJsCompilation>) {
+        target as KotlinJsTarget
+
+        super.configureTarget(target)
+
+        target.compilations.forEach {
+            it.compileKotlinTask.dependsOn(target.project.nodeJs.root.npmResolveTask)
+        }
+
+        if (target.disambiguationClassifier != null) {
+            target.project.tasks.maybeCreate(runTaskNameSuffix).dependsOn(target.runTask)
+        }
+    }
+
+    override fun configureTest(target: KotlinOnlyTarget<KotlinJsCompilation>) {
+        // tests configured in KotlinJsSubTarget.configure
+    }
 
     override fun buildCompilationProcessor(compilation: KotlinJsCompilation): KotlinSourceSetProcessor<*> {
         val tasksProvider = KotlinTasksProvider(compilation.target.targetName)
@@ -28,10 +49,5 @@ class KotlinJsTargetConfigurator(kotlinPluginVersion: String) :
                 sourceMapEmbedSources = null
             }
         }
-    }
-
-    companion object {
-        internal fun isTestCompilation(it: KotlinJsCompilation) =
-            it.name == KotlinCompilation.TEST_COMPILATION_NAME
     }
 }

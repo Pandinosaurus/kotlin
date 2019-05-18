@@ -31,9 +31,17 @@ internal val canLocateTask = org.jetbrains.kotlin.gradle.utils.isGradleVersionAt
  * Registers the task with [name] and [type] and initialization script [body]
  * If Gradle with version <4.9 is used the task will be created
  */
-internal fun <T : Task> registerTask(project: Project, name: String, type: Class<T>, body: (T) -> (Unit)): TaskHolder<T> {
+@JvmName("registerTaskOld")
+@Deprecated("please use Project.createOrRegisterTask", ReplaceWith("project.createOrRegisterTask(name, body)"))
+internal fun <T : Task> registerTask(project: Project, name: String, type: Class<T>, body: (T) -> (Unit)): TaskHolder<T> =
+    project.createOrRegisterTask(name, type, body)
+
+internal inline fun <reified T : Task> Project.createOrRegisterTask(name: String, noinline body: (T) -> (Unit)): TaskHolder<T> =
+    createOrRegisterTask(name, T::class.java, body)
+
+internal fun <T : Task> Project.createOrRegisterTask(name: String, type: Class<T>, body: (T) -> (Unit)): TaskHolder<T> {
     return if (useLazyTaskConfiguration) {
-        TaskProviderHolder(name, project.tasks.register(name, type) { with(it, body) })
+        TaskProviderHolder(name, project, project.tasks.register(name, type) { with(it, body) })
     } else {
         val result = LegacyTaskHolder(project.tasks.create(name, type))
         with(result.doGetTask(), body)
@@ -41,19 +49,20 @@ internal fun <T : Task> registerTask(project: Project, name: String, type: Class
     }
 }
 
+
 /**
  * Locates a task by [name] and [type], without triggering its creation or configuration.
  */
-internal fun <T : Task> locateTask(project: Project, name: String, type: Class<T>): TaskHolder<T>? =
+internal inline fun <reified T : Task> Project.locateTask(name: String): TaskHolder<T>? =
     if (canLocateTask) {
         try {
-            TaskProviderHolder(name, project.tasks.named(name, type))
+            TaskProviderHolder(name, this, tasks.named(name, T::class.java))
         } catch (e: UnknownTaskException) {
             null
         }
     } else {
-        project.tasks.findByName(name)?.let {
-            check(type.isInstance(it))
+        tasks.findByName(name)?.let {
+            check(T::class.java.isInstance(it))
 
             @Suppress("UNCHECKED_CAST")
             LegacyTaskHolder(it as T)
@@ -65,7 +74,7 @@ internal fun <T : Task> locateTask(project: Project, name: String, type: Class<T
  * with [name], type [T] and initialization script [body]
  */
 internal inline fun <reified T : Task> Project.locateOrRegisterTask(name: String, noinline body: (T) -> (Unit)): TaskHolder<T> {
-    return locateTask(project, name, T::class.java) ?: registerTask(project, name, T::class.java, body)
+    return project.locateTask(name) ?: registerTask(project, name, T::class.java, body)
 }
 
 internal open class KotlinTasksProvider(val targetName: String) {
@@ -89,7 +98,7 @@ internal open class KotlinTasksProvider(val targetName: String) {
         name: String,
         compilation: KotlinCompilation<*>,
         configureAction: (Kotlin2JsCompile) -> Unit
-    ): TaskHolder<out Kotlin2JsCompile> {
+    ): TaskHolder<Kotlin2JsCompile> {
         val properties = PropertiesProvider(project)
         val taskClass = taskOrWorkersTask<Kotlin2JsCompile, Kotlin2JsCompileWithWorkers>(properties)
         val result = registerTask(project, name, taskClass) {
@@ -104,7 +113,7 @@ internal open class KotlinTasksProvider(val targetName: String) {
         name: String,
         compilation: KotlinCompilation<*>,
         configureAction: (KotlinCompileCommon) -> (Unit)
-    ): TaskHolder<out KotlinCompileCommon> {
+    ): TaskHolder<KotlinCompileCommon> {
         val properties = PropertiesProvider(project)
         val taskClass = taskOrWorkersTask<KotlinCompileCommon, KotlinCompileCommonWithWorkers>(properties)
         val result = registerTask(project, name, taskClass) {
@@ -115,7 +124,7 @@ internal open class KotlinTasksProvider(val targetName: String) {
     }
 
     open fun configure(
-        kotlinTaskHolder: TaskHolder<out AbstractKotlinCompile<*>>,
+        kotlinTaskHolder: TaskHolder<AbstractKotlinCompile<*>>,
         project: Project,
         propertiesProvider: PropertiesProvider,
         compilation: KotlinCompilation<*>
@@ -149,7 +158,7 @@ internal class AndroidTasksProvider(targetName: String) : KotlinTasksProvider(ta
         RegexTaskToFriendTaskMapper.Android(targetName)
 
     override fun configure(
-        kotlinTaskHolder: TaskHolder<out AbstractKotlinCompile<*>>,
+        kotlinTaskHolder: TaskHolder<AbstractKotlinCompile<*>>,
         project: Project,
         propertiesProvider: PropertiesProvider,
         compilation: KotlinCompilation<*>
