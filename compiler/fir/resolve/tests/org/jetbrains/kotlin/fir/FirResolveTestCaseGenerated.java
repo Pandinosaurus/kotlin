@@ -34,6 +34,11 @@ public class FirResolveTestCaseGenerated extends AbstractFirResolveTestCase {
         runTest("compiler/fir/resolve/testData/resolve/companion.kt");
     }
 
+    @TestMetadata("copy.kt")
+    public void testCopy() throws Exception {
+        runTest("compiler/fir/resolve/testData/resolve/copy.kt");
+    }
+
     @TestMetadata("derivedClass.kt")
     public void testDerivedClass() throws Exception {
         runTest("compiler/fir/resolve/testData/resolve/derivedClass.kt");
@@ -57,6 +62,11 @@ public class FirResolveTestCaseGenerated extends AbstractFirResolveTestCase {
     @TestMetadata("fakeRecursiveTypealias.kt")
     public void testFakeRecursiveTypealias() throws Exception {
         runTest("compiler/fir/resolve/testData/resolve/fakeRecursiveTypealias.kt");
+    }
+
+    @TestMetadata("fib.kt")
+    public void testFib() throws Exception {
+        runTest("compiler/fir/resolve/testData/resolve/fib.kt");
     }
 
     @TestMetadata("ft.kt")

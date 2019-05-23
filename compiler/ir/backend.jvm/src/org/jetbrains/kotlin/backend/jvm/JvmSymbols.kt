@@ -31,7 +31,8 @@ import org.jetbrains.kotlin.types.Variance
 
 class JvmSymbols(
     context: JvmBackendContext,
-    private val symbolTable: ReferenceSymbolTable
+    private val symbolTable: ReferenceSymbolTable,
+    firMode: Boolean
 ) : Symbols<JvmBackendContext>(context, symbolTable) {
     private val storageManager = LockBasedStorageManager(this::class.java.simpleName)
 
@@ -51,6 +52,7 @@ class JvmSymbols(
 
     private val kotlinJvmInternalPackage: IrPackageFragment = createPackage(FqName("kotlin.jvm.internal"))
     private val kotlinJvmFunctionsPackage: IrPackageFragment = createPackage(FqName("kotlin.jvm.functions"))
+    private val javaLangPackage: IrPackageFragment = createPackage(FqName("java.lang"))
 
     private fun createClass(fqName: FqName, classKind: ClassKind = ClassKind.CLASS, block: (IrClass) -> Unit): IrClass =
         buildClass {
@@ -60,6 +62,7 @@ class JvmSymbols(
             parent = when (fqName.parent().asString()) {
                 "kotlin.jvm.internal" -> kotlinJvmInternalPackage
                 "kotlin.jvm.functions" -> kotlinJvmFunctionsPackage
+                "java.lang" -> javaLangPackage
                 else -> error("Other packages are not supported yet: $fqName")
             }
             createImplicitParameterDeclarationWithWrappedDescriptor()
@@ -94,7 +97,7 @@ class JvmSymbols(
         get() = TODO("not implemented")
 
     val javaLangClass: IrClassSymbol =
-        context.getTopLevelClass(FqName("java.lang.Class"))
+        if (firMode) createClass(FqName("java.lang.Class")) {}.symbol else context.getTopLevelClass(FqName("java.lang.Class"))
 
     val lambdaClass: IrClassSymbol = createClass(FqName("kotlin.jvm.internal.Lambda")) { klass ->
         klass.addConstructor().apply {

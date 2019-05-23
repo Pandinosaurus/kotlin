@@ -14,9 +14,11 @@ import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyAccessor
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirElseIfTrueCondition
 import org.jetbrains.kotlin.fir.expressions.FirWhenSubjectExpression
+import org.jetbrains.kotlin.fir.expressions.impl.FirUncheckedNotNullCastImpl
 import org.jetbrains.kotlin.fir.expressions.impl.FirUnitExpression
 import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
 import org.jetbrains.kotlin.fir.references.FirSimpleNamedReference
@@ -469,15 +471,6 @@ class HtmlFirDump internal constructor(private var linkResolver: FirLinkResolver
         ws
         modality(status.modality)
         ws
-        if (status.isCompanion) {
-            keyword("companion ")
-        }
-        if (status.isInline) {
-            keyword("inline ")
-        }
-        if (status.isInner) {
-            keyword("inner ")
-        }
         if (status.isExpect) {
             keyword("expect ")
         }
@@ -487,32 +480,32 @@ class HtmlFirDump internal constructor(private var linkResolver: FirLinkResolver
         if (status.isOverride) {
             keyword("override ")
         }
-        if (status.isOperator) {
-            keyword("operator ")
+        if (status.isInner) {
+            keyword("inner ")
         }
-        if (status.isInfix) {
-            keyword("infix ")
+        if (status.isCompanion) {
+            keyword("companion ")
         }
         if (status.isInline) {
             keyword("inline ")
         }
-        if (status.isTailRec) {
-            keyword("tailrec ")
+        if (status.isInfix) {
+            keyword("infix ")
         }
         if (status.isExternal) {
             keyword("external ")
+        }
+        if (status.isTailRec) {
+            keyword("tailrec ")
+        }
+        if (status.isOperator) {
+            keyword("operator ")
         }
         if (status.isConst) {
             keyword("const ")
         }
         if (status.isLateInit) {
             keyword("lateinit ")
-        }
-        if (status.isInner) {
-            keyword("inner ")
-        }
-        if (status.isCompanion) {
-            keyword("companion ")
         }
         if (status.isData) {
             keyword("data ")
@@ -813,6 +806,24 @@ class HtmlFirDump internal constructor(private var linkResolver: FirLinkResolver
         +"."
     }
 
+    private fun FlowContent.generate(accessor: FirPropertyAccessor) {
+        if (accessor is FirDefaultPropertyAccessor) return
+        iline {
+            declarationStatus(accessor.status)
+            if (accessor.isGetter) {
+                keyword("get")
+            } else if (accessor.isSetter) {
+                keyword("set")
+            }
+            +"("
+            generateList(accessor.valueParameters) {
+                generate(it)
+            }
+            +")"
+            generateBlockIfAny(accessor.body)
+        }
+    }
+
     private fun FlowContent.generate(property: FirProperty) {
         //anchor
         iline {
@@ -838,6 +849,10 @@ class HtmlFirDump internal constructor(private var linkResolver: FirLinkResolver
             }
         }
 
+        withIdentLevel {
+            generate(property.getter)
+            generate(property.setter)
+        }
     }
 
 
@@ -999,6 +1014,11 @@ class HtmlFirDump internal constructor(private var linkResolver: FirLinkResolver
         }
     }
 
+    private fun FlowContent.generate(makeNotNullCall: FirUncheckedNotNullCastImpl) {
+        generate(makeNotNullCall.expression)
+        keyword("!")
+    }
+
     private fun FlowContent.generate(typeOperatorCall: FirTypeOperatorCall) {
         val (expression) = typeOperatorCall.arguments
         generate(expression)
@@ -1035,19 +1055,19 @@ class HtmlFirDump internal constructor(private var linkResolver: FirLinkResolver
             iline {
                 keyword("try ")
                 generateBlockIfAny(tryExpression.tryBlock)
-            }
 
-            for (catch in tryExpression.catches) {
-                keyword(" catch ")
-                +"("
-                generate(catch.parameter)
-                +") "
-                generateBlockIfAny(catch.block)
-            }
-            val finallyBlock = tryExpression.finallyBlock
-            if (finallyBlock != null) {
-                keyword(" finally ")
-                generateBlockIfAny(finallyBlock)
+                for (catch in tryExpression.catches) {
+                    keyword(" catch ")
+                    +"("
+                    generate(catch.parameter)
+                    +") "
+                    generateBlockIfAny(catch.block)
+                }
+                val finallyBlock = tryExpression.finallyBlock
+                if (finallyBlock != null) {
+                    keyword(" finally ")
+                    generateBlockIfAny(finallyBlock)
+                }
             }
         }
     }
@@ -1187,6 +1207,7 @@ class HtmlFirDump internal constructor(private var linkResolver: FirLinkResolver
                     generate(expression.expression)
                 }
                 is FirTypeOperatorCall -> generate(expression)
+                is FirUncheckedNotNullCastImpl -> generate(expression)
                 is FirOperatorCall -> generate(expression)
                 else -> inlineUnsupported(expression)
             }
