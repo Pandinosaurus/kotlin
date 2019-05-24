@@ -5,8 +5,12 @@
 
 package org.jetbrains.kotlin.idea.util
 
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtModifierListOwner
+import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtTypeArgumentList
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
 
 
 fun KtCallExpression.replaceOrCreateTypeArgumentList(newTypeArgumentList: KtTypeArgumentList) {
@@ -16,3 +20,9 @@ fun KtCallExpression.replaceOrCreateTypeArgumentList(newTypeArgumentList: KtType
         calleeExpression
     )
 }
+
+fun KtModifierListOwner.hasInlineModifier() = hasModifier(KtTokens.INLINE_KEYWORD)
+
+fun KtPrimaryConstructor.allowedValOrVar(): Boolean = containingClass()?.let {
+    it.isAnnotation() || it.hasInlineModifier()
+} ?: false
