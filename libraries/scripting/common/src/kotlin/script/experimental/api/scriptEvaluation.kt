@@ -9,6 +9,7 @@ package kotlin.script.experimental.api
 
 import java.io.Serializable
 import kotlin.reflect.KClass
+import kotlin.script.experimental.host.ScriptingHostConfiguration
 import kotlin.script.experimental.util.PropertiesCollection
 
 interface ScriptEvaluationConfigurationKeys
@@ -50,6 +51,13 @@ val ScriptEvaluationConfigurationKeys.providedProperties by PropertiesCollection
  */
 val ScriptEvaluationConfigurationKeys.constructorArgs by PropertiesCollection.key<List<Any?>>()
 
+/**
+ * If the script is a snippet in a REPL, this property expected to contain previous REPL snippets in historical order
+ * For the first snippet in a REPL an empty list should be passed explicitly
+ * An array of the previous snippets will be passed to the current snippet constructor
+ */
+val ScriptEvaluationConfigurationKeys.previousSnippets by PropertiesCollection.key<List<Any>>()
+
 @Deprecated("use scriptsInstancesSharing flag instead", level = DeprecationLevel.ERROR)
 val ScriptEvaluationConfigurationKeys.scriptsInstancesSharingMap by PropertiesCollection.key<MutableMap<KClass<*>, EvaluationResult>>()
 
@@ -59,6 +67,11 @@ val ScriptEvaluationConfigurationKeys.scriptsInstancesSharingMap by PropertiesCo
  * This allows to have a single instance of the script if it is imported several times via different import paths.
  */
 val ScriptEvaluationConfigurationKeys.scriptsInstancesSharing by PropertiesCollection.key<Boolean>(false)
+
+/**
+ * Scripting host configuration
+ */
+val ScriptEvaluationConfigurationKeys.hostConfiguration by PropertiesCollection.key<ScriptingHostConfiguration>()
 
 /**
  * The callback that will be called on the script compilation immediately before starting the compilation
@@ -101,6 +114,11 @@ sealed class ResultValue {
         override fun toString(): String = "$name: $type = $value"
     }
 
+    class UnitValue(val scriptInstance: Any) : ResultValue() {
+        override fun toString(): String = "Unit"
+    }
+
+    // TODO: obsolete it, use differently named value in the saving evaluators
     object Unit : ResultValue()
 }
 
