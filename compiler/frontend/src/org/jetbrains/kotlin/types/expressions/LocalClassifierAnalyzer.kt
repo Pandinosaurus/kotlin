@@ -18,8 +18,8 @@ package org.jetbrains.kotlin.types.expressions
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.config.TargetPlatformVersion
 import org.jetbrains.kotlin.container.get
 import org.jetbrains.kotlin.context.GlobalContext
 import org.jetbrains.kotlin.context.withModule
@@ -61,9 +61,9 @@ class LocalClassifierAnalyzer(
     private val typeResolver: TypeResolver,
     private val annotationResolver: AnnotationResolver,
     private val platform: TargetPlatform,
+    private val analyzerServices: PlatformDependentAnalyzerServices,
     private val lookupTracker: LookupTracker,
     private val supertypeLoopChecker: SupertypeLoopChecker,
-    private val targetPlatformVersion: TargetPlatformVersion,
     private val languageVersionSettings: LanguageVersionSettings,
     private val delegationFilter: DelegationFilter,
     private val wrappedTypeFactory: WrappedTypeFactory,
@@ -83,7 +83,6 @@ class LocalClassifierAnalyzer(
             context.trace,
             platform,
             lookupTracker,
-            targetPlatformVersion,
             languageVersionSettings,
             context.statementFilter,
             LocalClassDescriptorHolder(
@@ -103,7 +102,8 @@ class LocalClassifierAnalyzer(
                 delegationFilter,
                 wrappedTypeFactory,
                 substitutingScopeProvider
-            )
+            ),
+            analyzerServices
         )
 
         container.get<LazyTopDownAnalyzer>().analyzeDeclarations(

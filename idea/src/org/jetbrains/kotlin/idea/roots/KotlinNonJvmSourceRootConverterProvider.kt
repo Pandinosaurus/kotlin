@@ -31,16 +31,20 @@ import org.jetbrains.jps.model.module.JpsModuleSourceRootType
 import org.jetbrains.jps.model.module.JpsTypedModuleSourceRoot
 import org.jetbrains.jps.model.serialization.facet.JpsFacetSerializer
 import org.jetbrains.jps.model.serialization.module.JpsModuleRootModelSerializer.*
-import org.jetbrains.kotlin.analyzer.common.CommonPlatform
 import org.jetbrains.kotlin.config.getFacetPlatformByConfigurationElement
 import org.jetbrains.kotlin.idea.facet.KotlinFacetType
 import org.jetbrains.kotlin.idea.framework.JavaRuntimeDetectionUtil
 import org.jetbrains.kotlin.idea.framework.JsLibraryStdDetectionUtil
 import org.jetbrains.kotlin.idea.framework.getLibraryJar
 import org.jetbrains.kotlin.idea.refactoring.toVirtualFile
-import org.jetbrains.kotlin.js.resolve.JsPlatform
-import org.jetbrains.kotlin.resolve.TargetPlatform
-import org.jetbrains.kotlin.resolve.jvm.platform.JvmPlatform
+import org.jetbrains.kotlin.platform.CommonPlatforms
+import org.jetbrains.kotlin.platform.TargetPlatform
+import org.jetbrains.kotlin.platform.isCommon
+import org.jetbrains.kotlin.platform.js.JsPlatforms
+import org.jetbrains.kotlin.platform.js.isJs
+import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
+import org.jetbrains.kotlin.platform.jvm.isJvm
+import org.jetbrains.kotlin.platform.idePlatformKind
 import org.jetbrains.kotlin.utils.PathUtil
 
 class KotlinNonJvmSourceRootConverterProvider : ConverterProvider("kotlin-non-jvm-source-roots") {
@@ -52,10 +56,11 @@ class KotlinNonJvmSourceRootConverterProvider : ConverterProvider("kotlin-non-jv
             JavaResourceRootType.TEST_RESOURCE
         )
 
+        // TODO(dsavvinov): review how it behaves in HMPP environment
         private val PLATFORM_TO_STDLIB_DETECTORS: Map<TargetPlatform, (Array<VirtualFile>) -> Boolean> = mapOf(
-            JvmPlatform to { roots: Array<VirtualFile> -> JavaRuntimeDetectionUtil.getRuntimeJar(roots.toList()) != null },
-            JsPlatform to { roots: Array<VirtualFile> -> JsLibraryStdDetectionUtil.getJsStdLibJar(roots.toList()) != null },
-            CommonPlatform to { roots: Array<VirtualFile> -> getLibraryJar(roots, PathUtil.KOTLIN_STDLIB_COMMON_JAR_PATTERN) != null }
+            JvmPlatforms.unspecifiedJvmPlatform to { roots: Array<VirtualFile> -> JavaRuntimeDetectionUtil.getRuntimeJar(roots.toList()) != null },
+            JsPlatforms.defaultJsPlatform to { roots: Array<VirtualFile> -> JsLibraryStdDetectionUtil.getJsStdLibJar(roots.toList()) != null },
+            CommonPlatforms.defaultCommonPlatform to { roots: Array<VirtualFile> -> getLibraryJar(roots, PathUtil.KOTLIN_STDLIB_COMMON_JAR_PATTERN) != null }
         )
     }
 
@@ -137,7 +142,7 @@ class KotlinNonJvmSourceRootConverterProvider : ConverterProvider("kotlin-non-jv
                     getFacetElement(KotlinFacetType.ID)
                         ?.getChild(JpsFacetSerializer.CONFIGURATION_TAG)
                         ?.getFacetPlatformByConfigurationElement()
-                        ?.kind?.compilerPlatform
+
 
                 private fun ModuleSettings.detectPlatformByDependencies(): TargetPlatform? {
                     var hasCommonStdlib = false
@@ -148,7 +153,7 @@ class KotlinNonJvmSourceRootConverterProvider : ConverterProvider("kotlin-non-jv
                         .forEach {
                             val stdlibPlatform = it.stdlibPlatform
                             if (stdlibPlatform != null) {
-                                if (stdlibPlatform == CommonPlatform) {
+                                if (stdlibPlatform.isCommon()) {
                                     hasCommonStdlib = true
                                 } else {
                                     return stdlibPlatform
@@ -156,13 +161,13 @@ class KotlinNonJvmSourceRootConverterProvider : ConverterProvider("kotlin-non-jv
                             }
                         }
 
-                    return if (hasCommonStdlib) CommonPlatform else null
+                    return if (hasCommonStdlib) CommonPlatforms.defaultCommonPlatform else null
                 }
 
                 private fun ModuleSettings.detectPlatform(): TargetPlatform {
                     return detectPlatformByFacet()
                         ?: detectPlatformByDependencies()
-                        ?: JvmPlatform
+                        ?: JvmPlatforms.unspecifiedJvmPlatform
                 }
 
                 private fun ModuleSettings.getSourceFolderElements(): List<Element> {
@@ -192,7 +197,7 @@ class KotlinNonJvmSourceRootConverterProvider : ConverterProvider("kotlin-non-jv
                     }
 
                     val targetPlatform = settings.detectPlatform()
-                    return (targetPlatform != JvmPlatform)
+                    return (!targetPlatform.isJvm())
                 }
 
                 override fun process(settings: ModuleSettings) {

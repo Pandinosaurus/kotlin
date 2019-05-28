@@ -17,7 +17,6 @@
 package org.jetbrains.kotlin.frontend.js.di
 
 import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.config.TargetPlatformVersion
 import org.jetbrains.kotlin.container.get
 import org.jetbrains.kotlin.container.useImpl
 import org.jetbrains.kotlin.container.useInstance
@@ -25,17 +24,16 @@ import org.jetbrains.kotlin.context.ModuleContext
 import org.jetbrains.kotlin.descriptors.PackageFragmentProvider
 import org.jetbrains.kotlin.descriptors.impl.CompositePackageFragmentProvider
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
+import org.jetbrains.kotlin.frontend.di.configureIncrementalCompilation
 import org.jetbrains.kotlin.frontend.di.configureModule
+import org.jetbrains.kotlin.frontend.di.configureStandardResolveComponents
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
 import org.jetbrains.kotlin.incremental.components.LookupTracker
-import org.jetbrains.kotlin.js.resolve.JsPlatform
+import org.jetbrains.kotlin.js.resolve.JsPlatformAnalyzerServices
+import org.jetbrains.kotlin.platform.js.JsPlatforms
 import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.lazy.KotlinCodeAnalyzer
-import org.jetbrains.kotlin.resolve.lazy.ResolveSession
 import org.jetbrains.kotlin.resolve.lazy.declarations.DeclarationProviderFactory
-import org.jetbrains.kotlin.serialization.deserialization.DeserializationConfiguration
-import org.jetbrains.kotlin.serialization.js.KotlinJavascriptSerializationUtil
-import org.jetbrains.kotlin.serialization.js.PackagesWithHeaderMetadata
 import org.jetbrains.kotlin.types.SubstitutingScopeProviderImpl
 
 fun createTopDownAnalyzerForJs(
@@ -47,20 +45,22 @@ fun createTopDownAnalyzerForJs(
         expectActualTracker: ExpectActualTracker,
         additionalPackages: List<PackageFragmentProvider>
 ): LazyTopDownAnalyzer {
-    val storageComponentContainer = createContainer("TopDownAnalyzerForJs", JsPlatform) {
-        configureModule(moduleContext, JsPlatform, TargetPlatformVersion.NoVersion, bindingTrace)
+    val storageComponentContainer = createContainer("TopDownAnalyzerForJs", JsPlatformAnalyzerServices) {
+        configureModule(
+            moduleContext,
+            JsPlatforms.defaultJsPlatform,
+            JsPlatformAnalyzerServices,
+            bindingTrace,
+            languageVersionSettings
+        )
+
+        configureIncrementalCompilation(lookupTracker, expectActualTracker)
+        configureStandardResolveComponents()
+        useImpl<SubstitutingScopeProviderImpl>()
 
         useInstance(declarationProviderFactory)
-        useImpl<AnnotationResolverImpl>()
-
         CompilerEnvironment.configure(this)
-        useInstance(lookupTracker)
-        useInstance(expectActualTracker)
 
-        useInstance(languageVersionSettings)
-        useImpl<ResolveSession>()
-        useImpl<LazyTopDownAnalyzer>()
-        useImpl<SubstitutingScopeProviderImpl>()
     }.apply {
         val packagePartProviders = mutableListOf(get<KotlinCodeAnalyzer>().packageFragmentProvider)
         val moduleDescriptor = get<ModuleDescriptorImpl>()

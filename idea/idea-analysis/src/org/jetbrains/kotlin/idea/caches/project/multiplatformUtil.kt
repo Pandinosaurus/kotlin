@@ -14,7 +14,6 @@ import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValueProvider
 import org.jetbrains.kotlin.analyzer.ModuleInfo
-import org.jetbrains.kotlin.analyzer.common.CommonPlatform
 import org.jetbrains.kotlin.caches.resolve.KotlinCacheService
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.idea.caches.project.SourceType.PRODUCTION
@@ -26,7 +25,8 @@ import org.jetbrains.kotlin.idea.project.platform
 import org.jetbrains.kotlin.idea.util.rootManager
 import org.jetbrains.kotlin.platform.impl.CommonIdePlatformKind
 import org.jetbrains.kotlin.platform.impl.isCommon
-import org.jetbrains.kotlin.resolve.TargetPlatform
+import org.jetbrains.kotlin.platform.TargetPlatform
+import org.jetbrains.kotlin.platform.isCommon
 
 val Module.isNewMPPModule: Boolean
     get() = facetSettings?.kind?.isNewMPP ?: false
@@ -40,7 +40,7 @@ val Module.sourceType: SourceType?
 val Module.isMPPModule: Boolean
     get() {
         val settings = facetSettings ?: return false
-        return settings.platform.isCommon ||
+        return settings.platform.isCommon() ||
                 settings.implementedModuleNames.isNotEmpty() ||
                 settings.kind.isNewMPP
     }
@@ -68,7 +68,7 @@ val Module.implementedModules: List<Module>
             CachedValueProvider.Result(
                 if (isNewMPPModule) {
                     rootManager.dependencies.filter {
-                        it.isNewMPPModule && it.platform is CommonIdePlatformKind.Platform && it.externalProjectId == externalProjectId
+                        it.isNewMPPModule && it.platform.isCommon() && it.externalProjectId == externalProjectId
                     }
                 } else {
                     val modelsProvider = IdeModelsProviderImpl(project)
@@ -105,6 +105,9 @@ private fun Module.toInfo(type: SourceType): ModuleSourceInfo? = when (type) {
 }
 
 
+/**
+ * This function returns immediate parents in dependsOn graph
+ */
 val ModuleDescriptor.implementedDescriptors: List<ModuleDescriptor>
     get() {
         val moduleInfo = getCapability(ModuleInfo.Capability)
@@ -119,15 +122,16 @@ private fun ModuleSourceInfo.toDescriptor() = KotlinCacheService.getInstance(mod
     .getResolutionFacadeByModuleInfo(this, platform)?.moduleDescriptor
 
 fun PsiElement.getPlatformModuleInfo(desiredPlatform: TargetPlatform): PlatformModuleInfo? {
-    assert(desiredPlatform !is CommonPlatform) { "Platform module cannot have Common platform" }
+    assert(!desiredPlatform.isCommon()) { "Platform module cannot have Common platform" }
     val moduleInfo = getNullableModuleInfo() as? ModuleSourceInfo ?: return null
-    return when (moduleInfo.platform) {
-        is CommonPlatform -> {
+    val platform = moduleInfo.platform
+    return when {
+        platform.isCommon() -> {
             val correspondingImplementingModule = moduleInfo.module.implementingModules.map { it.toInfo(moduleInfo.sourceType) }
                 .firstOrNull { it?.platform == desiredPlatform } ?: return null
             PlatformModuleInfo(correspondingImplementingModule, correspondingImplementingModule.expectedBy)
         }
-        desiredPlatform -> {
+        platform == desiredPlatform -> {
             val expectedBy = moduleInfo.expectedBy.takeIf { it.isNotEmpty() } ?: return null
             PlatformModuleInfo(moduleInfo, expectedBy)
         }

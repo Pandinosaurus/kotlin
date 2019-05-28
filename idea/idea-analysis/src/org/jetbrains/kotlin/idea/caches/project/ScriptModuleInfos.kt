@@ -14,6 +14,10 @@ import org.jetbrains.kotlin.idea.core.script.dependencies.ScriptAdditionalIdeaDe
 import org.jetbrains.kotlin.idea.stubindex.KotlinSourceFilterScope
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.scripting.definitions.KotlinScriptDefinition
+import org.jetbrains.kotlin.resolve.PlatformDependentAnalyzerServices
+import org.jetbrains.kotlin.platform.TargetPlatform
+import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
+import org.jetbrains.kotlin.resolve.jvm.platform.JvmPlatformAnalyzerServices
 
 data class ScriptModuleInfo(
     val project: Project,
@@ -45,6 +49,12 @@ data class ScriptModuleInfo(
             dependenciesInfo.sdk?.let { add(SdkInfo(project, it)) }
         }
     }
+
+    override val platform: TargetPlatform
+        get() = JvmPlatforms.unspecifiedJvmPlatform // TODO(dsavvinov): choose proper target version
+
+    override val analyzerServices: PlatformDependentAnalyzerServices
+        get() = JvmPlatformAnalyzerServices
 }
 
 sealed class ScriptDependenciesInfo(val project: Project) : IdeaModuleInfo, BinaryModuleInfo {
@@ -65,6 +75,12 @@ sealed class ScriptDependenciesInfo(val project: Project) : IdeaModuleInfo, Bina
 
     override val sourcesModuleInfo: SourceForBinaryModuleInfo?
         get() = ScriptDependenciesSourceInfo.ForProject(project)
+
+    override val platform: TargetPlatform
+        get() = JvmPlatforms.unspecifiedJvmPlatform // TODO(dsavvinov): choose proper TargetVersion
+
+    override val analyzerServices: PlatformDependentAnalyzerServices
+        get() = JvmPlatformAnalyzerServices
 
     class ForFile(
         project: Project,
@@ -114,6 +130,12 @@ sealed class ScriptDependenciesSourceInfo(val project: Project) : IdeaModuleInfo
     override fun hashCode() = project.hashCode()
 
     override fun equals(other: Any?): Boolean = other is ScriptDependenciesSourceInfo && this.project == other.project
+
+    override val platform: TargetPlatform
+        get() = JvmPlatforms.unspecifiedJvmPlatform // TODO(dsavvinov): choose proper TargetVersion
+
+    override val analyzerServices: PlatformDependentAnalyzerServices
+        get() = JvmPlatformAnalyzerServices
 
     class ForProject(project: Project) : ScriptDependenciesSourceInfo(project)
 }

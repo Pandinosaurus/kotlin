@@ -47,12 +47,11 @@ import org.jetbrains.kotlin.idea.framework.KotlinSdkType
 import org.jetbrains.kotlin.idea.project.languageVersionSettings
 import org.jetbrains.kotlin.idea.util.projectStructure.allModules
 import org.jetbrains.kotlin.idea.util.projectStructure.sdk
-import org.jetbrains.kotlin.js.resolve.JsPlatform
-import org.jetbrains.kotlin.platform.impl.JvmIdePlatformKind
-import org.jetbrains.kotlin.platform.impl.isCommon
-import org.jetbrains.kotlin.platform.impl.isJavaScript
-import org.jetbrains.kotlin.resolve.TargetPlatform
-import org.jetbrains.kotlin.resolve.jvm.platform.JvmPlatform
+import org.jetbrains.kotlin.platform.TargetPlatform
+import org.jetbrains.kotlin.platform.js.JsPlatforms
+import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
+import org.jetbrains.kotlin.platform.js.isJs
+import org.jetbrains.kotlin.platform.isCommon
 import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.junit.Assert
 import org.junit.Ignore
@@ -104,7 +103,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
             Assert.assertEquals("1.1", apiLevel!!.versionString)
             Assert.assertFalse(compilerArguments!!.autoAdvanceLanguageVersion)
             Assert.assertFalse(compilerArguments!!.autoAdvanceApiVersion)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_8), platform)
+            Assert.assertEquals(JvmPlatforms.jvm18, platform)
             Assert.assertEquals("1.7", (compilerArguments as K2JVMCompilerArguments).jvmTarget)
             Assert.assertEquals(
                 "-Xdump-declarations-to=tmp -Xsingle-module",
@@ -116,7 +115,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
             Assert.assertEquals("1.0", apiLevel!!.versionString)
             Assert.assertFalse(compilerArguments!!.autoAdvanceLanguageVersion)
             Assert.assertFalse(compilerArguments!!.autoAdvanceApiVersion)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_6), platform)
+            Assert.assertEquals(JvmPlatforms.jvm16, platform)
             Assert.assertEquals("1.6", (compilerArguments as K2JVMCompilerArguments).jvmTarget)
             Assert.assertEquals(
                 "-Xdump-declarations-to=tmpTest",
@@ -160,7 +159,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_8), platform)
+            Assert.assertEquals(JvmPlatforms.jvm18, platform)
             Assert.assertEquals("1.7", (compilerArguments as K2JVMCompilerArguments).jvmTarget)
             Assert.assertEquals(
                 "-Xdump-declarations-to=tmp -Xsingle-module",
@@ -170,7 +169,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(testFacetSettings) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.0", apiLevel!!.versionString)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_6), platform)
+            Assert.assertEquals(JvmPlatforms.jvm16, platform)
             Assert.assertEquals("1.6", (compilerArguments as K2JVMCompilerArguments).jvmTarget)
             Assert.assertEquals(
                 "-Xdump-declarations-to=tmpTest",
@@ -204,7 +203,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings("project_myMain")) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_8), platform)
+            Assert.assertEquals(JvmPlatforms.jvm18, platform)
             Assert.assertEquals("1.7", (compilerArguments as K2JVMCompilerArguments).jvmTarget)
             Assert.assertEquals(
                 "-Xdump-declarations-to=tmp -Xsingle-module",
@@ -214,7 +213,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings("project_myTest")) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.0", apiLevel!!.versionString)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_6), platform)
+            Assert.assertEquals(JvmPlatforms.jvm16, platform)
             Assert.assertEquals("1.6", (compilerArguments as K2JVMCompilerArguments).jvmTarget)
             Assert.assertEquals(
                 "-Xdump-declarations-to=tmpTest",
@@ -250,7 +249,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings("project_myMain")) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_8), platform)
+            Assert.assertEquals(JvmPlatforms.jvm18, platform)
             Assert.assertEquals("1.7", (compilerArguments as K2JVMCompilerArguments).jvmTarget)
             Assert.assertEquals(
                 "-Xdump-declarations-to=tmp -Xsingle-module",
@@ -260,7 +259,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings("project_myTest")) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.0", apiLevel!!.versionString)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_6), platform)
+            Assert.assertEquals(JvmPlatforms.jvm16, platform)
             Assert.assertEquals("1.6", (compilerArguments as K2JVMCompilerArguments).jvmTarget)
             Assert.assertEquals(
                 "-Xdump-declarations-to=tmpTest",
@@ -316,7 +315,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
             Assert.assertEquals("1.1", apiLevel!!.versionString)
             Assert.assertFalse(compilerArguments!!.autoAdvanceLanguageVersion)
             Assert.assertFalse(compilerArguments!!.autoAdvanceApiVersion)
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
             with(compilerArguments as K2JSCompilerArguments) {
                 Assert.assertEquals(true, sourceMap)
                 Assert.assertEquals("plain", moduleKind)
@@ -332,7 +331,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
             Assert.assertEquals("1.0", apiLevel!!.versionString)
             Assert.assertFalse(compilerArguments!!.autoAdvanceLanguageVersion)
             Assert.assertFalse(compilerArguments!!.autoAdvanceApiVersion)
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
             with(compilerArguments as K2JSCompilerArguments) {
                 Assert.assertEquals(false, sourceMap)
                 Assert.assertEquals("umd", moduleKind)
@@ -378,7 +377,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
         }
 
         val rootManager = ModuleRootManager.getInstance(getModule("project_main"))
@@ -416,7 +415,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings("project_myMain")) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
             with(compilerArguments as K2JSCompilerArguments) {
                 Assert.assertEquals(true, sourceMap)
                 Assert.assertEquals("plain", moduleKind)
@@ -430,7 +429,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings("project_myTest")) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.0", apiLevel!!.versionString)
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
             with(compilerArguments as K2JSCompilerArguments) {
                 Assert.assertEquals(false, sourceMap)
                 Assert.assertEquals("umd", moduleKind)
@@ -467,7 +466,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         importProject()
 
         with(facetSettings) {
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
         }
     }
 
@@ -479,7 +478,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_6), platform)
+            Assert.assertEquals(JvmPlatforms.jvm16, platform)
         }
 
         Assert.assertEquals(
@@ -508,7 +507,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
         }
 
         val rootManager = ModuleRootManager.getInstance(getModule("project_main"))
@@ -542,7 +541,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertTrue(platform.isCommon)
+            Assert.assertTrue(platform.isCommon())
         }
 
         val rootManager = ModuleRootManager.getInstance(getModule("project_main"))
@@ -575,7 +574,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings("project")) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertTrue(platform.isCommon)
+            Assert.assertTrue(platform.isCommon())
         }
 
         val rootManager = ModuleRootManager.getInstance(getModule("project"))
@@ -603,7 +602,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertEquals(JvmIdePlatformKind.Platform(JvmTarget.JVM_1_6), platform)
+            Assert.assertEquals(JvmPlatforms.jvm16, platform)
         }
 
         Assert.assertEquals(
@@ -632,7 +631,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         with(facetSettings) {
             Assert.assertEquals("1.1", languageLevel!!.versionString)
             Assert.assertEquals("1.1", apiLevel!!.versionString)
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
         }
 
         Assert.assertEquals(
@@ -721,7 +720,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         importProject()
 
         with(facetSettings("js-module")) {
-            Assert.assertTrue(platform.isJavaScript)
+            Assert.assertTrue(platform.isJs())
         }
 
         val rootManager = ModuleRootManager.getInstance(getModule("js-module"))
@@ -871,7 +870,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
             Assert.assertEquals("1.0", apiLevel!!.versionString)
             Assert.assertFalse(compilerArguments!!.autoAdvanceLanguageVersion)
             Assert.assertFalse(compilerArguments!!.autoAdvanceApiVersion)
-            Assert.assertTrue(platform.isCommon)
+            Assert.assertTrue(platform.isCommon())
             Assert.assertEquals("my/classpath", (compilerArguments as K2MetadataCompilerArguments).classpath)
             Assert.assertEquals("my/destination", (compilerArguments as K2MetadataCompilerArguments).destination)
         }
@@ -881,7 +880,7 @@ class GradleFacetImportTest : GradleImportingTestCase() {
             Assert.assertEquals("1.0", apiLevel!!.versionString)
             Assert.assertFalse(compilerArguments!!.autoAdvanceLanguageVersion)
             Assert.assertFalse(compilerArguments!!.autoAdvanceApiVersion)
-            Assert.assertTrue(platform.isCommon)
+            Assert.assertTrue(platform.isCommon())
             Assert.assertEquals("my/test/classpath", (compilerArguments as K2MetadataCompilerArguments).classpath)
             Assert.assertEquals("my/test/destination", (compilerArguments as K2MetadataCompilerArguments).destination)
         }
@@ -933,9 +932,9 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         configureByFiles()
         importProject()
 
-        checkStableModuleName("project_main", "project", JsPlatform, isProduction = true)
+        checkStableModuleName("project_main", "project", JsPlatforms.defaultJsPlatform, isProduction = true)
         // Note "_test" suffix: this is current behavior of K2JS Compiler
-        checkStableModuleName("project_test", "project_test", JsPlatform, isProduction = false)
+        checkStableModuleName("project_test", "project_test", JsPlatforms.defaultJsPlatform, isProduction = false)
 
         assertAllModulesConfigured()
     }
@@ -945,8 +944,8 @@ class GradleFacetImportTest : GradleImportingTestCase() {
         configureByFiles()
         importProject()
 
-        checkStableModuleName("project_main", "project", JvmPlatform, isProduction = true)
-        checkStableModuleName("project_test", "project", JvmPlatform, isProduction = false)
+        checkStableModuleName("project_main", "project", JvmPlatforms.unspecifiedJvmPlatform, isProduction = true)
+        checkStableModuleName("project_test", "project", JvmPlatforms.unspecifiedJvmPlatform, isProduction = false)
 
         assertAllModulesConfigured()
     }

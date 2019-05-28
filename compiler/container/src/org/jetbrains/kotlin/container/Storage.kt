@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.container
 import com.intellij.util.containers.MultiMap
 import java.io.Closeable
 import java.io.PrintStream
+import java.lang.IllegalStateException
 import java.lang.reflect.Modifier
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
@@ -33,19 +34,28 @@ enum class ComponentStorageState {
     Disposed
 }
 
-internal class InvalidCardinalityException(message: String, val descriptors: Collection<ComponentDescriptor>) : Exception(message)
+internal class InvalidCardinalityException(message: String) : Exception(message)
 
 class ComponentStorage(private val myId: String, parent: ComponentStorage?) : ValueResolver {
     var state = ComponentStorageState.Initial
-    private val registry = ComponentRegistry()
-    init {
-        parent?.let { registry.addAll(it.registry) }
-    }
 
     private val descriptors = LinkedHashSet<ComponentDescriptor>()
     private val dependencies = MultiMap.createLinkedSet<ComponentDescriptor, Type>()
+    private val clashResolvers = ArrayList<PlatformExtensionsClashResolver<*>>()
+    private val registry = ComponentRegistry()
+
+    init {
+        parent?.let {
+            registry.addAll(it.registry)
+            clashResolvers.addAll(it.clashResolvers)
+        }
+    }
+
 
     override fun resolve(request: Type, context: ValueResolveContext): ValueDescriptor? {
+        fun ComponentDescriptor.isDefaultComponent(): Boolean =
+            this is DefaultInstanceComponentDescriptor || this is DefaultSingletonTypeComponentDescriptor
+
         if (state == ComponentStorageState.Initial)
             throw ContainerConsistencyException("Container was not composed before resolving")
 
@@ -53,9 +63,16 @@ class ComponentStorage(private val myId: String, parent: ComponentStorage?) : Va
         if (entry.isNotEmpty()) {
             registerDependency(request, context)
 
-            if (entry.size > 1)
-                throw InvalidCardinalityException("Request $request cannot be satisfied because there is more than one type registered", entry)
-            return entry.singleOrNull()
+            if (entry.size == 1) return entry.single()
+
+            val nonDefault = entry.filterNot { it.isDefaultComponent() }
+            if (nonDefault.isEmpty()) return entry.first()
+
+            return nonDefault.singleOrNull()
+                ?: throw InvalidCardinalityException(
+                    "Request $request cannot be satisfied because there is more than one type registered\n" +
+                            "Clashed registrations: ${entry.joinToString()}"
+                )
         }
         return null
     }
@@ -97,6 +114,10 @@ class ComponentStorage(private val myId: String, parent: ComponentStorage?) : Va
         return registry.tryGetEntry(request)
     }
 
+    internal fun registerClashResolvers(resolvers: List<PlatformExtensionsClashResolver<*>>) {
+        clashResolvers.addAll(resolvers)
+    }
+
     internal fun registerDescriptors(context: ComponentResolveContext, items: List<ComponentDescriptor>) {
         if (state == ComponentStorageState.Disposed) {
             throw ContainerConsistencyException("Cannot register descriptors in $state state")
@@ -125,6 +146,7 @@ class ComponentStorage(private val myId: String, parent: ComponentStorage?) : Va
 
         val implicits = inspectDependenciesAndRegisterAdhoc(context, descriptors)
 
+        registry.resolveClashesIfAny(context.container, clashResolvers)
         injectProperties(context, descriptors + implicits)
     }
 

@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.idea.core.platform.impl
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.libraries.Library
-import org.jetbrains.kotlin.analyzer.common.CommonAnalyzerFacade
+import org.jetbrains.kotlin.analyzer.common.CommonResolverForModuleFactory
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.gradle.KotlinPlatform
@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.idea.platform.IdePlatformKindTooling
 import org.jetbrains.kotlin.idea.platform.tooling
 import org.jetbrains.kotlin.idea.project.platform
 import org.jetbrains.kotlin.idea.util.module
+import org.jetbrains.kotlin.platform.idePlatformKind
 import org.jetbrains.kotlin.platform.impl.CommonIdePlatformKind
 import org.jetbrains.kotlin.platform.impl.isCommon
 import org.jetbrains.kotlin.psi.KtFunction
@@ -33,7 +34,7 @@ object CommonIdePlatformKindTooling : IdePlatformKindTooling() {
 
     override fun compilerArgumentsForProject(project: Project): CommonCompilerArguments? = null
 
-    override val resolverForModuleFactory = CommonAnalyzerFacade
+    override val resolverForModuleFactory = CommonResolverForModuleFactory
 
     override val mavenLibraryIds = listOf(MAVEN_COMMON_STDLIB_ID)
     override val gradlePluginId = "kotlin-platform-common"
@@ -62,7 +63,7 @@ object CommonIdePlatformKindTooling : IdePlatformKindTooling() {
     override fun acceptsAsEntryPoint(function: KtFunction): Boolean {
         val module = function.containingKtFile.module ?: return false
         return module.implementingModules.any { implementingModule ->
-            implementingModule.platform?.kind?.takeIf { !it.isCommon }?.tooling?.acceptsAsEntryPoint(function) ?: false
+            implementingModule.platform?.idePlatformKind?.takeIf { !it.isCommon }?.tooling?.acceptsAsEntryPoint(function) ?: false
         }
     }
 }

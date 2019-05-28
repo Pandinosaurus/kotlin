@@ -22,22 +22,22 @@ import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analyzer.*
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.config.TargetPlatformVersion
 import org.jetbrains.kotlin.container.StorageComponentContainer
+import org.jetbrains.kotlin.platform.TargetPlatformVersion
 import org.jetbrains.kotlin.container.get
-import org.jetbrains.kotlin.container.useImpl
-import org.jetbrains.kotlin.container.useInstance
 import org.jetbrains.kotlin.context.ModuleContext
 import org.jetbrains.kotlin.context.ProjectContext
-import org.jetbrains.kotlin.contracts.ContractDeserializerImpl
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.impl.CompositePackageFragmentProvider
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
+import org.jetbrains.kotlin.container.useImpl
+import org.jetbrains.kotlin.container.useInstance
 import org.jetbrains.kotlin.frontend.di.configureModule
-import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
-import org.jetbrains.kotlin.incremental.components.LookupTracker
+import org.jetbrains.kotlin.frontend.di.configureStandardResolveComponents
 import org.jetbrains.kotlin.load.kotlin.MetadataFinderFactory
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.platform.CommonPlatforms
+import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.lazy.ResolveSession
@@ -55,7 +55,7 @@ class CommonAnalysisParameters(
  * A facade that is used to analyze common (platform-independent) modules in multi-platform projects.
  * See [CommonPlatform]
  */
-object CommonAnalyzerFacade : ResolverForModuleFactory() {
+object CommonResolverForModuleFactory : ResolverForModuleFactory() {
     private class SourceModuleInfo(
         override val name: Name,
         override val capabilities: Map<ModuleDescriptor.Capability<*>, Any?>,
@@ -65,11 +65,17 @@ object CommonAnalyzerFacade : ResolverForModuleFactory() {
 
         override fun dependencyOnBuiltIns(): ModuleInfo.DependencyOnBuiltIns =
             if (dependOnOldBuiltIns) ModuleInfo.DependencyOnBuiltIns.LAST else ModuleInfo.DependencyOnBuiltIns.NONE
+
+        override val platform: TargetPlatform
+            get() = CommonPlatforms.defaultCommonPlatform
+
+        override val analyzerServices: PlatformDependentAnalyzerServices
+            get() = CommonPlatformAnalyzerServices
     }
 
     fun analyzeFiles(
         files: Collection<KtFile>, moduleName: Name, dependOnBuiltIns: Boolean, languageVersionSettings: LanguageVersionSettings,
-        capabilities: Map<ModuleDescriptor.Capability<*>, Any?> = mapOf(MultiTargetPlatform.CAPABILITY to MultiTargetPlatform.Common),
+        capabilities: Map<ModuleDescriptor.Capability<*>, Any?> = emptyMap(),
         metadataPartProviderFactory: (ModuleContent<ModuleInfo>) -> MetadataPartProvider
     ): AnalysisResult {
         val moduleInfo = SourceModuleInfo(moduleName, capabilities, dependOnBuiltIns)
@@ -84,7 +90,7 @@ object CommonAnalyzerFacade : ResolverForModuleFactory() {
         @Suppress("NAME_SHADOWING")
         val resolver = ResolverForProjectImpl(
             "sources for metadata serializer",
-            ProjectContext(project),
+            ProjectContext(project, "metadata serializer"),
             listOf(moduleInfo),
             modulesContent = { ModuleContent(it, files, GlobalSearchScope.allScope(project)) },
             moduleLanguageSettingsProvider = object : LanguageSettingsProvider {
@@ -99,7 +105,7 @@ object CommonAnalyzerFacade : ResolverForModuleFactory() {
                     project: Project
                 ) = TargetPlatformVersion.NoVersion
             },
-            resolverForModuleFactoryByPlatform = { CommonAnalyzerFacade },
+            resolverForModuleFactoryByPlatform = { CommonResolverForModuleFactory },
             platformParameters = { _ -> CommonAnalysisParameters(metadataPartProviderFactory) }
         )
 
@@ -118,8 +124,7 @@ object CommonAnalyzerFacade : ResolverForModuleFactory() {
         platformParameters: PlatformAnalysisParameters,
         targetEnvironment: TargetEnvironment,
         resolverForProject: ResolverForProject<M>,
-        languageVersionSettings: LanguageVersionSettings,
-        targetPlatformVersion: TargetPlatformVersion
+        languageVersionSettings: LanguageVersionSettings
     ): ResolverForModule {
         val (moduleInfo, syntheticFiles, moduleContentScope) = moduleContent
         val project = moduleContext.project
@@ -133,7 +138,7 @@ object CommonAnalyzerFacade : ResolverForModuleFactory() {
         val trace = CodeAnalyzerInitializer.getInstance(project).createTrace()
         val container = createContainerToResolveCommonCode(
             moduleContext, trace, declarationProviderFactory, moduleContentScope, targetEnvironment, metadataPartProvider,
-            languageVersionSettings
+            languageVersionSettings, CommonPlatforms.defaultCommonPlatform, CommonPlatformAnalyzerServices
         )
 
         val packageFragmentProviders = listOf(
@@ -143,39 +148,41 @@ object CommonAnalyzerFacade : ResolverForModuleFactory() {
 
         return ResolverForModule(CompositePackageFragmentProvider(packageFragmentProviders), container)
     }
+}
 
-    private fun createContainerToResolveCommonCode(
-        moduleContext: ModuleContext,
-        bindingTrace: BindingTrace,
-        declarationProviderFactory: DeclarationProviderFactory,
-        moduleContentScope: GlobalSearchScope,
-        targetEnvironment: TargetEnvironment,
-        metadataPartProvider: MetadataPartProvider,
-        languageVersionSettings: LanguageVersionSettings
-    ): StorageComponentContainer = createContainer("ResolveCommonCode", targetPlatform) {
-        configureModule(moduleContext, targetPlatform, TargetPlatformVersion.NoVersion, bindingTrace)
+private fun createContainerToResolveCommonCode(
+    moduleContext: ModuleContext,
+    bindingTrace: BindingTrace,
+    declarationProviderFactory: DeclarationProviderFactory,
+    moduleContentScope: GlobalSearchScope,
+    targetEnvironment: TargetEnvironment,
+    metadataPartProvider: MetadataPartProvider,
+    languageVersionSettings: LanguageVersionSettings,
+    platform: TargetPlatform,
+    analyzerServices: PlatformDependentAnalyzerServices
+): StorageComponentContainer =
+    createContainer("ResolveCommonCode", analyzerServices) {
+        configureModule(moduleContext, platform, analyzerServices, bindingTrace, languageVersionSettings)
 
         useInstance(moduleContentScope)
-        useInstance(LookupTracker.DO_NOTHING)
-        useInstance(ExpectActualTracker.DoNothing)
-        useImpl<ResolveSession>()
-        useImpl<LazyTopDownAnalyzer>()
-        useInstance(languageVersionSettings)
-        useImpl<AnnotationResolverImpl>()
-        useImpl<CompilerDeserializationConfiguration>()
-        useInstance(metadataPartProvider)
         useInstance(declarationProviderFactory)
-        useImpl<MetadataPackageFragmentProvider>()
-        useImpl<ContractDeserializerImpl>()
+
+        configureStandardResolveComponents()
+
+        configureCommonSpecificComponents()
+        useInstance(metadataPartProvider)
         useImpl<SubstitutingScopeProviderImpl>()
 
-        val metadataFinderFactory = ServiceManager.getService(moduleContext.project, MetadataFinderFactory::class.java)
-                ?: error("No MetadataFinderFactory in project")
+        val metadataFinderFactory = ServiceManager.getService(
+            moduleContext.project,
+            MetadataFinderFactory::class.java
+        )
+            ?: error("No MetadataFinderFactory in project")
         useInstance(metadataFinderFactory.create(moduleContentScope))
 
         targetEnvironment.configure(this)
     }
 
-    override val targetPlatform: TargetPlatform
-        get() = CommonPlatform
+fun StorageComponentContainer.configureCommonSpecificComponents() {
+    useImpl<MetadataPackageFragmentProvider>()
 }
