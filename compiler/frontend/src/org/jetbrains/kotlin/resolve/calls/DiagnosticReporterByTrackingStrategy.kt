@@ -62,6 +62,12 @@ class DiagnosticReporterByTrackingStrategy(
                 val reportOn = (diagnostic as NonApplicableCallForBuilderInferenceDiagnostic).kotlinCall
                 trace.reportDiagnosticOnce(Errors.NON_APPLICABLE_CALL_FOR_BUILDER_INFERENCE.on(reportOn.psiKotlinCall.psiCall.callElement))
             }
+            OnlyInputTypesDiagnostic::class.java -> {
+                val typeVariable = (diagnostic as OnlyInputTypesDiagnostic).typeVariable as? TypeVariableFromCallableDescriptor ?: return
+                psiKotlinCall.psiCall.calleeExpression?.let {
+                    trace.report(TYPE_INFERENCE_ONLY_INPUT_TYPES.on(it, typeVariable.originalTypeParameter))
+                }
+            }
         }
     }
 
@@ -135,7 +141,7 @@ class DiagnosticReporterByTrackingStrategy(
                 require(diagnostic is ArgumentTypeMismatchDiagnostic)
                 reportIfNonNull(callArgument.safeAs<PSIKotlinCallArgument>()?.valueArgument?.getArgumentExpression()) {
                     if (it.isNull()) {
-                        trace.report(NULL_FOR_NONNULL_TYPE.on(it, diagnostic.expectedType))
+                        trace.reportDiagnosticOnce(NULL_FOR_NONNULL_TYPE.on(it, diagnostic.expectedType))
                     } else {
                         trace.report(TYPE_MISMATCH.on(it, diagnostic.expectedType, diagnostic.actualType))
                     }
@@ -232,7 +238,7 @@ class DiagnosticReporterByTrackingStrategy(
                 argument?.let {
                     it.safeAs<LambdaKotlinCallArgument>()?.let lambda@{ lambda ->
                         val parameterTypes = lambda.parametersTypes?.toList() ?: return@lambda
-                        val index = parameterTypes.indexOf(constraintError.upperType)
+                        val index = parameterTypes.indexOf(constraintError.upperKotlinType.unwrap())
                         val lambdaExpression = lambda.psiExpression as? KtLambdaExpression ?: return@lambda
                         val parameter = lambdaExpression.valueParameters.getOrNull(index) ?: return@lambda
                         trace.report(Errors.EXPECTED_PARAMETER_TYPE_MISMATCH.on(parameter, constraintError.upperKotlinType.unCapture()))
