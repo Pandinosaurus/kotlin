@@ -18,30 +18,27 @@ package org.jetbrains.kotlin.idea.caches.resolve
 
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.idea.analysis.analyzeInContext
+import org.jetbrains.kotlin.idea.caches.resolve.util.analyzeControlFlow
 import org.jetbrains.kotlin.idea.project.ResolveElementCache
 import org.jetbrains.kotlin.idea.util.getResolutionScope
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.codeFragmentUtil.suppressDiagnosticsInDebugMode
 import org.jetbrains.kotlin.psi.psiUtil.getParentOfType
-import org.jetbrains.kotlin.psi.psiUtil.getParentOfTypes2
+import org.jetbrains.kotlin.psi.psiUtil.getParentOfTypes3
 import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.bindingContextUtil.getDataFlowInfoAfter
-import org.jetbrains.kotlin.resolve.calls.components.InferenceSession
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowInfo
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 import org.jetbrains.kotlin.resolve.lazy.ResolveSession
 import org.jetbrains.kotlin.resolve.scopes.*
 import org.jetbrains.kotlin.resolve.scopes.utils.addImportingScopes
-import org.jetbrains.kotlin.types.TypeUtils
-import org.jetbrains.kotlin.types.expressions.ExpressionTypingServices
-import org.jetbrains.kotlin.types.expressions.PreliminaryDeclarationVisitor
 import javax.inject.Inject
 
 class CodeFragmentAnalyzer(
     private val resolveSession: ResolveSession,
     private val qualifierResolver: QualifiedExpressionResolver,
-    private val expressionTypingServices: ExpressionTypingServices,
     private val typeResolver: TypeResolver
 ) {
     @set:Inject // component dependency cycle
@@ -58,15 +55,8 @@ class CodeFragmentAnalyzer(
 
         when (val contentElement = codeFragment.getContentElement()) {
             is KtExpression -> {
-                PreliminaryDeclarationVisitor.createForExpression(
-                    contentElement, bindingTrace,
-                    expressionTypingServices.languageVersionSettings
-                )
-
-                expressionTypingServices.getTypeInfo(
-                    scope, contentElement, TypeUtils.NO_EXPECTED_TYPE,
-                    dataFlowInfo, InferenceSession.default, bindingTrace, false
-                )
+                contentElement.analyzeInContext(scope, trace = bindingTrace, dataFlowInfo = dataFlowInfo)
+                analyzeControlFlow(resolveSession, contentElement, bindingTrace)
             }
 
             is KtTypeReference -> {
@@ -94,7 +84,7 @@ class CodeFragmentAnalyzer(
         return info.copy(scope = enrichScopeWithImports(info.scope, codeFragment))
     }
 
-    private fun getContextInfo(context: PsiElement?, resolutionFactory: (KtElement) -> BindingContext): ContextInfo {
+    private tailrec fun getContextInfo(context: PsiElement?, resolutionFactory: (KtElement) -> BindingContext): ContextInfo {
         var bindingContext: BindingContext = BindingContext.EMPTY
         var dataFlowInfo: DataFlowInfo = DataFlowInfo.EMPTY
         var scope: LexicalScope? = null
@@ -127,7 +117,10 @@ class CodeFragmentAnalyzer(
                 val functionDescriptor = bindingContextForFunction[BindingContext.FUNCTION, context]
                 if (functionDescriptor != null) {
                     bindingContext = bindingContextForFunction
+
+                    @Suppress("NON_TAIL_RECURSIVE_CALL")
                     val outerScope = getContextInfo(context.getParentOfType<KtDeclaration>(true), resolutionFactory).scope
+
                     val localRedeclarationChecker = LocalRedeclarationChecker.DO_NOTHING
                     scope = FunctionDescriptorUtil.getFunctionInnerScope(outerScope, functionDescriptor, localRedeclarationChecker)
                 }
@@ -144,7 +137,7 @@ class CodeFragmentAnalyzer(
         }
 
         if (scope == null) {
-            val parentDeclaration = context?.getParentOfTypes2<KtDeclaration, KtFile>()
+            val parentDeclaration = context?.getParentOfTypes3<KtDeclaration, KtFile, KtExpression>()
             if (parentDeclaration != null) {
                 return getContextInfo(parentDeclaration, resolutionFactory)
             }

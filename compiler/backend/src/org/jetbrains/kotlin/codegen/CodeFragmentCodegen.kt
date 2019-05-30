@@ -36,6 +36,7 @@ class CodeFragmentCodegenInfo(
     interface IParameter {
         val targetDescriptor: DeclarationDescriptor
         val targetType: KotlinType
+        val isLValue: Boolean
     }
 }
 
@@ -63,7 +64,18 @@ class CodeFragmentCodegen private constructor(
 
     override fun generateBody() {
         genConstructor()
-        genMethod(classContext.intoFunction(methodDescriptor))
+
+        val methodContext = object : MethodContext(methodDescriptor, classContext.contextKind, classContext, null, false) {
+            override fun <D : CallableMemberDescriptor> getAccessorForSuperCallIfNeeded(
+                descriptor: D,
+                superCallTarget: ClassDescriptor?,
+                state: GenerationState
+            ): D {
+                return descriptor
+            }
+        }
+
+        genMethod(methodContext)
     }
 
     override fun generateKotlinMetadataAnnotation() {
@@ -164,6 +176,10 @@ class CodeFragmentCodegen private constructor(
             codeFragment.putUserData(INFO_USERDATA_KEY, info)
         }
 
+        fun clearCodeFragmentInfo(codeFragment: KtCodeFragment) {
+            codeFragment.putUserData(INFO_USERDATA_KEY, null)
+        }
+
         @JvmStatic
         fun getCodeFragmentInfo(codeFragment: KtCodeFragment): CodeFragmentCodegenInfo {
             return codeFragment.getUserData(INFO_USERDATA_KEY) ?: error("Codegen info user data is not set")
@@ -199,7 +215,7 @@ class CodeFragmentCodegen private constructor(
                 val asmType: Type
                 val stackValue: StackValue
 
-                val sharedAsmType = getSharedTypeIfApplicable(parameter.targetDescriptor, typeMapper)
+                val sharedAsmType = getSharedTypeIfApplicable(parameter, typeMapper)
                 if (sharedAsmType != null) {
                     asmType = sharedAsmType
                     val unwrappedType = typeMapper.mapType(parameter.targetType)
@@ -218,9 +234,15 @@ class CodeFragmentCodegen private constructor(
             return CalculatedCodeFragmentCodegenInfo(parameters, methodSignature.returnType)
         }
 
-        fun getSharedTypeIfApplicable(descriptor: DeclarationDescriptor, typeMapper: KotlinTypeMapper): Type? {
-            return when (descriptor) {
-                is LocalVariableDescriptor -> typeMapper.getSharedVarType(descriptor)
+        fun getSharedTypeIfApplicable(parameter: IParameter, typeMapper: KotlinTypeMapper): Type? {
+            return when (val descriptor = parameter.targetDescriptor) {
+                is LocalVariableDescriptor -> {
+                    var result = typeMapper.getSharedVarType(descriptor)
+                    if (result == null && parameter.isLValue) {
+                        result = StackValue.sharedTypeForType(typeMapper.mapType(descriptor.type))
+                    }
+                    result
+                }
                 else -> null
             }
         }
