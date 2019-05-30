@@ -17,8 +17,6 @@
 package org.jetbrains.kotlin.nj2k
 
 import org.jetbrains.kotlin.j2k.ast.Nullability
-import org.jetbrains.kotlin.lexer.KtKeywordToken
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.nj2k.NewCodeBuilder.ParenthesisKind.*
 import org.jetbrains.kotlin.nj2k.conversions.parentOfType
@@ -46,6 +44,10 @@ class NewCodeBuilder(context: NewJ2kConverterContext) {
     inner class Visitor : JKVisitorWithCommentsPrinting {
         private val printedTokens = mutableSetOf<JKNonCodeElement>()
 
+        //TODO move to ast transformation phase
+        private fun JKNonCodeElement.shouldBeDropped(): Boolean =
+            this is JKCommentElement && text.startsWith("//noinspection")
+
         private fun JKNonCodeElement.createText() =
             if (this !in printedTokens) {
                 printedTokens += this
@@ -54,7 +56,7 @@ class NewCodeBuilder(context: NewJ2kConverterContext) {
 
 
         private fun List<JKNonCodeElement>.createText(): String {
-            val text = joinToString("") { token -> token.createText() }
+            val text = filterNot { it.shouldBeDropped() }.joinToString("") { token -> token.createText() }
             val needNewLine = text.lastIndexOf('\n') < text.lastIndexOf("//")
             return text + "\n".takeIf { needNewLine }.orEmpty()
         }
@@ -992,13 +994,6 @@ private fun JKDelegationConstructorCall.isCallOfConstructorOf(type: JKType): Boo
         else -> false
     }
 }
-
-private val KEYWORDS = KtTokens.KEYWORDS.types.map { (it as KtKeywordToken).value }.toSet()
-
-private fun String.escaped() =
-    if (this in KEYWORDS || '$' in this) "`$this`"
-    else this
-
 
 private val mappedToKotlinFqNames =
     setOf(

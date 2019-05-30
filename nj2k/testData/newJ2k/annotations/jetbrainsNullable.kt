@@ -1,7 +1,8 @@
 // !specifyLocalVariableTypeByDefault: true
 package test
 
-class Test(internal var myStr: String?) {
+class Test(str: String?) {
+    internal var myStr: String? = "String2"
     fun sout(str: String?) {
         println(str)
     }
@@ -15,7 +16,10 @@ class Test(internal var myStr: String?) {
         val test: String = "String2"
         sout(test)
         sout(dummy(test))
-
         Test(test)
+    }
+
+    init {
+        myStr = str
     }
 }

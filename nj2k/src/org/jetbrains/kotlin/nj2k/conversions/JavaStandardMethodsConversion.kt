@@ -5,12 +5,14 @@
 
 package org.jetbrains.kotlin.nj2k.conversions
 
+import com.intellij.psi.PsiMethod
+import org.jetbrains.kotlin.idea.refactoring.fqName.getKotlinFqName
 import org.jetbrains.kotlin.nj2k.NewJ2kConverterContext
 import org.jetbrains.kotlin.j2k.ast.Nullability
 import org.jetbrains.kotlin.nj2k.tree.*
 import org.jetbrains.kotlin.nj2k.tree.impl.*
 
-class JavaStandartMethodsConversion(private val context: NewJ2kConverterContext) : RecursiveApplicableConversionBase() {
+class JavaStandardMethodsConversion(private val context: NewJ2kConverterContext) : RecursiveApplicableConversionBase() {
     override fun applyToElement(element: JKTreeElement): JKTreeElement {
         if (element !is JKClass) return recurse(element)
         for (declaration in element.classBody.declarations) {
@@ -18,13 +20,21 @@ class JavaStandartMethodsConversion(private val context: NewJ2kConverterContext)
             if (fixToStringMethod(declaration)) continue
             if (fixFinalizeMethod(declaration, element)) continue
             if (fixCloneMethod(declaration)) {
-                element.inheritance.implements +=
+                val hasNoCloneableInSuperClasses =
+                    declaration.psi<PsiMethod>()
+                        ?.findSuperMethods()
+                        ?.all { superMethod ->
+                            superMethod.containingClass?.getKotlinFqName()?.asString() == "java.lang.Object"
+                        } == true
+                if (hasNoCloneableInSuperClasses) {
+                    element.inheritance.implements +=
                         JKTypeElementImpl(
                             JKClassTypeImpl(
                                 JKUnresolvedClassSymbol("Cloneable"),
                                 emptyList(), Nullability.NotNull
                             )
                         )
+                }
                 continue
             }
         }
@@ -57,8 +67,8 @@ class JavaStandartMethodsConversion(private val context: NewJ2kConverterContext)
         if (method.returnType.type != JKJavaVoidType) return false
         if (method.modality == Modality.OVERRIDE) {
             method.modality =
-                    if (containingClass.modality == Modality.OPEN) Modality.OPEN
-                    else Modality.FINAL
+                if (containingClass.modality == Modality.OPEN) Modality.OPEN
+                else Modality.FINAL
         }
         return true
     }
