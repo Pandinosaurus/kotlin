@@ -27,10 +27,12 @@ import org.jetbrains.kotlin.extensions.StorageComponentContainerContributor
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.platform.TargetPlatformVersion
+import org.jetbrains.kotlin.platform.isCommon
 import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.calls.components.ClassicTypeSystemContextForCS
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowValueFactoryImpl
 import org.jetbrains.kotlin.resolve.calls.tower.KotlinResolutionStatelessCallbacksImpl
+import org.jetbrains.kotlin.resolve.checkers.ExpectedActualDeclarationChecker
 import org.jetbrains.kotlin.resolve.checkers.ExperimentalUsageChecker
 import org.jetbrains.kotlin.resolve.lazy.*
 import org.jetbrains.kotlin.resolve.lazy.declarations.DeclarationProviderFactory
@@ -107,7 +109,8 @@ fun createContainerForBodyResolve(
     platform: TargetPlatform,
     statementFilter: StatementFilter,
     analyzerServices: PlatformDependentAnalyzerServices,
-    languageVersionSettings: LanguageVersionSettings
+    languageVersionSettings: LanguageVersionSettings,
+    moduleStructureOracle: ModuleStructureOracle
 ): StorageComponentContainer = createContainer("BodyResolve", analyzerServices) {
     configureModule(moduleContext, platform, analyzerServices, bindingTrace, languageVersionSettings)
 
@@ -117,6 +120,7 @@ fun createContainerForBodyResolve(
     useImpl<AnnotationResolverImpl>()
 
     useImpl<BodyResolver>()
+    useInstance(moduleStructureOracle)
 }
 
 fun createContainerForLazyBodyResolve(
@@ -126,7 +130,8 @@ fun createContainerForLazyBodyResolve(
     platform: TargetPlatform,
     bodyResolveCache: BodyResolveCache,
     analyzerServices: PlatformDependentAnalyzerServices,
-    languageVersionSettings: LanguageVersionSettings
+    languageVersionSettings: LanguageVersionSettings,
+    moduleStructureOracle: ModuleStructureOracle
 ): StorageComponentContainer = createContainer("LazyBodyResolve", analyzerServices) {
     configureModule(moduleContext, platform, analyzerServices, bindingTrace, languageVersionSettings)
 
@@ -136,6 +141,13 @@ fun createContainerForLazyBodyResolve(
     useImpl<AnnotationResolverImpl>()
     useImpl<LazyTopDownAnalyzer>()
     useImpl<BasicAbsentDescriptorHandler>()
+    useInstance(moduleStructureOracle)
+
+    // All containers except common inject ExpectedActualDeclarationChecker, so for common we do that
+    // explicitly.
+    // Note that it is not possible to move this code to [CommonPlatformConfigurator], because during
+    // compilation of common-module to metadata we should skip those checks
+    if (platform.isCommon()) useImpl<ExpectedActualDeclarationChecker>()
 }
 
 fun createContainerForLazyLocalClassifierAnalyzer(
