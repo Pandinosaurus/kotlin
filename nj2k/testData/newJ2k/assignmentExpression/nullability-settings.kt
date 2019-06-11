@@ -1,5 +1,4 @@
-// !forceNotNullTypes: false
-// !specifyLocalVariableTypeByDefault: true
+import java.util.HashSet
 
 internal class Foo {
     fun foo(o: HashSet<*>) {

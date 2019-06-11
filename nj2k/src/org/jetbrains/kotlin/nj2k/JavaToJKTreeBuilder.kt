@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.nj2k
 
-import com.intellij.codeInsight.daemon.impl.quickfix.AddTypeArgumentsFix
 import com.intellij.lang.jvm.JvmAnnotatedElement
 import com.intellij.lang.jvm.JvmModifier
 import com.intellij.psi.*
@@ -30,10 +29,10 @@ import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl
 import com.intellij.psi.impl.source.tree.java.PsiNewExpressionImpl
 import com.intellij.psi.infos.MethodCandidateInfo
 import com.intellij.psi.javadoc.PsiDocComment
-import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.tree.IElementType
-import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
+import org.jetbrains.kotlin.asJava.elements.KtLightElement
 import org.jetbrains.kotlin.asJava.elements.KtLightField
 import org.jetbrains.kotlin.asJava.elements.KtLightMethod
 import org.jetbrains.kotlin.idea.caches.lightClasses.KtLightClassForDecompiledDeclaration
@@ -68,32 +67,12 @@ class JavaToJKTreeBuilder constructor(
     private fun PsiJavaFile.toJK(): JKFile =
         JKFileImpl(
             packageStatement?.toJK() ?: JKPackageDeclarationImpl(JKNameIdentifierImpl("")),
-            importList.toJK(filterOutUsedImports = true),
+            importList.toJK(),
             with(declarationMapper) { classes.map { it.toJK() } }
         )
 
-    private fun PsiImportList?.toJK(filterOutUsedImports: Boolean): JKImportList =
-        JKImportListImpl(
-            this?.allImportStatements?.let { imports ->
-                if (filterOutUsedImports) {
-                    imports.filter { import ->
-                        when {
-                            import.isSingleUnusedImport() -> true
-                            import.isOnDemand -> true
-                            else -> false
-                        }
-                    }
-                } else imports.toList()
-            }?.mapNotNull { it.toJK() }.orEmpty()
-        )
-
-
-    private fun PsiImportStatementBase.isSingleUnusedImport(): Boolean {
-        if (isOnDemand) return false
-        val target = resolve() ?: return true
-        val usages = ReferencesSearch.search(target).toList()
-        return usages.size == 1 && PsiTreeUtil.isAncestor(this, usages.iterator().next().element, true)
-    }
+    private fun PsiImportList?.toJK(): JKImportList =
+        JKImportListImpl(this?.allImportStatements?.mapNotNull { it.toJK() }.orEmpty())
 
     private fun PsiPackageStatement.toJK(): JKPackageDeclaration =
         JKPackageDeclarationImpl(JKNameIdentifierImpl(packageName))
@@ -106,8 +85,12 @@ class JavaToJKTreeBuilder constructor(
         val target = resolve()
         val rawName = (importReference?.canonicalText ?: return null) + if (isOnDemand) ".*" else ""
         val name =
-            if (target is KtLightClassForFacade) target.fqName.parent().asString() + ".*"
-            else rawName
+            target.safeAs<KtLightElement<*, *>>()?.kotlinOrigin?.getKotlinFqName()?.asString()
+                ?: target.safeAs<KtLightClass>()?.containingFile?.safeAs<KtFile>()?.packageFqName?.asString()?.let { "$it.*" }
+                ?: target.safeAs<KtLightClassForFacade>()?.fqName?.parent()?.asString()?.let { "$it.*" }
+                ?: target.safeAs<KtLightClassForDecompiledDeclaration>()?.fqName?.parent()?.asString()?.let { "$it.*" }
+                ?: rawName
+
         return JKImportStatementImpl(JKNameIdentifierImpl(name))
             .also {
                 it.assignNonCodeElements(this)
@@ -271,7 +254,7 @@ class JavaToJKTreeBuilder constructor(
                 if (method.isConstructor || !method.hasTypeParameters()) return typeArgumentList
             }
 
-            return AddTypeArgumentsFix.addTypeArguments(this, null)
+            return FixTypeArguments.addTypeArguments(this, null)
                 ?.safeAs<PsiMethodCallExpression>()
                 ?.typeArgumentList
                 ?: typeArgumentList
@@ -689,7 +672,7 @@ class JavaToJKTreeBuilder constructor(
         fun PsiDocComment.deprecatedAnnotation(): JKAnnotation? =
             findTagByName("deprecated")?.let { tag ->
                 JKAnnotationImpl(
-                    symbolProvider.provideByFqName("kotlin.Deprecated"),
+                    symbolProvider.provideClassSymbol("kotlin.Deprecated"),
                     listOf(
                         JKAnnotationParameterImpl(stringLiteral(tag.content(), symbolProvider))
                     )
@@ -929,7 +912,7 @@ class JavaToJKTreeBuilder constructor(
             is PsiField -> with(declarationMapper) { psi.toJK() }
             is PsiMethod -> with(declarationMapper) { psi.toJK() }
             is PsiAnnotation -> with(declarationMapper) { psi.toJK() }
-            is PsiImportList -> psi.toJK(filterOutUsedImports = false)
+            is PsiImportList -> psi.toJK()
             is PsiImportStatement -> psi.toJK()
             is PsiJavaCodeReferenceElement ->
                 if (psi.parent is PsiReferenceList) {

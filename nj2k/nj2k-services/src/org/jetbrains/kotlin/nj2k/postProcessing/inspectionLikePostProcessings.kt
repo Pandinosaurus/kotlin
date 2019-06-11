@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.diagnostics.DiagnosticFactory
 import org.jetbrains.kotlin.idea.caches.resolve.getResolutionFacade
 import org.jetbrains.kotlin.idea.core.util.EDT
 import org.jetbrains.kotlin.idea.core.util.range
-import org.jetbrains.kotlin.idea.formatter.commitAndUnblockDocument
 import org.jetbrains.kotlin.idea.inspections.AbstractApplicabilityBasedInspection
 import org.jetbrains.kotlin.idea.inspections.AbstractKotlinInspection
 import org.jetbrains.kotlin.idea.intentions.SelfTargetingIntention
@@ -41,13 +40,9 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
 
-class InspectionLikeProcessingGroup(
-    override val description: String,
-    val inspectionLikeProcessings: List<InspectionLikeProcessing>
-) : ProcessingGroup {
+class InspectionLikeProcessingGroup(val inspectionLikeProcessings: List<InspectionLikeProcessing>) : ProcessingGroup {
 
-    constructor(description: String, vararg inspectionLikeProcessings: InspectionLikeProcessing) :
-            this(description, inspectionLikeProcessings.toList())
+    constructor(vararg inspectionLikeProcessings: InspectionLikeProcessing) : this(inspectionLikeProcessings.toList())
 
     private val processingsToPriorityMap = inspectionLikeProcessings.mapToIndex()
     fun priority(processing: InspectionLikeProcessing): Int = processingsToPriorityMap.getValue(processing)
@@ -64,10 +59,10 @@ class InspectionLikeProcessingGroup(
                         if (element.isValid) {
                             if (writeActionNeeded) {
                                 runWriteAction {
-                                    runAction(action, element)
+                                    action()
                                 }
                             } else {
-                                runAction(action, element)
+                                action()
                             }
                         } else {
                             modificationStamp = null
@@ -85,11 +80,6 @@ class InspectionLikeProcessingGroup(
         PROCESS
     }
 
-    private inline fun runAction(action: () -> Unit, element: PsiElement) {
-        val file = element.containingFile //element can be deleted after action performed
-        action()
-        runWriteAction { file.commitAndUnblockDocument() }
-    }
 
     private data class ActionData(val element: PsiElement, val action: () -> Unit, val priority: Int, val writeActionNeeded: Boolean)
 

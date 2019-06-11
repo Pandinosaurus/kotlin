@@ -1,6 +1,5 @@
 // ERROR: Type mismatch: inferred type is String but Charset was expected
 // ERROR: Type mismatch: inferred type is String but Charset was expected
-// ERROR: Type mismatch: inferred type is kotlin.Comparator<String> /* = java.util.Comparator<String> */ but java.util.Comparator<String?> was expected
 import java.nio.charset.Charset
 import java.util.Comparator
 import java.util.Locale
@@ -83,14 +82,14 @@ internal class A {
         s.regionMatches(0, "st", 1, 2)
         s.replace("\\w+".toRegex(), "---").replaceFirst("([s-t])".toRegex(), "A$1")
         /* TODO
-            s.matches("\\w+");
-            useSplit(s.split("\\s+"));
-            useSplit(s.split("\\s+", 0));
-            useSplit(s.split("\\s+", -1));
-            useSplit(s.split("\\s+", 2));
-            int limit = 5;
-            useSplit(s.split("\\s+", limit));
-            */
+        s.matches("\\w+");
+        useSplit(s.split("\\s+"));
+        useSplit(s.split("\\s+", 0));
+        useSplit(s.split("\\s+", -1));
+        useSplit(s.split("\\s+", 2));
+        int limit = 5;
+        useSplit(s.split("\\s+", limit));
+        */
         s.trim { it <= ' ' }
         "$s another"
 
@@ -123,17 +122,17 @@ internal class A {
         String(chars, 1, 2)
         String(chars)
         String(chars, 1, 2)
-        val order: Comparator<String?> = String.CASE_INSENSITIVE_ORDER
+        val order: Comparator<String?>? = java.lang.String.CASE_INSENSITIVE_ORDER
     }
 
     fun unsupportedMethods() {
         val s = "test string"
         /* TODO:
-            s.indexOf(32);
-            s.indexOf(32, 2);
-            s.lastIndexOf(32);
-            s.lastIndexOf(32, 2);
-            */
+        s.indexOf(32);
+        s.indexOf(32, 2);
+        s.lastIndexOf(32);
+        s.lastIndexOf(32, 2);
+        */
     }
 
     fun useSplit(result: Array<String?>?) {}

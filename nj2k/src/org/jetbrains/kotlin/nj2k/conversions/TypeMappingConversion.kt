@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.j2k.*
 import org.jetbrains.kotlin.j2k.ast.Mutability
 import org.jetbrains.kotlin.j2k.ast.Nullability
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.nj2k.NewJ2kConverterContext
 import org.jetbrains.kotlin.nj2k.kotlinTypeByName
@@ -35,9 +34,7 @@ class TypeMappingConversion(val context: NewJ2kConverterContext) : RecursiveAppl
     override fun applyToElement(element: JKTreeElement): JKTreeElement {
         return when (element) {
             is JKTypeElement -> {
-                val newType = element.type
-                    .fixRawType(element)
-                    .mapType(element)
+                val newType = element.type.mapType(element)
                 JKTypeElementImpl(newType).withNonCodeElementsFrom(element)
             }
             is JKJavaNewExpression -> {
@@ -79,8 +76,8 @@ class TypeMappingConversion(val context: NewJ2kConverterContext) : RecursiveAppl
     }
 
 
-    private fun JKType.fixRawType(typeElement: JKTypeElement) =
-        when (typeElement.parent) {
+    private fun JKType.fixRawType(typeElement: JKTypeElement?) =
+        when (typeElement?.parent) {
             is JKClassLiteralExpression -> this
             is JKKtIsExpression ->
                 addTypeParametersToRawProjectionType(JKStarProjectionTypeImpl())
@@ -105,7 +102,7 @@ class TypeMappingConversion(val context: NewJ2kConverterContext) : RecursiveAppl
                 )
             is JKJavaArrayType ->
                 JKClassTypeImpl(
-                    context.symbolProvider.provideByFqName(type.arrayFqName()),
+                    context.symbolProvider.provideClassSymbol(type.arrayFqName()),
                     if (type is JKJavaPrimitiveType) emptyList() else listOf(type.mapType(typeElement)),
                     nullability
                 )
@@ -115,14 +112,14 @@ class TypeMappingConversion(val context: NewJ2kConverterContext) : RecursiveAppl
                     boundType.mapType(null)
                 )
             else -> this
-        }
+        }.fixRawType(typeElement)
 
     private fun JKClassSymbol.mapClassSymbol(typeElement: JKTypeElement?): JKClassSymbol {
         if (this is JKUniverseClassSymbol) return this
         val newFqName = typeElement?.let { kotlinCollectionClassName(it) }
             ?: kotlinStandardType()
             ?: fqName
-        return context.symbolProvider.provideByFqName(newFqName)
+        return context.symbolProvider.provideClassSymbol(newFqName)
     }
 
     private fun JKClassType.mapClassType(typeElement: JKTypeElement?): JKClassType =
@@ -139,17 +136,15 @@ class TypeMappingConversion(val context: NewJ2kConverterContext) : RecursiveAppl
         else toKotlinTypesMap[fqName]
     }
 
-    private fun JKClassSymbol.kotlinStandardType(): String? =
-        fqName.takeIf {
-            it !in ignoredJavaFqNames
-        }?.let {
-            JavaToKotlinClassMap.mapJavaToKotlin(FqName(it))?.asString()
-        } ?: fqName
+    private fun JKClassSymbol.kotlinStandardType(): String? {
+        if (isKtFunction(fqName)) return fqName
+        return JavaToKotlinClassMap.mapJavaToKotlin(FqName(fqName))?.asString()
+    }
 
     private fun JKJavaPrimitiveType.mapPrimitiveType(): JKClassType {
         val fqName = jvmPrimitiveType.primitiveType.typeFqName
         return JKClassTypeImpl(
-            context.symbolProvider.provideByFqName(ClassId.topLevel(fqName)),
+            context.symbolProvider.provideClassSymbol(fqName),
             nullability = Nullability.NotNull
         )
     }
@@ -165,8 +160,8 @@ class TypeMappingConversion(val context: NewJ2kConverterContext) : RecursiveAppl
     }
 
     companion object {
-        val ignoredJavaFqNames = setOf(
-            "java.lang.String"
-        )
+        private val ktFunctionRegex = "kotlin\\.jvm\\.functions\\.Function\\d+".toRegex()
+        private fun isKtFunction(fqName: String) =
+            ktFunctionRegex.matches(fqName)
     }
 }
