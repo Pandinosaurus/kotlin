@@ -1606,24 +1606,69 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
             KotlinTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/ir/irText/types"), Pattern.compile("^(.+)\\.kt$"), TargetBackend.ANY, true);
         }
 
-        @TestMetadata("intersectionType1.kt")
-        public void testIntersectionType1() throws Exception {
-            runTest("compiler/testData/ir/irText/types/intersectionType1.kt");
+        @TestMetadata("asOnPlatformType.kt")
+        public void testAsOnPlatformType() throws Exception {
+            runTest("compiler/testData/ir/irText/types/asOnPlatformType.kt");
         }
 
-        @TestMetadata("intersectionType2.kt")
-        public void testIntersectionType2() throws Exception {
-            runTest("compiler/testData/ir/irText/types/intersectionType2.kt");
+        @TestMetadata("explicitEqualsAndCompareToCallsOnPlatformTypeReceiver.kt")
+        public void testExplicitEqualsAndCompareToCallsOnPlatformTypeReceiver() throws Exception {
+            runTest("compiler/testData/ir/irText/types/explicitEqualsAndCompareToCallsOnPlatformTypeReceiver.kt");
         }
 
-        @TestMetadata("intersectionType3.kt")
-        public void testIntersectionType3() throws Exception {
-            runTest("compiler/testData/ir/irText/types/intersectionType3.kt");
+        @TestMetadata("intersectionType1_NI.kt")
+        public void testIntersectionType1_NI() throws Exception {
+            runTest("compiler/testData/ir/irText/types/intersectionType1_NI.kt");
         }
 
-        @TestMetadata("localVariableOfIntersectionType.kt")
-        public void testLocalVariableOfIntersectionType() throws Exception {
-            runTest("compiler/testData/ir/irText/types/localVariableOfIntersectionType.kt");
+        @TestMetadata("intersectionType1_OI.kt")
+        public void testIntersectionType1_OI() throws Exception {
+            runTest("compiler/testData/ir/irText/types/intersectionType1_OI.kt");
+        }
+
+        @TestMetadata("intersectionType2_NI.kt")
+        public void testIntersectionType2_NI() throws Exception {
+            runTest("compiler/testData/ir/irText/types/intersectionType2_NI.kt");
+        }
+
+        @TestMetadata("intersectionType2_OI.kt")
+        public void testIntersectionType2_OI() throws Exception {
+            runTest("compiler/testData/ir/irText/types/intersectionType2_OI.kt");
+        }
+
+        @TestMetadata("intersectionType3_NI.kt")
+        public void testIntersectionType3_NI() throws Exception {
+            runTest("compiler/testData/ir/irText/types/intersectionType3_NI.kt");
+        }
+
+        @TestMetadata("intersectionType3_OI.kt")
+        public void testIntersectionType3_OI() throws Exception {
+            runTest("compiler/testData/ir/irText/types/intersectionType3_OI.kt");
+        }
+
+        @TestMetadata("localVariableOfIntersectionType_NI.kt")
+        public void testLocalVariableOfIntersectionType_NI() throws Exception {
+            runTest("compiler/testData/ir/irText/types/localVariableOfIntersectionType_NI.kt");
+        }
+
+        @TestMetadata("nullabilityAssertionOnExtensionReceiver.kt")
+        public void testNullabilityAssertionOnExtensionReceiver() throws Exception {
+            runTest("compiler/testData/ir/irText/types/nullabilityAssertionOnExtensionReceiver.kt");
+        }
+
+        @TestMetadata("platformTypeReceiver.kt")
+        public void testPlatformTypeReceiver() throws Exception {
+            runTest("compiler/testData/ir/irText/types/platformTypeReceiver.kt");
+        }
+
+        @TestMetadata("smartCastOnFieldReceiverOfGenericType.kt")
+        public void testSmartCastOnFieldReceiverOfGenericType() throws Exception {
+            runTest("compiler/testData/ir/irText/types/smartCastOnFieldReceiverOfGenericType.kt");
+        }
+
+        @TestMetadata("smartCastOnReceiverOfGenericType.kt")
+        public void testSmartCastOnReceiverOfGenericType() throws Exception {
+            runTest("compiler/testData/ir/irText/types/smartCastOnReceiverOfGenericType.kt");
         }
     }
 }

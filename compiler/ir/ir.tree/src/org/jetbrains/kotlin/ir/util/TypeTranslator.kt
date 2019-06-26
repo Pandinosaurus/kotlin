@@ -12,7 +12,6 @@ import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.ir.declarations.IrTypeParametersContainer
-import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeProjection
@@ -57,11 +56,11 @@ class TypeTranslator(
         typeParametersResolver.resolveScopedTypeParameter(typeParameterDescriptor)
             ?: symbolTable.referenceTypeParameter(typeParameterDescriptor)
 
-    fun translateType(ktType: KotlinType): IrType =
-        translateType(ktType, Variance.INVARIANT).type
+    fun translateType(kotlinType: KotlinType): IrType =
+        translateType(kotlinType, Variance.INVARIANT).type
 
-    private fun translateType(ktType: KotlinType, variance: Variance): IrTypeProjection {
-        val approximatedType = LegacyTypeApproximation().approximate(ktType)
+    private fun translateType(kotlinType: KotlinType, variance: Variance): IrTypeProjection {
+        val approximatedType = LegacyTypeApproximation().approximate(kotlinType)
 
         when {
             approximatedType.isError ->
@@ -77,7 +76,7 @@ class TypeTranslator(
             ?: throw AssertionError("No descriptor for type $approximatedType")
 
         return IrSimpleTypeBuilder().apply {
-            kotlinType = approximatedType
+            this.kotlinType = kotlinType
             hasQuestionMark = approximatedType.isMarkedNullable
             this.variance = variance
             when (ktTypeDescriptor) {

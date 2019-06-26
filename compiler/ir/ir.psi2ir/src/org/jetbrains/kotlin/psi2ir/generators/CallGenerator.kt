@@ -67,15 +67,18 @@ class CallGenerator(statementGenerator: StatementGenerator) : StatementGenerator
         endOffset: Int,
         call: CallBuilder
     ): IrExpression {
-        val targetType = descriptor.returnType!!.toIrType()
+        val targetKotlinType = descriptor.returnType!!
+        val targetType = targetKotlinType.toIrType()
 
         return IrTypeOperatorCallImpl(
             startOffset, endOffset,
             targetType,
             IrTypeOperator.SAM_CONVERSION,
             targetType,
-            targetType.classifierOrFail,
-            call.irValueArgumentsByIndex[0]!!
+            statementGenerator.castArgumentToFunctionalInterfaceForSamType(
+                call.irValueArgumentsByIndex[0]!!,
+                targetKotlinType
+            )
         )
     }
 

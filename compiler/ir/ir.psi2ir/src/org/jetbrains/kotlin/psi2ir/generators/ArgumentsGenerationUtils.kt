@@ -27,7 +27,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpressionWithCopy
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperator
 import org.jetbrains.kotlin.ir.expressions.impl.*
-import org.jetbrains.kotlin.ir.types.classifierOrFail
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.psiUtil.endOffset
@@ -140,6 +140,19 @@ private fun StatementGenerator.generateThisOrSuperReceiver(receiver: ReceiverVal
     return generateThisReceiver(ktReceiver.startOffsetSkippingComments, ktReceiver.endOffset, type, classDescriptor)
 }
 
+fun IrExpression.implicitCastTo(expectedType: IrType?): IrExpression {
+    if (expectedType == null) return this
+
+    return IrTypeOperatorCallImpl(
+        startOffset, endOffset,
+        expectedType,
+        IrTypeOperator.IMPLICIT_CAST,
+        expectedType
+    ).also {
+        it.argument = this
+    }
+}
+
 fun StatementGenerator.generateBackingFieldReceiver(
     startOffset: Int,
     endOffset: Int,
@@ -167,8 +180,7 @@ fun StatementGenerator.generateCallReceiver(
             assert(dispatchReceiver == null) {
                 "Call for member imported from object $calleeDescriptor has non-null dispatch receiver $dispatchReceiver"
             }
-            dispatchReceiverValue =
-                    generateReceiverForCalleeImportedFromObject(startOffset, endOffset, calleeDescriptor)
+            dispatchReceiverValue = generateReceiverForCalleeImportedFromObject(startOffset, endOffset, calleeDescriptor)
             extensionReceiverValue = generateReceiverOrNull(ktDefaultElement, extensionReceiver)
         }
         is TypeAliasConstructorDescriptor -> {
@@ -280,6 +292,20 @@ fun StatementGenerator.generateValueArgumentUsing(
             TODO("Unexpected valueArgument: ${valueArgument::class.java.simpleName}")
     }
 
+fun StatementGenerator.castArgumentToFunctionalInterfaceForSamType(
+    irExpression: IrExpression,
+    samType: KotlinType
+): IrExpression {
+    val samConversion = context.extensions.samConversion
+    val samTypeDescriptor = samType.constructor.declarationDescriptor
+    val samClassDescriptor = samTypeDescriptor as? ClassDescriptor
+        ?: throw AssertionError("SAM class expected: $samType")
+    val kotlinFunctionType = samConversion.getFunctionTypeForSAMClass(samClassDescriptor)
+    val irFunctionType = context.typeTranslator.translateType(kotlinFunctionType)
+
+    return irExpression.implicitCastTo(irFunctionType)
+}
+
 fun Generator.getSuperQualifier(resolvedCall: ResolvedCall<*>): ClassDescriptor? {
     val superCallExpression = getSuperCallExpression(resolvedCall.call) ?: return null
     return getOrFail(BindingContext.REFERENCE_TARGET, superCallExpression.instanceReference) as ClassDescriptor
@@ -349,13 +375,13 @@ fun StatementGenerator.pregenerateExtensionInvokeCall(resolvedCall: ResolvedCall
     }
 
     call.callReceiver =
-            if (resolvedCall.call.isSafeCall())
-                SafeExtensionInvokeCallReceiver(
-                    this, ktCallElement.startOffsetSkippingComments, ktCallElement.endOffset,
-                    call, functionReceiverValue, extensionInvokeReceiverValue
-                )
-            else
-                ExtensionInvokeCallReceiver(call, functionReceiverValue, extensionInvokeReceiverValue)
+        if (resolvedCall.call.isSafeCall())
+            SafeExtensionInvokeCallReceiver(
+                this, ktCallElement.startOffsetSkippingComments, ktCallElement.endOffset,
+                call, functionReceiverValue, extensionInvokeReceiverValue
+            )
+        else
+            ExtensionInvokeCallReceiver(call, functionReceiverValue, extensionInvokeReceiverValue)
 
     call.irValueArgumentsByIndex[0] = null
     resolvedCall.valueArgumentsByIndex!!.forEachIndexed { index, valueArgument ->
@@ -407,17 +433,15 @@ fun StatementGenerator.generateSamConversionForValueArgumentsIfRequired(call: Ca
         val originalArgument = call.irValueArgumentsByIndex[i] ?: continue
 
         val targetType = underlyingParameterType.toIrType()
-        val targetClassifier = targetType.classifierOrFail
 
         call.irValueArgumentsByIndex[i] =
-                IrTypeOperatorCallImpl(
-                    originalArgument.startOffset, originalArgument.endOffset,
-                    targetType,
-                    IrTypeOperator.SAM_CONVERSION,
-                    targetType,
-                    targetClassifier,
-                    originalArgument
-                )
+            IrTypeOperatorCallImpl(
+                originalArgument.startOffset, originalArgument.endOffset,
+                targetType,
+                IrTypeOperator.SAM_CONVERSION,
+                targetType,
+                castArgumentToFunctionalInterfaceForSamType(originalArgument, underlyingParameterType)
+            )
     }
 }
 
