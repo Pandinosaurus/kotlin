@@ -1,5 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 description = "Kotlin Daemon Client"
 
 plugins {
@@ -47,14 +45,8 @@ sourceSets {
 
 publish()
 
-noDefaultJar()
-
-runtimeJar(task<ShadowJar>("shadowJar")) {
-    from(mainSourceSet.output)
-}
+runtimeJar()
 
 sourcesJar()
 
 javadocJar()
-
-dist()

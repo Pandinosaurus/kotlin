@@ -91,7 +91,8 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext,
                 || this is ConeTypeParameterType
     }
 
-    fun ConeKotlinType.typeDepthSimple(): Int {
+    override fun SimpleTypeMarker.typeDepth(): Int {
+        require(this is ConeKotlinType)
         // if (this is TypeUtils.SpecialType) return 0 // TODO: WTF?
 
         val maxInArguments = this.typeArguments.asSequence().map {
@@ -99,21 +100,6 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext,
         }.max() ?: 0
 
         return maxInArguments + 1
-    }
-
-    override fun SimpleTypeMarker.typeDepth(): Int {
-        require(this is ConeKotlinType)
-        return this.typeDepthSimple()
-    }
-
-    override fun KotlinTypeMarker.typeDepth(): Int {
-        require(this is ConeKotlinType) {
-            "Incorrect type of class ${this::class.java}: $this"
-        }
-        return when (this) {
-            is ConeFlexibleType -> Math.max(lowerBound.typeDepthSimple(), upperBound.typeDepthSimple())
-            else -> typeDepthSimple()
-        }
     }
 
     override fun KotlinTypeMarker.contains(predicate: (KotlinTypeMarker) -> Boolean): Boolean {
@@ -254,21 +240,6 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext,
     override fun CapturedTypeMarker.typeConstructorProjection(): TypeArgumentMarker {
         require(this is ConeCapturedType)
         return this.constructor.projection
-    }
-
-    override fun KotlinTypeMarker.isNullableType(): Boolean {
-        require(this is ConeKotlinType)
-        if (this.isMarkedNullable)
-            return true
-
-        if (this is ConeFlexibleType && this.upperBound.isNullableType())
-            return true
-
-        if (this is ConeTypeParameterType /* || is TypeVariable */)
-            return hasNullableSuperType(type)
-
-        // TODO: Intersection types
-        return false
     }
 
     override fun DefinitelyNotNullTypeMarker.original(): SimpleTypeMarker {

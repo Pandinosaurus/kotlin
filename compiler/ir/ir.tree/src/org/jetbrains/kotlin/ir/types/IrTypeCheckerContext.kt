@@ -12,13 +12,9 @@ import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.types.AbstractTypeCheckerContext
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
 import org.jetbrains.kotlin.types.model.SimpleTypeMarker
-import org.jetbrains.kotlin.types.model.TypeArgumentMarker
 import org.jetbrains.kotlin.types.model.TypeConstructorMarker
 
 class IrTypeCheckerContext(override val irBuiltIns: IrBuiltIns) : IrTypeSystemContext, AbstractTypeCheckerContext() {
-
-    override fun anyType(): SimpleTypeMarker =
-        irBuiltIns.anyType as IrSimpleType
 
     override fun substitutionSupertypePolicy(type: SimpleTypeMarker): SupertypesPolicy.DoCustomTransform {
         require(type is IrSimpleType)
@@ -51,45 +47,16 @@ class IrTypeCheckerContext(override val irBuiltIns: IrBuiltIns) : IrTypeSystemCo
 
     override fun areEqualTypeConstructors(a: TypeConstructorMarker, b: TypeConstructorMarker) = super.isEqualTypeConstructors(a, b)
 
-
     override val isErrorTypeEqualsToAnything = false
     override val KotlinTypeMarker.isAllowedTypeVariable: Boolean
         get() = false
 
-
     override fun newBaseTypeCheckerContext(errorTypesEqualToAnything: Boolean): AbstractTypeCheckerContext {
         return IrTypeCheckerContext(irBuiltIns)
-    }
-
-    override fun KotlinTypeMarker.removeExactAnnotation(): KotlinTypeMarker {
-        // TODO remove 'Exact' annotation only
-        return removeAnnotations()
     }
 
     override fun KotlinTypeMarker.isUninferredParameter(): Boolean = false
 
     override fun captureFromExpression(type: KotlinTypeMarker): KotlinTypeMarker? =
         error("Captured type is unsupported in IR")
-
-    override fun SimpleTypeMarker.isPrimitiveType(): Boolean {
-        // TODO this is currently used in overload resolution only
-        return false
-    }
-
-    override fun KotlinTypeMarker.argumentsCount(): Int =
-        when (this) {
-            is IrSimpleType -> arguments.size
-            else -> 0
-        }
-
-    override fun KotlinTypeMarker.getArgument(index: Int): TypeArgumentMarker =
-        when (this) {
-            is IrSimpleType -> arguments[index]
-            else -> error("Type $this has no arguments")
-        }
-
-    override fun KotlinTypeMarker.mayBeTypeVariable(): Boolean {
-        require(this is IrType)
-        return false
-    }
 }
