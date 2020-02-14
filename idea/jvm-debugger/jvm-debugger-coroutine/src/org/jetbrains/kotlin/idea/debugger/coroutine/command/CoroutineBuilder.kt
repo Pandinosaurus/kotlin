@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.idea.debugger.safeLineNumber
 import org.jetbrains.kotlin.idea.debugger.safeLocation
 import org.jetbrains.kotlin.idea.debugger.safeMethod
 
+
 class CoroutineBuilder(val suspendContext: XSuspendContext) {
     private val coroutineStackFrameProvider = CoroutineAsyncStackTraceProvider()
     val debugProcess = (suspendContext as SuspendContextImpl).debugProcess
@@ -173,4 +174,3 @@ class CoroutineBuilder(val suspendContext: XSuspendContext) {
                 frame.safeLocation()?.safeMethod()?.signature() == "(Ljava/lang/Object;)Ljava/lang/Object;" &&
                 frame.safeLocation()?.safeLineNumber() ?: 0 < 0
 }
-
