@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.FirSourceElement
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
+import org.jetbrains.kotlin.fir.declarations.FirDeclarationAttributes
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationStatus
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
@@ -44,6 +45,7 @@ internal class FirClassImpl(
     override var companionObject: FirRegularClass?,
     override val superTypeRefs: MutableList<FirTypeRef>,
 ) : FirRegularClass() {
+    override val attributes: FirDeclarationAttributes = FirDeclarationAttributes()
     override val hasLazyNestedClassifiers: Boolean get() = false
     override var controlFlowGraphReference: FirControlFlowGraphReference = FirEmptyControlFlowGraphReference
 
@@ -66,7 +68,7 @@ internal class FirClassImpl(
         transformStatus(transformer, data)
         transformDeclarations(transformer, data)
         companionObject = declarations.asSequence().filterIsInstance<FirRegularClass>().firstOrNull { it.status.isCompanion }
-        superTypeRefs.transformInplace(transformer, data)
+        transformSuperTypeRefs(transformer, data)
         transformControlFlowGraphReference(transformer, data)
         return this
     }
@@ -88,6 +90,11 @@ internal class FirClassImpl(
 
     override fun <D> transformCompanionObject(transformer: FirTransformer<D>, data: D): FirClassImpl {
         companionObject = companionObject?.transformSingle(transformer, data)
+        return this
+    }
+
+    override fun <D> transformSuperTypeRefs(transformer: FirTransformer<D>, data: D): FirClassImpl {
+        superTypeRefs.transformInplace(transformer, data)
         return this
     }
 

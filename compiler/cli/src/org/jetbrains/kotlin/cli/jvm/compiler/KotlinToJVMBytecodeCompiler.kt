@@ -32,6 +32,7 @@ import org.jetbrains.kotlin.backend.common.output.OutputFileCollection
 import org.jetbrains.kotlin.backend.common.output.SimpleOutputFileCollection
 import org.jetbrains.kotlin.backend.common.phaser.PhaseConfig
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureDescriptor
+import org.jetbrains.kotlin.backend.jvm.JvmGeneratorExtensions
 import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.backend.jvm.jvmPhases
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
@@ -53,6 +54,9 @@ import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.backend.Fir2IrConverter
 import org.jetbrains.kotlin.fir.backend.jvm.FirJvmClassCodegen
 import org.jetbrains.kotlin.fir.builder.RawFirBuilder
+import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
+import org.jetbrains.kotlin.fir.extensions.extensionsService
+import org.jetbrains.kotlin.fir.extensions.registerExtensions
 import org.jetbrains.kotlin.fir.java.FirJavaModuleBasedSession
 import org.jetbrains.kotlin.fir.java.FirLibrarySession
 import org.jetbrains.kotlin.fir.java.FirProjectSessionProvider
@@ -323,7 +327,7 @@ object KotlinToJVMBytecodeCompiler {
                     dependenciesInfo, provider, librariesScope,
                     project, environment.createPackagePartProvider(librariesScope)
                 )
-
+                it.extensionsService.registerExtensions(FirExtensionRegistrar.RegisteredExtensions.EMPTY)
             }
             val firProvider = (session.firProvider as FirProviderImpl)
             val builder = RawFirBuilder(session, firProvider.kotlinScopeProvider, stubMode = false)
@@ -345,7 +349,8 @@ object KotlinToJVMBytecodeCompiler {
             val (moduleFragment, symbolTable, sourceManager) =
                 Fir2IrConverter.createModuleFragment(
                     session, resolveTransformer.scopeSession, firFiles,
-                    moduleConfiguration.languageVersionSettings, signaturer = signaturer
+                    moduleConfiguration.languageVersionSettings, signaturer = signaturer,
+                    generatorExtensions = JvmGeneratorExtensions(generateFacades = false)
                 )
             val dummyBindingContext = NoScopeRecordCliBindingTrace().bindingContext
 

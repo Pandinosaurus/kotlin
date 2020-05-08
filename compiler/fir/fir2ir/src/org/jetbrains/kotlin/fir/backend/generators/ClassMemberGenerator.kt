@@ -100,6 +100,12 @@ internal class ClassMemberGenerator(
                 }
                 for ((valueParameter, firValueParameter) in valueParameters.zip(firFunction.valueParameters)) {
                     valueParameter.setDefaultValue(firValueParameter)
+                    valueParameter.annotations = firValueParameter.annotations.mapNotNull {
+                        it.accept(visitor, null) as? IrConstructorCall
+                    }
+                }
+                annotations = firFunction.annotations.mapNotNull {
+                    it.accept(visitor, null) as? IrConstructorCall
                 }
             }
             if (firFunction is FirConstructor && irFunction is IrConstructor && !parentAsClass.isAnnotationClass) {

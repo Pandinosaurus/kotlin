@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.fir.declarations.impl
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.FirSourceElement
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
+import org.jetbrains.kotlin.fir.declarations.FirDeclarationAttributes
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirImport
@@ -32,6 +33,8 @@ internal class FirFileImpl(
     override val name: String,
     override val packageFqName: FqName,
 ) : FirFile() {
+    override val attributes: FirDeclarationAttributes = FirDeclarationAttributes()
+
     override fun <R, D> acceptChildren(visitor: FirVisitor<R, D>, data: D) {
         annotations.forEach { it.accept(visitor, data) }
         imports.forEach { it.accept(visitor, data) }
@@ -41,12 +44,17 @@ internal class FirFileImpl(
     override fun <D> transformChildren(transformer: FirTransformer<D>, data: D): FirFileImpl {
         transformAnnotations(transformer, data)
         imports.transformInplace(transformer, data)
-        declarations.transformInplace(transformer, data)
+        transformDeclarations(transformer, data)
         return this
     }
 
     override fun <D> transformAnnotations(transformer: FirTransformer<D>, data: D): FirFileImpl {
         annotations.transformInplace(transformer, data)
+        return this
+    }
+
+    override fun <D> transformDeclarations(transformer: FirTransformer<D>, data: D): FirFileImpl {
+        declarations.transformInplace(transformer, data)
         return this
     }
 

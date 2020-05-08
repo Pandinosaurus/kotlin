@@ -23,10 +23,13 @@ import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.diagnostics.PsiDiagnosticUtils
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnostic
-import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirPsiDiagnostic
 import org.jetbrains.kotlin.fir.builder.RawFirBuilder
 import org.jetbrains.kotlin.fir.declarations.FirFile
+import org.jetbrains.kotlin.fir.extensions.FirExtensionsService
+import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
+import org.jetbrains.kotlin.fir.extensions.extensionsService
+import org.jetbrains.kotlin.fir.extensions.registerExtensions
 import org.jetbrains.kotlin.fir.java.FirJavaModuleBasedSession
 import org.jetbrains.kotlin.fir.java.FirLibrarySession
 import org.jetbrains.kotlin.fir.java.FirProjectSessionProvider
@@ -76,14 +79,18 @@ abstract class AbstractFirBaseDiagnosticsTest : BaseDiagnosticsTest() {
         FirLibrarySession.create(
             builtInsModuleInfo, sessionProvider, allProjectScope, project,
             environment.createPackagePartProvider(allProjectScope)
-        )
+        ).also {
+            registerFirExtensions(it.extensionsService)
+        }
 
         val configToSession = modules.mapValues { (config, info) ->
             val moduleFiles = groupedByModule.getValue(config)
             val scope = TopDownAnalyzerFacadeForJVM.newModuleSearchScope(
                 project,
                 moduleFiles.mapNotNull { it.ktFile })
-            FirJavaModuleBasedSession(info, sessionProvider, scope)
+            FirJavaModuleBasedSession(info, sessionProvider, scope).also {
+                registerFirExtensions(it.extensionsService)
+            }
         }
 
         val firFilesPerSession = mutableMapOf<FirSession, List<FirFile>>()
@@ -100,6 +107,10 @@ abstract class AbstractFirBaseDiagnosticsTest : BaseDiagnosticsTest() {
         }
 
         runAnalysis(testDataFile, files, firFilesPerSession)
+    }
+
+    open fun registerFirExtensions(service: FirExtensionsService) {
+        service.registerExtensions(FirExtensionRegistrar.RegisteredExtensions.EMPTY)
     }
 
     private fun mapKtFilesToFirFiles(session: FirSession, ktFiles: List<KtFile>, firFiles: MutableList<FirFile>, useLightTree: Boolean) {

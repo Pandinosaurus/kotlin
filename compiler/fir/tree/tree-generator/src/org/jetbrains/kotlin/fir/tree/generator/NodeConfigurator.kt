@@ -74,6 +74,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +field("session", firSessionType)
             +field("resolvePhase", resolvePhaseType, withReplace = true).apply { isMutable = true }
             +field("origin", declarationOriginType)
+            +field("attributes", declarationAttributesType)
         }
 
         typedDeclaration.configure {
@@ -230,7 +231,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             parentArg(classLikeDeclaration, "F", "F")
             +symbol("FirClassSymbol", "F")
             +classKind
-            +superTypeRefs(withReplace = true)
+            +superTypeRefs(withReplace = true).withTransform()
             +declarations.withTransform()
             +annotations
             +scopeProvider
@@ -390,7 +391,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
 
         file.configure {
             +fieldList(import)
-            +declarations
+            +declarations.withTransform()
             +stringField("name")
             +field("packageFqName", fqNameType)
         }
@@ -415,7 +416,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
 
         annotationCall.configure {
             +field("useSiteTarget", annotationUseSiteTargetType, nullable = true)
-            +field("annotationTypeRef", typeRef)
+            +field("annotationTypeRef", typeRef).withTransform()
             +booleanField("resolved", withReplace = true)
         }
 

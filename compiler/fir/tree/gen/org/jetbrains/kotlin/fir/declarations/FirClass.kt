@@ -26,6 +26,7 @@ interface FirClass<F : FirClass<F>> : FirClassLikeDeclaration<F>, FirStatement, 
     override val session: FirSession
     override val resolvePhase: FirResolvePhase
     override val origin: FirDeclarationOrigin
+    override val attributes: FirDeclarationAttributes
     override val typeParameters: List<FirTypeParameterRef>
     override val symbol: FirClassSymbol<F>
     val classKind: ClassKind
@@ -39,6 +40,8 @@ interface FirClass<F : FirClass<F>> : FirClassLikeDeclaration<F>, FirStatement, 
     override fun replaceResolvePhase(newResolvePhase: FirResolvePhase)
 
     fun replaceSuperTypeRefs(newSuperTypeRefs: List<FirTypeRef>)
+
+    fun <D> transformSuperTypeRefs(transformer: FirTransformer<D>, data: D): FirClass<F>
 
     fun <D> transformDeclarations(transformer: FirTransformer<D>, data: D): FirClass<F>
 

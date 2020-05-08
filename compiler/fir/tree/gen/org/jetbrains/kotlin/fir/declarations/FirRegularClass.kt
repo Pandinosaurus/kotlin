@@ -27,6 +27,7 @@ abstract class FirRegularClass : FirPureAbstractElement(), FirMemberDeclaration,
     abstract override val session: FirSession
     abstract override val resolvePhase: FirResolvePhase
     abstract override val origin: FirDeclarationOrigin
+    abstract override val attributes: FirDeclarationAttributes
     abstract override val annotations: List<FirAnnotationCall>
     abstract override val typeParameters: List<FirTypeParameterRef>
     abstract override val status: FirDeclarationStatus
@@ -53,6 +54,8 @@ abstract class FirRegularClass : FirPureAbstractElement(), FirMemberDeclaration,
     abstract override fun <D> transformDeclarations(transformer: FirTransformer<D>, data: D): FirRegularClass
 
     abstract fun <D> transformCompanionObject(transformer: FirTransformer<D>, data: D): FirRegularClass
+
+    abstract override fun <D> transformSuperTypeRefs(transformer: FirTransformer<D>, data: D): FirRegularClass
 
     abstract fun <D> transformControlFlowGraphReference(transformer: FirTransformer<D>, data: D): FirRegularClass
 }
