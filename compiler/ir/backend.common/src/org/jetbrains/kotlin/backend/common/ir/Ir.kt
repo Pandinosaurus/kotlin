@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrPackageFragment
+import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
@@ -47,7 +48,7 @@ abstract class Ir<out T : CommonBackendContext>(val context: T, val irModule: Ir
 /**
  * Symbols for builtins that are available without any context and are not specific to any backend
  */
-open class BuiltinSymbolsBase(protected val builtIns: KotlinBuiltIns, private val symbolTable: SymbolTable) {
+open class BuiltinSymbolsBase(protected val irBuiltIns: IrBuiltIns, protected val builtIns: KotlinBuiltIns, private val symbolTable: ReferenceSymbolTable) {
     protected fun builtInsPackage(vararg packageNameSegments: String) =
         builtIns.builtInsModule.getPackage(FqName.fromSegments(listOf(*packageNameSegments))).memberScope
 
@@ -95,11 +96,14 @@ open class BuiltinSymbolsBase(protected val builtIns: KotlinBuiltIns, private va
     val progressionClasses = listOf(charProgression, intProgression, longProgression)
     val progressionClassesTypes = progressionClasses.map { it.descriptor.defaultType }.toSet()
 
-    val getProgressionLastElementByReturnType = builtInsPackage("kotlin", "internal").getContributedFunctions(
-        Name.identifier("getProgressionLastElement"),
-        NoLookupLocation.FROM_BACKEND
-    ).filter { it.containingDeclaration !is BuiltInsPackageFragment }
-        .map { Pair(it.returnType!!, symbolTable.referenceSimpleFunction(it)) }.toMap()
+    val getProgressionLastElementByReturnType = builtInsPackage("kotlin", "internal")
+        .getContributedFunctions(Name.identifier("getProgressionLastElement"), NoLookupLocation.FROM_BACKEND)
+        .filter { it.containingDeclaration !is BuiltInsPackageFragment }
+        .map { d ->
+            val c = d.returnType?.constructor?.declarationDescriptor?.let { symbolTable.referenceClassifier(it) }
+            val f = symbolTable.referenceSimpleFunction(d)
+            c to f
+        }.toMap()
 
     val any = symbolTable.referenceClass(builtIns.any)
     val unit = symbolTable.referenceClass(builtIns.unit)
@@ -202,8 +206,8 @@ open class BuiltinSymbolsBase(protected val builtIns: KotlinBuiltIns, private va
     val intAnd = getBinaryOperator(OperatorNameConventions.AND, builtIns.intType, builtIns.intType)
     val intPlusInt = getBinaryOperator(OperatorNameConventions.PLUS, builtIns.intType, builtIns.intType)
 
-    open fun functionN(n: Int): IrClassSymbol = symbolTable.lazyWrapper.referenceClass(builtIns.getFunction(n))
-    open fun suspendFunctionN(n: Int): IrClassSymbol = symbolTable.lazyWrapper.referenceClass(builtIns.getSuspendFunction(n))
+    open fun functionN(n: Int): IrClassSymbol = irBuiltIns.function(n)
+    open fun suspendFunctionN(n: Int): IrClassSymbol = irBuiltIns.suspendFunction(n)
 
     fun kproperty0(): IrClassSymbol = symbolTable.referenceClass(builtIns.kProperty0)
     fun kproperty1(): IrClassSymbol = symbolTable.referenceClass(builtIns.kProperty1)
@@ -227,8 +231,8 @@ open class BuiltinSymbolsBase(protected val builtIns: KotlinBuiltIns, private va
 
 // Some symbols below are used in kotlin-native, so they can't be private
 @Suppress("MemberVisibilityCanBePrivate", "PropertyName")
-abstract class Symbols<out T : CommonBackendContext>(val context: T, symbolTable: SymbolTable) :
-    BuiltinSymbolsBase(context.builtIns, symbolTable) {
+abstract class Symbols<out T : CommonBackendContext>(val context: T, irBuiltIns: IrBuiltIns, symbolTable: SymbolTable) :
+    BuiltinSymbolsBase(irBuiltIns, context.builtIns, symbolTable) {
     abstract val ThrowNullPointerException: IrFunctionSymbol
     abstract val ThrowNoWhenBranchMatchedException: IrFunctionSymbol
     abstract val ThrowTypeCastException: IrFunctionSymbol

@@ -1,44 +1,62 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.idea.scripting.gradle
 
-import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.kotlin.idea.core.script.configuration.listener.ScriptChangeListener
-import org.jetbrains.kotlin.idea.core.script.configuration.listener.ScriptConfigurationUpdater
+import org.jetbrains.kotlin.idea.scripting.gradle.legacy.GradleLegacyScriptListener
+import org.jetbrains.kotlin.idea.scripting.gradle.roots.GradleBuildRootsManager
 
-open class GradleScriptListener(project: Project) : ScriptChangeListener(project) {
+class GradleScriptListener(project: Project) : ScriptChangeListener(project) {
+    // todo(gradle6): remove
+    private val legacy = GradleLegacyScriptListener(project)
+    private val buildRootsManager = GradleBuildRootsManager.getInstance(project)
+
     init {
-        // start GradleScriptInputsWatcher to track changes in gradle-configuration related files
-        project.service<GradleScriptInputsWatcher>().startWatching()
+        // listen changes using VFS events, including gradle-configuration related files
+        addVfsListener(this, buildRootsManager)
     }
 
-    override fun editorActivated(vFile: VirtualFile, updater: ScriptConfigurationUpdater) {
-        if (!isInAffectedGradleProjectFiles(project, vFile.path)) return
+    fun fileChanged(filePath: String, ts: Long) =
+        buildRootsManager.fileChanged(filePath, ts)
 
-        if (useScriptConfigurationFromImportOnly()) {
-            // do nothing
+    override fun isApplicable(vFile: VirtualFile) =
+        // todo(gradle6): replace with `isCustomScriptingSupport(vFile)`
+        legacy.isApplicable(vFile)
+
+    private fun isCustomScriptingSupport(vFile: VirtualFile) =
+        buildRootsManager.isApplicable(vFile)
+
+    override fun editorActivated(vFile: VirtualFile) {
+        if (isCustomScriptingSupport(vFile)) {
+            checkUpToDate(vFile)
         } else {
-            val file = getAnalyzableKtFileForScript(vFile) ?: return
-            updater.suggestToUpdateConfigurationIfOutOfDate(file)
+            legacy.editorActivated(vFile)
         }
     }
 
-    override fun documentChanged(vFile: VirtualFile, updater: ScriptConfigurationUpdater) {
-        if (!isInAffectedGradleProjectFiles(project, vFile.path)) return
+    override fun documentChanged(vFile: VirtualFile) {
+        fileChanged(vFile.path, System.currentTimeMillis())
 
-        val file = getAnalyzableKtFileForScript(vFile)
-        if (file != null) {
-            // *.gradle.kts file was changed
-            updater.suggestToUpdateConfigurationIfOutOfDate(file)
+        if (isCustomScriptingSupport(vFile)) {
+            checkUpToDate(vFile)
+        } else {
+            legacy.documentChanged(vFile)
         }
     }
 
-    override fun isApplicable(vFile: VirtualFile): Boolean {
-        return isGradleKotlinScript(vFile)
+    private fun checkUpToDate(vFile: VirtualFile) {
+        val upToDate = GradleBuildRootsManager.getInstance(project)
+            .getScriptInfo(vFile)?.model?.inputs?.isUpToDate(project, vFile) ?: return
+
+        if (upToDate) {
+            hideNotificationForProjectImport(project)
+        } else {
+            showNotificationForProjectImport(project)
+        }
     }
 }

@@ -23,16 +23,16 @@ import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.coneTypeUnsafe
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
 private operator fun <T> Pair<T, *>?.component1() = this?.first
 private operator fun <T> Pair<*, T>?.component2() = this?.second
 
-internal fun FirScope.processFunctionsAndConstructorsByName(
+internal fun FirScope.processConstructorsByName(
     name: Name,
     session: FirSession,
     bodyResolveComponents: BodyResolveComponents,
-    noInnerConstructors: Boolean = false,
+    includeSyntheticConstructors: Boolean,
+    includeInnerConstructors: Boolean,
     processor: (FirCallableSymbol<*>) -> Unit
 ) {
     // TODO: Handle case with two or more accessible classifiers
@@ -41,22 +41,38 @@ internal fun FirScope.processFunctionsAndConstructorsByName(
         val (matchedClassifierSymbol, substitutor) = classifierInfo
         val matchedClassSymbol = matchedClassifierSymbol as? FirClassLikeSymbol<*>
 
-
         processConstructors(
             matchedClassSymbol,
             substitutor,
             processor,
             session,
             bodyResolveComponents.scopeSession,
-            noInnerConstructors
+            includeInnerConstructors
         )
 
-        processSyntheticConstructors(
-            matchedClassSymbol,
-            processor,
-            bodyResolveComponents
-        )
+        if (includeSyntheticConstructors) {
+            processSyntheticConstructors(
+                matchedClassSymbol,
+                processor,
+                bodyResolveComponents
+            )
+        }
     }
+}
+
+internal fun FirScope.processFunctionsAndConstructorsByName(
+    name: Name,
+    session: FirSession,
+    bodyResolveComponents: BodyResolveComponents,
+    includeInnerConstructors: Boolean,
+    processor: (FirCallableSymbol<*>) -> Unit
+) {
+    processConstructorsByName(
+        name, session, bodyResolveComponents,
+        includeSyntheticConstructors = true,
+        includeInnerConstructors = includeInnerConstructors,
+        processor = processor
+    )
 
     processFunctionsByName(name) {
         processor(it)
@@ -72,16 +88,6 @@ private fun FirScope.getFirstClassifierOrNull(name: Name): Pair<FirClassifierSym
     }
 
     return result
-}
-
-private fun finalExpansionName(symbol: FirTypeAliasSymbol, session: FirSession): Name? {
-    val expandedType = symbol.fir.expandedTypeRef.coneTypeUnsafe<ConeClassLikeType>()
-    val typeAliasSymbol = expandedType.lookupTag.toSymbol(session)?.safeAs<FirTypeAliasSymbol>()
-
-    return if (typeAliasSymbol != null)
-        finalExpansionName(typeAliasSymbol, session)
-    else
-        expandedType.lookupTag.classId.shortClassName
 }
 
 private fun processSyntheticConstructors(
@@ -139,7 +145,7 @@ private fun processConstructors(
     processor: (FirFunctionSymbol<*>) -> Unit,
     session: FirSession,
     scopeSession: ScopeSession,
-    noInner: Boolean
+    includeInnerConstructors: Boolean
 ) {
     try {
         if (matchedSymbol != null) {
@@ -150,7 +156,7 @@ private fun processConstructors(
 
                     if (basicScope != null && type.typeArguments.isNotEmpty()) {
                         prepareSubstitutingScopeForTypeAliasConstructors(
-                            matchedSymbol, type, session, basicScope
+                            matchedSymbol, session, basicScope
                         ) ?: return
                     } else basicScope
                 }
@@ -162,7 +168,7 @@ private fun processConstructors(
 
             //TODO: why don't we use declared member scope at this point?
             scope?.processDeclaredConstructors {
-                if (!noInner || !it.fir.isInner) {
+                if (includeInnerConstructors || !it.fir.isInner) {
                     processor(it)
                 }
             }
@@ -227,11 +233,10 @@ private class TypeAliasConstructorsSubstitutor<F : FirFunction<F>>(
 
 private fun prepareSubstitutingScopeForTypeAliasConstructors(
     typeAliasSymbol: FirTypeAliasSymbol,
-    expandedType: ConeClassLikeType,
     session: FirSession,
     delegatingScope: FirScope
 ): FirScope? {
-    val copyFactory2: ConstructorCopyFactory<FirConstructor> = factory@ { newReturnType, newParameterTypes, newTypeParameters ->
+    val copyFactory2: ConstructorCopyFactory<FirConstructor> = factory@{ newReturnType, newParameterTypes, newTypeParameters ->
         buildConstructor {
             source = this@factory.source
             this.session = session

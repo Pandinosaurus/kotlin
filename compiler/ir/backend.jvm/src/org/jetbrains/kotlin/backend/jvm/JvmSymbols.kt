@@ -39,7 +39,7 @@ import org.jetbrains.kotlin.types.Variance
 class JvmSymbols(
     context: JvmBackendContext,
     private val symbolTable: SymbolTable
-) : Symbols<JvmBackendContext>(context, symbolTable) {
+) : Symbols<JvmBackendContext>(context, context.irBuiltIns, symbolTable) {
     private val storageManager = LockBasedStorageManager(this::class.java.simpleName)
     private val kotlinPackage: IrPackageFragment = createPackage(FqName("kotlin"))
     private val kotlinCoroutinesPackage: IrPackageFragment = createPackage(FqName("kotlin.coroutines"))
@@ -49,8 +49,6 @@ class JvmSymbols(
     private val kotlinJvmFunctionsPackage: IrPackageFragment = createPackage(FqName("kotlin.jvm.functions"))
     private val kotlinReflectPackage: IrPackageFragment = createPackage(FqName("kotlin.reflect"))
     private val javaLangPackage: IrPackageFragment = createPackage(FqName("java.lang"))
-
-    private val irBuiltIns = context.irBuiltIns
 
     private val generateOptimizedCallableReferenceSuperClasses = context.state.generateOptimizedCallableReferenceSuperClasses
 
@@ -344,8 +342,7 @@ class JvmSymbols(
         }
     }
 
-    fun getFunction(parameterCount: Int): IrClassSymbol =
-        symbolTable.referenceClass(builtIns.getFunction(parameterCount))
+    fun getFunction(parameterCount: Int): IrClassSymbol = irBuiltIns.function(parameterCount)
 
     private val jvmFunctionClasses = storageManager.createMemoizedFunction { n: Int ->
         createFunctionClass(n, false)

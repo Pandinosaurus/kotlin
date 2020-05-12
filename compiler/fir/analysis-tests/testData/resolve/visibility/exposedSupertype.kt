@@ -38,7 +38,7 @@ interface E {
 
 }
 
-class Test2 : A.APublicI, B.BInner {
+class Test2 : A.APublicI, <!UNRESOLVED_REFERENCE!>B.BInner<!>() {
 
 }
 
@@ -50,7 +50,7 @@ class Test4 : E, A.AProtectedI {
 
 }
 
-class Test5 : C.CPublicI, B.BInner {
+class Test5 : C.CPublicI, <!UNRESOLVED_REFERENCE!>B.BInner<!>() {
 
 }
 

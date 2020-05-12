@@ -26,7 +26,9 @@ import org.jetbrains.kotlin.fir.scopes.ProcessorAction
 import org.jetbrains.kotlin.fir.scopes.impl.FirCompositeScope
 import org.jetbrains.kotlin.fir.scopes.impl.FirLocalScope
 import org.jetbrains.kotlin.fir.scopes.impl.FirStaticScope
+import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitBuiltinTypeRef
@@ -64,6 +66,10 @@ class FirTowerResolverSession internal constructor(
             components.fileImportsScope.asReversed()
         else
             components.typeParametersScopes.asReversed() + components.fileImportsScope.asReversed()
+
+    fun runResolutionForDelegatingConstructor(info: CallInfo, constructorClassSymbol: FirClassSymbol<*>) {
+        manager.enqueueResolverTask { runResolverForDelegatingConstructorCall(info, constructorClassSymbol) }
+    }
 
     fun runResolution(info: CallInfo) {
         when (val receiver = info.explicitReceiver) {
@@ -121,11 +127,14 @@ class FirTowerResolverSession internal constructor(
     private fun FirScope.toScopeTowerLevel(
         extensionReceiver: ReceiverValue? = null,
         extensionsOnly: Boolean = false,
-        noInnerConstructors: Boolean = false
+        includeInnerConstructors: Boolean = true
     ): ScopeTowerLevel = ScopeTowerLevel(
         session, components, this,
-        extensionReceiver, extensionsOnly, noInnerConstructors
+        extensionReceiver, extensionsOnly, includeInnerConstructors
     )
+
+    private fun FirScope.toConstructorScopeTowerLevel(): ConstructorScopeTowerLevel =
+        ConstructorScopeTowerLevel(session, this)
 
     private fun ReceiverValue.toMemberScopeTowerLevel(
         extensionReceiver: ReceiverValue? = null,
@@ -142,7 +151,7 @@ class FirTowerResolverSession internal constructor(
         if (qualifierReceiver == null) return
         for ((depth, qualifierScope) in qualifierReceiver.callableScopes().withIndex()) {
             processLevel(
-                qualifierScope.toScopeTowerLevel(noInnerConstructors = true),
+                qualifierScope.toScopeTowerLevel(includeInnerConstructors = false),
                 info.noStubReceiver(), TowerGroup.Qualifier(depth),
                 useParentGroupForInvokes = true,
             )
@@ -160,7 +169,7 @@ class FirTowerResolverSession internal constructor(
         val scope = qualifierReceiver.classifierScope() ?: return
         val group = if (prioritized) TowerGroup.ClassifierPrioritized else TowerGroup.Classifier
         processLevel(
-            scope.toScopeTowerLevel(noInnerConstructors = true), info.noStubReceiver(),
+            scope.toScopeTowerLevel(includeInnerConstructors = false), info.noStubReceiver(),
             group,
             useParentGroupForInvokes = true,
         )
@@ -195,6 +204,25 @@ class FirTowerResolverSession internal constructor(
                     runResolverForExpressionReceiver(info, resolvedQualifier)
                 }
             }
+        }
+    }
+
+    private suspend fun runResolverForDelegatingConstructorCall(info: CallInfo, constructorClassSymbol: FirClassSymbol<*>) {
+        val scope = constructorClassSymbol.fir.unsubstitutedScope(session, components.scopeSession)
+        if (constructorClassSymbol is FirRegularClassSymbol && constructorClassSymbol.fir.isInner) {
+            // Search for inner constructors only
+            for ((implicitReceiverValue, depth) in implicitReceiversUsableAsValues.drop(1)) {
+                processLevel(
+                    implicitReceiverValue.toMemberScopeTowerLevel(),
+                    info.copy(name = constructorClassSymbol.fir.name), TowerGroup.Implicit(depth)
+                )
+            }
+        } else {
+            // Search for non-inner constructors only
+            processLevel(
+                scope.toConstructorScopeTowerLevel(),
+                info, TowerGroup.Member
+            )
         }
     }
 
