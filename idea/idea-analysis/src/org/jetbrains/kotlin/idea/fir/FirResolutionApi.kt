@@ -13,10 +13,9 @@ import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.references.*
 import org.jetbrains.kotlin.fir.render
-import org.jetbrains.kotlin.fir.resolve.FirProvider
-import org.jetbrains.kotlin.fir.resolve.ResolutionMode
-import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.resolve.getClassDeclaredCallableSymbols
+import org.jetbrains.kotlin.fir.resolve.*
+import org.jetbrains.kotlin.fir.resolve.providers.FirProvider
+import org.jetbrains.kotlin.fir.resolve.providers.getClassDeclaredCallableSymbols
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirBodyResolveTransformer
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.createReturnTypeCalculatorForIDE
 import org.jetbrains.kotlin.fir.resolve.transformers.runResolve
@@ -84,7 +83,7 @@ fun KtCallableDeclaration.getOrBuildFir(
     val klassFqName = this.containingClassOrObject?.relativeFqName()
     val declName = this.nameAsSafeName
 
-    val firProvider = FirProvider.getInstance(session) as FirIdeProvider
+    val firProvider = session.firIdeProvider
     val firFile = firProvider.getOrBuildFile(file)
     val firMemberSymbol = firFile.findCallableMember(firProvider, this, packageFqName, klassFqName, declName).symbol
     val firMemberDeclaration = firMemberSymbol.fir
@@ -107,7 +106,7 @@ fun KtClassOrObject.getOrBuildFir(
     val packageFqName = file.packageFqName
     val klassFqName = this.relativeFqName()
 
-    val firProvider = FirProvider.getInstance(session) as FirIdeProvider
+    val firProvider = session.firIdeProvider
     val firFile = firProvider.getOrBuildFile(file)
 
     val firClassOrEnumEntry = if (this is KtEnumEntry) {
@@ -127,7 +126,7 @@ fun KtClassOrObject.getOrBuildFir(
 
 private fun KtFile.getOrBuildRawFirFile(state: FirModuleResolveState): Pair<FirIdeProvider, FirFile> {
     val session = state.getSession(this)
-    val firProvider = FirProvider.getInstance(session) as FirIdeProvider
+    val firProvider = session.firIdeProvider
     return firProvider to firProvider.getOrBuildFile(this)
 }
 

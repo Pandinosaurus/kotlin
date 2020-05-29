@@ -7,11 +7,10 @@ package org.jetbrains.kotlin.fir.declarations
 
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.fir.declarations.builder.AbstractFirRegularClassBuilder
+import org.jetbrains.kotlin.fir.declarations.builder.FirRegularClassBuilder
 import org.jetbrains.kotlin.fir.declarations.builder.FirTypeParameterBuilder
-import org.jetbrains.kotlin.fir.declarations.impl.FirClassImpl
+import org.jetbrains.kotlin.fir.declarations.impl.FirRegularClassImpl
 import org.jetbrains.kotlin.fir.declarations.impl.FirFileImpl
-import org.jetbrains.kotlin.fir.declarations.impl.FirSealedClassImpl
 import org.jetbrains.kotlin.fir.symbols.impl.FirAnonymousObjectSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
@@ -19,7 +18,6 @@ import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeFlexibleType
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.coneTypeSafe
-import java.lang.IllegalStateException
 
 fun FirTypeParameterBuilder.addDefaultBoundIfNecessary(isFlexible: Boolean = false) {
     if (bounds.isEmpty()) {
@@ -67,14 +65,14 @@ inline val FirPropertyAccessor.allowsToHaveFakeOverride: Boolean
 
 inline val FirRegularClass.isLocal get() = symbol.classId.isLocal
 
-fun AbstractFirRegularClassBuilder.addDeclaration(declaration: FirDeclaration) {
+fun FirRegularClassBuilder.addDeclaration(declaration: FirDeclaration) {
     declarations += declaration
     if (companionObject == null && declaration is FirRegularClass && declaration.isCompanion) {
         companionObject = declaration
     }
 }
 
-fun AbstractFirRegularClassBuilder.addDeclarations(declarations: Collection<FirDeclaration>) {
+fun FirRegularClassBuilder.addDeclarations(declarations: Collection<FirDeclaration>) {
     declarations.forEach(this::addDeclaration)
 }
 
@@ -103,8 +101,7 @@ fun FirFile.addDeclaration(declaration: FirDeclaration) {
 fun FirRegularClass.addDeclaration(declaration: FirDeclaration) {
     @Suppress("LiftReturnOrAssignment")
     when (this) {
-        is FirClassImpl -> declarations += declaration
-        is FirSealedClassImpl -> declarations += declaration
+        is FirRegularClassImpl -> declarations += declaration
         else -> throw IllegalStateException()
     }
 }

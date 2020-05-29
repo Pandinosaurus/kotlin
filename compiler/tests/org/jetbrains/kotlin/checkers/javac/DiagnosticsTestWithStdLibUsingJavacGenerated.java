@@ -2803,6 +2803,59 @@ public class DiagnosticsTestWithStdLibUsingJavacGenerated extends AbstractDiagno
         }
     }
 
+    @TestMetadata("compiler/testData/diagnostics/testsWithStdLib/factoryPattern")
+    @TestDataPath("$PROJECT_ROOT")
+    @RunWith(JUnit3RunnerWithInners.class)
+    public static class FactoryPattern extends AbstractDiagnosticsTestWithStdLibUsingJavac {
+        private void runTest(String testDataFilePath) throws Exception {
+            KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
+        }
+
+        public void testAllFilesPresentInFactoryPattern() throws Exception {
+            KotlinTestUtils.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/testsWithStdLib/factoryPattern"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.fir\\.kts?$"), true);
+        }
+
+        @TestMetadata("independentResolutionInLambda.kt")
+        public void testIndependentResolutionInLambda() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithStdLib/factoryPattern/independentResolutionInLambda.kt");
+        }
+
+        @TestMetadata("multipleOverloads_1.kt")
+        public void testMultipleOverloads_1() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithStdLib/factoryPattern/multipleOverloads_1.kt");
+        }
+
+        @TestMetadata("multipleOverloads_2.kt")
+        public void testMultipleOverloads_2() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithStdLib/factoryPattern/multipleOverloads_2.kt");
+        }
+
+        @TestMetadata("multipleOverloads_3.kt")
+        public void testMultipleOverloads_3() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithStdLib/factoryPattern/multipleOverloads_3.kt");
+        }
+
+        @TestMetadata("overloadByLambdaReturnType_disabled.kt")
+        public void testOverloadByLambdaReturnType_disabled() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithStdLib/factoryPattern/overloadByLambdaReturnType_disabled.kt");
+        }
+
+        @TestMetadata("overloadByLambdaReturnType_enabled.kt")
+        public void testOverloadByLambdaReturnType_enabled() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithStdLib/factoryPattern/overloadByLambdaReturnType_enabled.kt");
+        }
+
+        @TestMetadata("overloadByLambdaReturnType_enabled_no_annotation.kt")
+        public void testOverloadByLambdaReturnType_enabled_no_annotation() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithStdLib/factoryPattern/overloadByLambdaReturnType_enabled_no_annotation.kt");
+        }
+
+        @TestMetadata("resolutionInOldInference.kt")
+        public void testResolutionInOldInference() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithStdLib/factoryPattern/resolutionInOldInference.kt");
+        }
+    }
+
     @TestMetadata("compiler/testData/diagnostics/testsWithStdLib/forInArrayLoop")
     @TestDataPath("$PROJECT_ROOT")
     @RunWith(JUnit3RunnerWithInners.class)

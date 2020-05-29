@@ -15,7 +15,6 @@ import com.intellij.testFramework.LightProjectDescriptor
 import junit.framework.TestCase
 import org.jetbrains.kotlin.fir.declarations.FirResolvedImport
 import org.jetbrains.kotlin.fir.render
-import org.jetbrains.kotlin.fir.resolve.FirProvider
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.idea.caches.project.IdeaModuleInfo
 import org.jetbrains.kotlin.idea.caches.project.productionSourceInfo
@@ -101,7 +100,7 @@ abstract class AbstractFirLazyResolveTest : KotlinLightCodeInsightFixtureTestCas
         for (file in files) {
             val psiFile = psiManager.findFile(file) as KtFile
             val session = resolveState.getSession(psiFile)
-            val firProvider = FirProvider.getInstance(session) as FirIdeProvider
+            val firProvider = session.firIdeProvider
             val firFile = firProvider.getFile(psiFile) ?: continue
             KotlinTestUtils.assertEqualsToFile(File(expectedTxtPath(file)), firFile.render())
         }
