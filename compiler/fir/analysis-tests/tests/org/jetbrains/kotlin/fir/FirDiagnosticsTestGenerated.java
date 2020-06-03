@@ -604,6 +604,11 @@ public class FirDiagnosticsTestGenerated extends AbstractFirDiagnosticsTest {
             runTest("compiler/fir/analysis-tests/testData/resolve/callResolution/debugInfoCall.kt");
         }
 
+        @TestMetadata("extensionInvokeAfterSafeCall.kt")
+        public void testExtensionInvokeAfterSafeCall() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/callResolution/extensionInvokeAfterSafeCall.kt");
+        }
+
         @TestMetadata("invokeAmbiguity.kt")
         public void testInvokeAmbiguity() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/callResolution/invokeAmbiguity.kt");
@@ -612,6 +617,11 @@ public class FirDiagnosticsTestGenerated extends AbstractFirDiagnosticsTest {
         @TestMetadata("objectInvoke.kt")
         public void testObjectInvoke() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/callResolution/objectInvoke.kt");
+        }
+
+        @TestMetadata("safeCallOnTypeAlias.kt")
+        public void testSafeCallOnTypeAlias() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/callResolution/safeCallOnTypeAlias.kt");
         }
     }
 
@@ -1481,6 +1491,11 @@ public class FirDiagnosticsTestGenerated extends AbstractFirDiagnosticsTest {
         public void testImplicitInLocalClasses() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/localClasses/implicitInLocalClasses.kt");
         }
+
+        @TestMetadata("typesFromSuperClasses.kt")
+        public void testTypesFromSuperClasses() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/localClasses/typesFromSuperClasses.kt");
+        }
     }
 
     @TestMetadata("compiler/fir/analysis-tests/testData/resolve/multifile")
@@ -1667,11 +1682,6 @@ public class FirDiagnosticsTestGenerated extends AbstractFirDiagnosticsTest {
         @TestMetadata("javaAccessorConversion.kt")
         public void testJavaAccessorConversion() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/problems/javaAccessorConversion.kt");
-        }
-
-        @TestMetadata("javaArrayInGeneric.kt")
-        public void testJavaArrayInGeneric() throws Exception {
-            runTest("compiler/fir/analysis-tests/testData/resolve/problems/javaArrayInGeneric.kt");
         }
 
         @TestMetadata("javaQualifier.kt")
@@ -2192,6 +2202,11 @@ public class FirDiagnosticsTestGenerated extends AbstractFirDiagnosticsTest {
 
             public void testAllFilesPresentInJ_k() throws Exception {
                 KotlinTestUtils.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/fir/analysis-tests/testData/resolve/stdlib/j+k"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+            }
+
+            @TestMetadata("ArrayInGenericArguments.kt")
+            public void testArrayInGenericArguments() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolve/stdlib/j+k/ArrayInGenericArguments.kt");
             }
 
             @TestMetadata("flexibleWildcard.kt")

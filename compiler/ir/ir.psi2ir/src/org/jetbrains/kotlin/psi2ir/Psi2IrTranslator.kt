@@ -21,6 +21,8 @@ import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.linkage.IrDeserializer
+import org.jetbrains.kotlin.ir.linkage.IrProvider
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -56,7 +58,7 @@ class Psi2IrTranslator(
         val irProviders = generateTypicalIrProviderList(
             moduleDescriptor, context.irBuiltIns, context.symbolTable, extensions = generatorExtensions
         )
-        return generateModuleFragment(context, ktFiles, irProviders)
+        return generateModuleFragment(context, ktFiles, irProviders, emptyList())
     }
 
     fun createGeneratorContext(
@@ -74,6 +76,7 @@ class Psi2IrTranslator(
         context: GeneratorContext,
         ktFiles: Collection<KtFile>,
         irProviders: List<IrProvider>,
+        linkerExtensions: Collection<IrDeserializer.IrLinkerExtension>,
         expectDescriptorToSymbol: MutableMap<DeclarationDescriptor, IrSymbol>? = null
     ): IrModuleFragment {
         val moduleGenerator = ModuleGenerator(context)
@@ -84,7 +87,7 @@ class Psi2IrTranslator(
         postprocess(context, irModule)
 
         val deserializers = irProviders.filterIsInstance<IrDeserializer>()
-        deserializers.forEach { it.init(irModule) }
+        deserializers.forEach { it.init(irModule, linkerExtensions) }
 
         moduleGenerator.generateUnboundSymbolsAsDependencies(irProviders)
 

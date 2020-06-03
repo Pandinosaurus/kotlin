@@ -76,19 +76,13 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
 
         impl(arrayOfCall)
 
-        val modifiableQualifiedAccess = impl(qualifiedAccessWithoutCallee, "FirModifiableQualifiedAccess") {
-            isMutable("safe")
-        }
+        val modifiableQualifiedAccess = impl(qualifiedAccessWithoutCallee, "FirModifiableQualifiedAccess") {}
 
         impl(callableReferenceAccess) {
             parents += modifiableQualifiedAccess
         }
 
         impl(componentCall) {
-            default("safe") {
-                value = "false"
-                withGetter = true
-            }
             default("calleeReference", "FirSimpleNamedReference(source, Name.identifier(\"component\$componentIndex\"), null)")
             useTypes(simpleNamedReferenceType, nameType)
             optInToInternals()
@@ -225,7 +219,7 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         impl(typeOperatorCall)
 
         impl(resolvedQualifier) {
-            isMutable("packageFqName", "relativeClassFqName", "safe")
+            isMutable("packageFqName", "relativeClassFqName", "isNullableLHSForCallableReference")
             default("classId") {
                 value = """
                     |relativeClassFqName?.let {
@@ -255,10 +249,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
 
         impl(thisReceiverExpression) {
             parents += modifiableQualifiedAccess
-            default("safe") {
-                value = "false"
-                withGetter = true
-            }
             defaultNoReceivers()
         }
 
@@ -296,9 +286,10 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
 
         impl(whenSubjectExpression) {
             default("typeRef") {
-                value = "whenSubject.whenExpression.subject!!.typeRef"
+                value = "whenRef.value.subject!!.typeRef"
                 withGetter = true
             }
+            useTypes(whenExpressionType)
         }
 
         impl(wrappedDelegateExpression) {
@@ -453,6 +444,14 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             }
         }
 
+        impl(safeCallExpression) {
+            useTypes(safeCallCheckedSubjectType)
+        }
+
+        impl(checkedSafeCallSubject) {
+            useTypes(expressionType)
+        }
+
         noImpl(userTypeRef)
     }
 
@@ -481,6 +480,8 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             "FirResolvedReifiedParameterReferenceImpl",
             "FirExpressionStub",
             "FirVarargArgumentsExpressionImpl",
+            "FirSafeCallExpressionImpl",
+            "FirCheckedSafeCallSubjectImpl",
         )
         configureFieldInAllImplementations(
             field = "typeRef",

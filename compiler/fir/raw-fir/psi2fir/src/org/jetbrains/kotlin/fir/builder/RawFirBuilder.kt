@@ -1343,7 +1343,8 @@ class RawFirBuilder(
                 else -> null
             }
             val hasSubject = subjectExpression != null
-            val subject = FirWhenSubject()
+            @OptIn(FirContractViolation::class)
+            val ref = FirExpressionRef<FirWhenExpression>()
             return buildWhenExpression {
                 source = expression.toFirSourceElement()
                 this.subject = subjectExpression
@@ -1358,7 +1359,7 @@ class RawFirBuilder(
                                 source = entrySource
                                 condition = entry.conditions.toFirWhenCondition(
                                     entrySource,
-                                    subject,
+                                    ref,
                                     { toFirExpression(it) },
                                     { toFirOrErrorType() },
                                 )
@@ -1382,7 +1383,7 @@ class RawFirBuilder(
                 }
             }.also {
                 if (hasSubject) {
-                    subject.bind(it)
+                    ref.bind(it)
                 }
             }
         }
@@ -1699,8 +1700,13 @@ class RawFirBuilder(
                 )
             val firSelector = selector.toFirExpression("Incorrect selector expression")
             if (firSelector is FirModifiableQualifiedAccess) {
-                firSelector.safe = expression is KtSafeQualifiedExpression
-                firSelector.explicitReceiver = expression.receiverExpression.toFirExpression("Incorrect receiver expression")
+                val receiver = expression.receiverExpression.toFirExpression("Incorrect receiver expression")
+
+                if (expression is KtSafeQualifiedExpression) {
+                    return firSelector.wrapWithSafeCall(receiver)
+                }
+
+                firSelector.explicitReceiver = receiver
             }
             return firSelector
         }
@@ -1807,7 +1813,7 @@ class RawFirBuilder(
                     name = expression.callableReference.getReferencedNameAsName()
                 }
                 explicitReceiver = expression.receiverExpression?.toFirExpression("Incorrect receiver expression")
-                safe = expression.hasQuestionMarks
+                hasQuestionMarkAtLHS = expression.hasQuestionMarks
             }
         }
 

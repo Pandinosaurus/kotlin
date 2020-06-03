@@ -111,7 +111,7 @@ object BuilderConfigurator : AbstractBuilderConfigurator<FirTreeBuilder>(FirTree
             parents += qualifiedAccessBuilder
             defaultNull("explicitReceiver")
             defaultNoReceivers()
-            defaultFalse("safe")
+            defaultFalse("hasQuestionMarkAtLHS")
         }
 
         builder(componentCall) {
@@ -150,7 +150,6 @@ object BuilderConfigurator : AbstractBuilderConfigurator<FirTreeBuilder>(FirTree
         builder(functionCall) {
             parents += qualifiedAccessBuilder
             parents += callBuilder
-            defaultFalse("safe")
             defaultNoReceivers()
             openBuilder()
             default("argumentList") {
@@ -161,7 +160,6 @@ object BuilderConfigurator : AbstractBuilderConfigurator<FirTreeBuilder>(FirTree
 
         builder(qualifiedAccessExpression) {
             parents += qualifiedAccessBuilder
-            defaultFalse("safe")
             defaultNoReceivers()
         }
 
@@ -267,6 +265,22 @@ object BuilderConfigurator : AbstractBuilderConfigurator<FirTreeBuilder>(FirTree
             default("symbol", "FirAnonymousInitializerSymbol()")
         }
 
+        builder(resolvedQualifier) {
+            defaultFalse("isNullableLHSForCallableReference")
+        }
+
+//        builder(safeCallExpression) {
+//            useTypes(safeCallCheckedSubjectType)
+//        }
+//
+//        builder(checkedSafeCallSubject) {
+//            useTypes(expressionType)
+//        }
+//
+//        builder(whenSubjectExpression) {
+//            useTypes(whenExpressionType)
+//        }
+
         val elementsWithDefaultTypeRef = listOf(
             thisReceiverExpression,
             callableReferenceAccess,
@@ -280,7 +294,9 @@ object BuilderConfigurator : AbstractBuilderConfigurator<FirTreeBuilder>(FirTree
             resolvedQualifier,
             resolvedReifiedParameterReference,
             expression to "FirExpressionStub",
-            varargArgumentsExpression
+            varargArgumentsExpression,
+            checkedSafeCallSubject,
+            safeCallExpression
         )
         elementsWithDefaultTypeRef.forEach {
             val (element, name) = when (it) {

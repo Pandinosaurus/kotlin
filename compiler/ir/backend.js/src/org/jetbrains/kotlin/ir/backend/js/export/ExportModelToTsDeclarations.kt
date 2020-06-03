@@ -42,10 +42,10 @@ fun ExportedDeclaration.toTypeScript(indent: String): String = indent + when (th
 
         val renderedReturnType = returnType.toTypeScript()
 
-        "$keyword$name$renderedTypeParameters($renderedParameters): $renderedReturnType"
+        "$keyword$name$renderedTypeParameters($renderedParameters): $renderedReturnType;"
     }
     is ExportedConstructor ->
-        "constructor(${parameters.joinToString(", ") { it.toTypeScript() }})"
+        "constructor(${parameters.joinToString(", ") { it.toTypeScript() }});"
 
     is ExportedProperty -> {
         val keyword = when {
@@ -66,6 +66,13 @@ fun ExportedDeclaration.toTypeScript(indent: String): String = indent + when (th
 
         val membersString = members.joinToString("") { it.toTypeScript("$indent    ") + "\n" }
 
+        // If there are no exported constructors, add a private constructor to disable default one
+        val privateCtorString =
+            if (!isInterface && !isAbstract && members.none { it is ExportedConstructor })
+                "$indent    private constructor();\n"
+            else
+                ""
+
         val renderedTypeParameters =
             if (typeParameters.isNotEmpty())
                 "<" + typeParameters.joinToString(", ") + ">"
@@ -74,8 +81,10 @@ fun ExportedDeclaration.toTypeScript(indent: String): String = indent + when (th
 
         val modifiers = if (isAbstract && !isInterface) "abstract " else ""
 
-        val klassExport = "$modifiers$keyword $name$renderedTypeParameters$superClassClause$superInterfacesClause {\n$membersString$indent}"
-        val staticsExport = if (statics.isNotEmpty()) "\n" + ExportedNamespace(name, statics).toTypeScript(indent) else ""
+        val bodyString = privateCtorString + membersString + indent
+
+        val klassExport = "$modifiers$keyword $name$renderedTypeParameters$superClassClause$superInterfacesClause {\n$bodyString}"
+        val staticsExport = if (nestedClasses.isNotEmpty()) "\n" + ExportedNamespace(name, nestedClasses).toTypeScript(indent) else ""
         klassExport + staticsExport
     }
 }

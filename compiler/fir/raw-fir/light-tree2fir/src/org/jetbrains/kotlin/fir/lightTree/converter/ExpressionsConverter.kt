@@ -432,13 +432,13 @@ class ExpressionsConverter(
      */
     private fun convertCallableReferenceExpression(callableReferenceExpression: LighterASTNode): FirExpression {
         var isReceiver = true
-        var safe = false
+        var hasQuestionMarkAtLHS = false
         var firReceiverExpression: FirExpression? = null
         lateinit var firCallableReference: FirQualifiedAccess
         callableReferenceExpression.forEachChildren {
             when (it.tokenType) {
                 COLONCOLON -> isReceiver = false
-                QUEST -> safe = true
+                QUEST -> hasQuestionMarkAtLHS = true
                 else -> if (it.isExpression()) {
                     if (isReceiver) {
                         firReceiverExpression = getAsFirExpression(it, "Incorrect receiver expression")
@@ -453,7 +453,7 @@ class ExpressionsConverter(
             source = callableReferenceExpression.toFirSourceElement()
             calleeReference = firCallableReference.calleeReference as FirNamedReference
             explicitReceiver = firReceiverExpression
-            this.safe = safe
+            this.hasQuestionMarkAtLHS = hasQuestionMarkAtLHS
         }
     }
 
@@ -483,7 +483,10 @@ class ExpressionsConverter(
         }
 
         (firSelector as? FirModifiableQualifiedAccess)?.let {
-            it.safe = isSafe
+            if (isSafe) {
+                return it.wrapWithSafeCall(firReceiver!!)
+            }
+
             it.explicitReceiver = firReceiver
         }
         return firSelector
@@ -633,7 +636,9 @@ class ExpressionsConverter(
         }
         subjectExpression = subjectVariable?.initializer ?: subjectExpression
         val hasSubject = subjectExpression != null
-        val subject = FirWhenSubject()
+
+        @OptIn(FirContractViolation::class)
+        val subject = FirExpressionRef<FirWhenExpression>()
         whenEntryNodes.mapTo(whenEntries) { convertWhenEntry(it, subject.takeIf { hasSubject }) }
         return buildWhenExpression {
             source = whenExpression.toFirSourceElement()
@@ -673,15 +678,15 @@ class ExpressionsConverter(
      * @see org.jetbrains.kotlin.parsing.KotlinExpressionParsing.parseWhenEntry
      * @see org.jetbrains.kotlin.parsing.KotlinExpressionParsing.parseWhenEntryNotElse
      */
-    private fun convertWhenEntry(whenEntry: LighterASTNode, subject: FirWhenSubject?): WhenEntry {
+    private fun convertWhenEntry(whenEntry: LighterASTNode, whenRefWithSubject: FirExpressionRef<FirWhenExpression>?): WhenEntry {
         var isElse = false
         var firBlock: FirBlock = buildEmptyExpressionBlock()
         val conditions = mutableListOf<FirExpression>()
         whenEntry.forEachChildren {
             when (it.tokenType) {
-                WHEN_CONDITION_EXPRESSION -> conditions += convertWhenConditionExpression(it, subject)
-                WHEN_CONDITION_IN_RANGE -> conditions += convertWhenConditionInRange(it, subject)
-                WHEN_CONDITION_IS_PATTERN -> conditions += convertWhenConditionIsPattern(it, subject)
+                WHEN_CONDITION_EXPRESSION -> conditions += convertWhenConditionExpression(it, whenRefWithSubject)
+                WHEN_CONDITION_IN_RANGE -> conditions += convertWhenConditionInRange(it, whenRefWithSubject)
+                WHEN_CONDITION_IS_PATTERN -> conditions += convertWhenConditionIsPattern(it, whenRefWithSubject)
                 ELSE_KEYWORD -> isElse = true
                 BLOCK -> firBlock = declarationsConverter.convertBlock(it)
                 else -> if (it.isExpression()) firBlock = declarationsConverter.convertBlock(it)
@@ -691,20 +696,20 @@ class ExpressionsConverter(
         return WhenEntry(conditions, firBlock, isElse)
     }
 
-    private fun convertWhenConditionExpression(whenCondition: LighterASTNode, subject: FirWhenSubject?): FirExpression {
+    private fun convertWhenConditionExpression(whenCondition: LighterASTNode, whenRefWithSubject: FirExpressionRef<FirWhenExpression>?): FirExpression {
         var firExpression: FirExpression = buildErrorExpression(null, ConeSimpleDiagnostic("No expression in condition with expression", DiagnosticKind.Syntax))
         whenCondition.forEachChildren {
             when (it.tokenType) {
                 else -> if (it.isExpression()) firExpression = getAsFirExpression(it, "No expression in condition with expression")
             }
         }
-        return if (subject != null) {
+        return if (whenRefWithSubject != null) {
             buildOperatorCall {
                 source = whenCondition.toFirSourceElement()
                 operation = FirOperation.EQ
                 argumentList = buildBinaryArgumentList(
                     buildWhenSubjectExpression {
-                        whenSubject = subject
+                        whenRef = whenRefWithSubject
                     }, firExpression
                 )
             }
@@ -714,7 +719,7 @@ class ExpressionsConverter(
         }
     }
 
-    private fun convertWhenConditionInRange(whenCondition: LighterASTNode, subject: FirWhenSubject?): FirExpression {
+    private fun convertWhenConditionInRange(whenCondition: LighterASTNode, whenRefWithSubject: FirExpressionRef<FirWhenExpression>?): FirExpression {
         var isNegate = false
         var firExpression: FirExpression = buildErrorExpression(null, ConeSimpleDiagnostic("No range in condition with range", DiagnosticKind.Syntax))
         var conditionSource: FirLightSourceElement? = null
@@ -728,9 +733,9 @@ class ExpressionsConverter(
             }
         }
 
-        val subjectExpression = if (subject != null) {
+        val subjectExpression = if (whenRefWithSubject != null) {
             buildWhenSubjectExpression {
-                whenSubject = subject
+                whenRef = whenRefWithSubject
             }
         } else {
             return buildErrorExpression {
@@ -747,7 +752,7 @@ class ExpressionsConverter(
         )
     }
 
-    private fun convertWhenConditionIsPattern(whenCondition: LighterASTNode, subject: FirWhenSubject?): FirExpression {
+    private fun convertWhenConditionIsPattern(whenCondition: LighterASTNode, whenRefWithSubject: FirExpressionRef<FirWhenExpression>?): FirExpression {
         lateinit var firOperation: FirOperation
         lateinit var firType: FirTypeRef
         whenCondition.forEachChildren {
@@ -758,9 +763,9 @@ class ExpressionsConverter(
             }
         }
 
-        val subjectExpression = if (subject != null) {
+        val subjectExpression = if (whenRefWithSubject != null) {
             buildWhenSubjectExpression {
-                whenSubject = subject
+                whenRef = whenRefWithSubject
             }
         } else {
             return buildErrorExpression {

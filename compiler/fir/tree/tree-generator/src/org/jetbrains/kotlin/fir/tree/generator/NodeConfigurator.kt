@@ -185,7 +185,6 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         }
 
         qualifiedAccessWithoutCallee.configure {
-            +booleanField("safe")
             +typeArguments.withTransform()
             +receivers
         }
@@ -439,8 +438,21 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +field("originalType", typeRef)
         }
 
+        safeCallExpression.configure {
+            +field("receiver", expression).withTransform()
+            // Special node that might be used as a reference to receiver of a safe call after null check
+            +field("checkedSubjectRef", safeCallCheckedSubjectReferenceType)
+            // One that uses checkedReceiver as a receiver
+            +field("regularQualifiedAccess", qualifiedAccess, withReplace = true).withTransform()
+        }
+
+        checkedSafeCallSubject.configure {
+            +field("originalReceiverRef", safeCallOriginalReceiverReferenceType)
+        }
+
         callableReferenceAccess.configure {
             +field("calleeReference", namedReference, withReplace = true).withTransform()
+            +booleanField("hasQuestionMarkAtLHS", withReplace = true)
         }
 
         getClassCall.configure {
@@ -465,7 +477,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +field("relativeClassFqName", fqNameType, nullable = true)
             +field("classId", classIdType, nullable = true)
             +field("symbol", classLikeSymbolType, nullable = true)
-            +booleanField("safe", withReplace = true)
+            +booleanField("isNullableLHSForCallableReference", withReplace = true)
             +typeArguments.withTransform()
         }
 
@@ -486,7 +498,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         }
 
         whenSubjectExpression.configure {
-            +field("whenSubject", whenSubjectType)
+            +field("whenRef", whenRefType)
         }
 
         wrappedExpression.configure {
