@@ -183,6 +183,9 @@ include ":kotlin-build-common",
         ":idea:jvm-debugger:jvm-debugger-coroutine",
         ":idea:jvm-debugger:jvm-debugger-test",
         ":idea:scripting-support",
+        ":idea:idea-frontend-independent",
+        ":idea:idea-frontend-fir",
+        ":idea:idea-frontend-api",
         ":libraries:tools:new-project-wizard",
         ":idea:idea-new-project-wizard",
         ":libraries:tools:new-project-wizard:new-project-wizard-cli",
@@ -309,6 +312,8 @@ include ":kotlin-build-common",
         ":kotlin-serialization",
         ":kotlin-serialization-unshaded",
         ":kotlin-serialization:plugin-marker"
+
+include ":idea:idea-frontend-fir:idea-fir-low-level-api"
 
 include ":prepare:ide-plugin-dependencies:android-extensions-compiler-plugin-for-ide",
         ":prepare:ide-plugin-dependencies:allopen-compiler-plugin-for-ide",

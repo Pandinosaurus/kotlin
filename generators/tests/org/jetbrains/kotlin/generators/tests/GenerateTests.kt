@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -83,9 +83,11 @@ import org.jetbrains.kotlin.idea.editor.AbstractMultiLineStringIndentTest
 import org.jetbrains.kotlin.idea.editor.backspaceHandler.AbstractBackspaceHandlerTest
 import org.jetbrains.kotlin.idea.editor.quickDoc.AbstractQuickDocProviderTest
 import org.jetbrains.kotlin.idea.filters.AbstractKotlinExceptionFilterTest
-import org.jetbrains.kotlin.idea.fir.AbstractFirLazyResolveTest
-import org.jetbrains.kotlin.idea.fir.AbstractFirMultiModuleResolveTest
+import org.jetbrains.kotlin.idea.fir.low.level.api.AbstractFirLazyResolveTest
+import org.jetbrains.kotlin.idea.fir.low.level.api.AbstractFirMultiModuleResolveTest
+import org.jetbrains.kotlin.idea.fir.AbstractKtDeclarationAndFirDeclarationEqualityChecker
 import org.jetbrains.kotlin.idea.folding.AbstractKotlinFoldingTest
+import org.jetbrains.kotlin.idea.frontend.api.fir.AbstractResolveCallTest
 import org.jetbrains.kotlin.idea.hierarchy.AbstractHierarchyTest
 import org.jetbrains.kotlin.idea.hierarchy.AbstractHierarchyWithLibTest
 import org.jetbrains.kotlin.idea.highlighter.*
@@ -918,14 +920,30 @@ fun main(args: Array<String>) {
             }
         }
 
-        testGroup("idea/idea-fir/tests", "idea/testData") {
-            testClass<AbstractFirMultiModuleResolveTest> {
-                model("fir/multiModule", recursive = false, extension = null)
-            }
+        testGroup("idea/idea-frontend-fir/tests", "idea/idea-frontend-fir/testData") {
+        testClass<AbstractKtDeclarationAndFirDeclarationEqualityChecker> {
+            model("ktDeclarationAndFirDeclarationEqualityChecker")
+        }
 
-            testClass<AbstractFirLazyResolveTest> {
-                model("fir/lazyResolve", extension = "test", singleClass = true, filenameStartsLowerCase = true)
-            }
+        testClass<AbstractResolveCallTest> {
+            model("analysisSession/resolveCall")
+        }
+    }
+
+    testGroup("idea/idea-frontend-fir/idea-fir-low-level-api/tests", "idea/testData") {
+        testClass<AbstractFirMultiModuleResolveTest> {
+            model("fir/multiModule", recursive = false, extension = null)
+        }
+
+        testClass<AbstractFirLazyResolveTest> {
+            model("fir/lazyResolve", extension = "test", singleClass = true, filenameStartsLowerCase = true)
+        }
+    }
+
+    testGroup("idea/idea-fir/tests", "idea/testData") {
+        testClass<AbstractFirHighlightingTest> {
+            model("highlighter")
+        }
 
             testClass<AbstractFirReferenceResolveTest> {
                 model("resolve/references", pattern = KT_WITHOUT_DOTS_IN_NAME)
@@ -936,11 +954,10 @@ fun main(args: Array<String>) {
                 model("checker/regression")
                 model("checker/recovery")
                 model("checker/rendering")
-                model("checker/duplicateJvmSignature")
                 model("checker/infos")
-                model("checker/diagnosticsMessage")
-            }
+            model("checker/diagnosticsMessage")
         }
+    }
 
         testGroup("idea/scripting-support/test", "idea/scripting-support/testData") {
             testClass<AbstractScratchRunActionTest> {

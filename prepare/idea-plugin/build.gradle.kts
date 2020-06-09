@@ -93,6 +93,11 @@ val projectsToShadow by extra(listOf(
         ":idea:idea-jvm",
         ":idea:idea-git",
         ":idea:idea-jps-common",
+        ":idea:idea-frontend-independent",
+        ":idea:idea-frontend-fir",
+        ":idea:idea-frontend-api",
+        ":idea:idea-frontend-fir:idea-fir-low-level-api",
+        ":idea:idea-fir",
         *if (Ide.IJ())
             arrayOf(
                 ":idea:idea-maven",

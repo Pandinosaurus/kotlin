@@ -6,15 +6,17 @@
 package org.jetbrains.kotlin.checkers
 
 import com.intellij.rt.execution.junit.FileComparisonFailure
-import org.jetbrains.kotlin.idea.fir.FirResolution
 import org.jetbrains.kotlin.idea.test.withCustomCompilerOptions
 import org.jetbrains.kotlin.test.InTextDirectivesUtils
 import java.io.File
 
 abstract class AbstractFirPsiCheckerTest : AbstractPsiCheckerTest() {
+    override val captureExceptions: Boolean = false
+
+    override fun isFirPlugin(): Boolean = true
+
     override fun setUp() {
         super.setUp()
-        FirResolution.enabled = true
     }
 
     override fun doTest(filePath: String) {
@@ -45,7 +47,6 @@ abstract class AbstractFirPsiCheckerTest : AbstractPsiCheckerTest() {
     }
 
     override fun tearDown() {
-        FirResolution.enabled = false
         super.tearDown()
     }
 }

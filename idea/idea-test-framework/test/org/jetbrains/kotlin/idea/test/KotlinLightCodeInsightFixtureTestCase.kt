@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -77,20 +77,25 @@ abstract class KotlinLightCodeInsightFixtureTestCase : KotlinLightCodeInsightFix
 
     override fun setUp() {
         super.setUp()
-
         enableKotlinOfficialCodeStyle(project)
-        // We do it here to avoid possible initialization problems
-        // UnusedSymbolInspection() calls IDEA UnusedDeclarationInspection() in static initializer,
-        // which in turn registers some extensions provoking "modifications aren't allowed during highlighting"
-        // when done lazily
-        UnusedSymbolInspection()
+
+        if (!isFirPlugin) {
+            // We do it here to avoid possible initialization problems
+            // UnusedSymbolInspection() calls IDEA UnusedDeclarationInspection() in static initializer,
+            // which in turn registers some extensions provoking "modifications aren't allowed during highlighting"
+            // when done lazily
+            UnusedSymbolInspection()
+        }
+
 
         runPostStartupActivitiesOnce(project)
         VfsRootAccess.allowRootAccess(project, KotlinTestUtils.getHomeDirectory())
 
         editorTrackerProjectOpened(project)
 
-        invalidateLibraryCache(project)
+        if (!isFirPlugin) {
+            invalidateLibraryCache(project)
+        }
 
         if (captureExceptions) {
             LoggedErrorProcessor.setNewInstance(object : LoggedErrorProcessor() {
@@ -200,12 +205,14 @@ abstract class KotlinLightCodeInsightFixtureTestCase : KotlinLightCodeInsightFix
                 InTextDirectivesUtils.isDirectiveDefined(fileText, "ENABLE_MULTIPLATFORM") ->
                     KotlinProjectDescriptorWithFacet.KOTLIN_STABLE_WITH_MULTIPLATFORM
 
-                else -> KotlinLightProjectDescriptor.INSTANCE
+                else -> getDefaultProjectDescriptor()
             }
         } catch (e: IOException) {
             throw rethrow(e)
         }
     }
+
+    protected open fun getDefaultProjectDescriptor(): KotlinLightProjectDescriptor = KotlinLightProjectDescriptor.INSTANCE
 
     protected fun isAllFilesPresentInTest(): Boolean = KotlinTestUtils.isAllFilesPresentTest(getTestName(false))
 
