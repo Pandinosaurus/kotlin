@@ -1,23 +1,22 @@
 package org.jetbrains.kotlin.tools.projectWizard.wizard.ui.firstStep
 
-import com.intellij.openapi.util.SystemInfo
 import com.intellij.ui.ScrollPaneFactory
-import com.intellij.ui.components.JBLabel
+import com.intellij.ui.SeparatorWithText
 import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.UIUtil
+import org.jetbrains.kotlin.idea.KotlinIcons
 import org.jetbrains.kotlin.tools.projectWizard.core.Context
 import org.jetbrains.kotlin.tools.projectWizard.core.entity.settings.DropDownSettingType
 import org.jetbrains.kotlin.tools.projectWizard.core.entity.settings.SettingReference
 import org.jetbrains.kotlin.tools.projectWizard.core.entity.settings.reference
 import org.jetbrains.kotlin.tools.projectWizard.plugins.projectTemplates.ProjectTemplatesPlugin
 import org.jetbrains.kotlin.tools.projectWizard.plugins.projectTemplates.applyProjectTemplate
-import org.jetbrains.kotlin.tools.projectWizard.projectTemplates.ProjectTemplate
+import org.jetbrains.kotlin.tools.projectWizard.projectTemplates.*
 import org.jetbrains.kotlin.tools.projectWizard.wizard.ui.*
 import org.jetbrains.kotlin.tools.projectWizard.wizard.ui.setting.SettingComponent
 import org.jetbrains.kotlin.tools.projectWizard.wizard.ui.setting.ValidationIndicator
 import java.awt.Dimension
+import javax.swing.Icon
 import javax.swing.JComponent
-import javax.swing.SwingConstants
 
 class ProjectTemplateSettingComponent(
     context: Context
@@ -29,10 +28,16 @@ class ProjectTemplateSettingComponent(
     override val forceLabelCenteringOffset: Int? = 4
     private val templateDescriptionComponent = TemplateDescriptionComponent().asSubComponent()
 
-    private val list = ImmutableSingleSelectableListWithIcon(
-        setting.type.values,
-        renderValue = { value ->
-            icon = value.projectKind.icon
+    private val templateGroups = setting.type.values
+        .groupBy { it.projectKind }
+        .map { (group, templates) ->
+            ListWithSeparators.ListGroup(group.text, templates)
+        }
+
+    private val list = ListWithSeparators(
+        templateGroups,
+        render = { value ->
+            icon = value.icon
             append(value.title)
         },
         onValueSelected = { value = it }
@@ -71,9 +76,22 @@ class ProjectTemplateSettingComponent(
     }
 
     companion object {
-        private const val HEIGHT = 230
+        private const val HEIGHT = 310
     }
 }
+
+private val ProjectTemplate.icon: Icon
+    get() = when (this) {
+        BackendApplicationProjectTemplate -> KotlinIcons.Wizard.JVM
+        MultiplatformApplicationProjectTemplate -> KotlinIcons.Wizard.MULTIPLATFORM
+        ConsoleApplicationProjectTemplate -> KotlinIcons.Wizard.CONSOLE
+        MultiplatformLibraryProjectTemplate -> KotlinIcons.Wizard.MULTIPLATFORM_LIBRARY
+        FullStackWebApplicationProjectTemplate -> KotlinIcons.Wizard.WEB
+        NativeApplicationProjectTemplate -> KotlinIcons.Wizard.NATIVE
+        FrontendApplicationProjectTemplate -> KotlinIcons.Wizard.JS
+        MultiplatformMobileApplicationProjectTemplate -> KotlinIcons.Wizard.MULTIPLATFORM_MOBILE
+        MultiplatformMobileLibraryProjectTemplate -> KotlinIcons.Wizard.MULTIPLATFORM_MOBILE_LIBRARY
+    }
 
 class TemplateDescriptionComponent : Component() {
     private val descriptionLabel = CommentLabel().apply {

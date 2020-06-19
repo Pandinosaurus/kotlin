@@ -12,7 +12,6 @@ import test.assertTypeEquals
 import test.collections.behaviors.*
 import test.comparisons.STRING_CASE_INSENSITIVE_ORDER
 import test.text.isAsciiLetter
-import kotlin.math.exp
 import kotlin.test.*
 import kotlin.random.Random
 
@@ -503,6 +502,7 @@ class ArraysTest {
         // for each arr with size > 0  arr.average() = arr.sum().toDouble() / arr.size()
     }
 
+    @Suppress("DEPRECATION")
     @Test fun indexOfInPrimitiveArrays() {
         expect(-1) { byteArrayOf(1, 2, 3).indexOf(0) }
         expect(0) { byteArrayOf(1, 2, 3).indexOf(1) }
@@ -822,6 +822,26 @@ class ArraysTest {
         assertEquals(5, intsAsList[1])
         ints[1] = 10
         assertEquals(10, intsAsList[1], "Should reflect changes in original array")
+    }
+
+    @Test fun asListInFloatingPrimitiveArrays() {
+        fun <T> testTotalOrder(expected: List<T>, actual: List<T>, element: T) = compare(expected, actual) {
+            propertyEquals { contains(element) }
+            propertyEquals { indexOf(element) }
+            propertyEquals { lastIndexOf(element) }
+        }
+
+        testTotalOrder(listOf(Float.NaN), floatArrayOf(Float.NaN).asList(), Float.NaN)
+        testTotalOrder(listOf(-0.0f), floatArrayOf(-0.0f).asList(), -0.0f)
+        testTotalOrder(listOf(-0.0f), floatArrayOf(-0.0f).asList(), 0.0f)
+        testTotalOrder(listOf(0.0f), floatArrayOf(0.0f).asList(), 0.0f)
+        testTotalOrder(listOf(0.0f), floatArrayOf(0.0f).asList(), -0.0f)
+
+        testTotalOrder(listOf(Double.NaN), doubleArrayOf(Double.NaN).asList(), Double.NaN)
+        testTotalOrder(listOf(-0.0), doubleArrayOf(-0.0).asList(), -0.0)
+        testTotalOrder(listOf(-0.0), doubleArrayOf(-0.0).asList(), 0.0)
+        testTotalOrder(listOf(0.0), doubleArrayOf(0.0).asList(), 0.0)
+        testTotalOrder(listOf(0.0), doubleArrayOf(0.0).asList(), -0.0)
     }
 
     @Test fun toPrimitiveArray() {
