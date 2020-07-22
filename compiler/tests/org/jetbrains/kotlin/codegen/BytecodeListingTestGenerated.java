@@ -49,6 +49,21 @@ public class BytecodeListingTestGenerated extends AbstractBytecodeListingTest {
         runTest("compiler/testData/codegen/bytecodeListing/defaultImpls.kt");
     }
 
+    @TestMetadata("deprecatedEnumEntryFields.kt")
+    public void testDeprecatedEnumEntryFields() throws Exception {
+        runTest("compiler/testData/codegen/bytecodeListing/deprecatedEnumEntryFields.kt");
+    }
+
+    @TestMetadata("deprecatedLateinitVar.kt")
+    public void testDeprecatedLateinitVar() throws Exception {
+        runTest("compiler/testData/codegen/bytecodeListing/deprecatedLateinitVar.kt");
+    }
+
+    @TestMetadata("deprecatedProperty.kt")
+    public void testDeprecatedProperty() throws Exception {
+        runTest("compiler/testData/codegen/bytecodeListing/deprecatedProperty.kt");
+    }
+
     @TestMetadata("emptyMultifileFacade.kt")
     public void testEmptyMultifileFacade() throws Exception {
         runTest("compiler/testData/codegen/bytecodeListing/emptyMultifileFacade.kt");
@@ -82,6 +97,11 @@ public class BytecodeListingTestGenerated extends AbstractBytecodeListingTest {
     @TestMetadata("lateInitNotNull.kt")
     public void testLateInitNotNull() throws Exception {
         runTest("compiler/testData/codegen/bytecodeListing/lateInitNotNull.kt");
+    }
+
+    @TestMetadata("localFunctionInInitBlock.kt")
+    public void testLocalFunctionInInitBlock() throws Exception {
+        runTest("compiler/testData/codegen/bytecodeListing/localFunctionInInitBlock.kt");
     }
 
     @TestMetadata("noCollectionStubMethodsInInterface.kt")

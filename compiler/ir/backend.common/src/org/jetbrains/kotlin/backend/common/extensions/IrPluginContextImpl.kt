@@ -78,14 +78,19 @@ open class IrPluginContextImpl(
     override fun referenceClass(fqName: FqName): IrClassSymbol? {
         assert(!fqName.isRoot)
         return resolveSymbol(fqName.parent()) { scope ->
-            val classifierDescriptor = scope.getContributedClassifier(fqName.shortName(), NoLookupLocation.FROM_BACKEND)
-            val classDescriptor = when (classifierDescriptor) {
-                is ClassDescriptor -> classifierDescriptor
-                is TypeAliasDescriptor -> classifierDescriptor.classDescriptor
-                else -> error("Unexpected classifier $classifierDescriptor")
-            }
+            val classDescriptor = scope.getContributedClassifier(fqName.shortName(), NoLookupLocation.FROM_BACKEND) as? ClassDescriptor?
             classDescriptor?.let {
                 st.referenceClass(it)
+            }
+        }
+    }
+
+    override fun referenceTypeAlias(fqName: FqName): IrTypeAliasSymbol? {
+        assert(!fqName.isRoot)
+        return resolveSymbol(fqName.parent()) { scope ->
+            val aliasDescriptor = scope.getContributedClassifier(fqName.shortName(), NoLookupLocation.FROM_BACKEND) as? TypeAliasDescriptor?
+            aliasDescriptor?.let {
+                st.referenceTypeAlias(it)
             }
         }
     }

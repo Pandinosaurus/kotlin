@@ -10111,6 +10111,11 @@ public class DiagnosticsUsingJavacTestGenerated extends AbstractDiagnosticsUsing
                 runTest("compiler/testData/diagnostics/tests/inference/commonSuperTypeOfErrorTypes.kt");
             }
 
+            @TestMetadata("commonSuperTypeOfTypesWithErrorSupertypes.kt")
+            public void testCommonSuperTypeOfTypesWithErrorSupertypes() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/inference/commonSuperTypeOfTypesWithErrorSupertypes.kt");
+            }
+
             @TestMetadata("compatibilityResolveWhenVariableHasComplexIntersectionType.kt")
             public void testCompatibilityResolveWhenVariableHasComplexIntersectionType() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/inference/compatibilityResolveWhenVariableHasComplexIntersectionType.kt");
@@ -14111,6 +14116,16 @@ public class DiagnosticsUsingJavacTestGenerated extends AbstractDiagnosticsUsing
                 @TestMetadata("arrayList.kt")
                 public void testArrayList() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/j+k/types/arrayList.kt");
+                }
+
+                @TestMetadata("notNullTypeParameterWithKotlinNullable.kt")
+                public void testNotNullTypeParameterWithKotlinNullable() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/j+k/types/notNullTypeParameterWithKotlinNullable.kt");
+                }
+
+                @TestMetadata("notNullTypeParameterWithKotlinNullableWarnings.kt")
+                public void testNotNullTypeParameterWithKotlinNullableWarnings() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/j+k/types/notNullTypeParameterWithKotlinNullableWarnings.kt");
                 }
 
                 @TestMetadata("returnCollection.kt")
