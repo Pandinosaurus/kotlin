@@ -13,11 +13,9 @@ import org.jetbrains.kotlin.fir.declarations.FirSimpleFunction
 import org.jetbrains.kotlin.fir.declarations.isInfix
 import org.jetbrains.kotlin.fir.declarations.isOperator
 import org.jetbrains.kotlin.fir.diagnostics.*
-import org.jetbrains.kotlin.fir.resolve.calls.InapplicableWrongReceiver
-import org.jetbrains.kotlin.fir.resolve.calls.NamedArgumentNotAllowed
-import org.jetbrains.kotlin.fir.resolve.calls.ResolutionDiagnostic
-import org.jetbrains.kotlin.fir.resolve.calls.VarargArgumentOutsideParentheses
+import org.jetbrains.kotlin.fir.resolve.calls.*
 import org.jetbrains.kotlin.fir.resolve.diagnostics.*
+import org.jetbrains.kotlin.fir.symbols.impl.FirBackingFieldSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.resolve.calls.tower.isSuccess
@@ -35,10 +33,14 @@ private fun ConeDiagnostic.toFirDiagnostic(
     is ConeAmbiguityError -> if (!this.applicability.isSuccess) {
         FirErrors.NONE_APPLICABLE.on(source, this.candidates)
     } else {
-        FirErrors.AMBIGUITY.on(source, this.candidates)
+        FirErrors.OVERLOAD_RESOLUTION_AMBIGUITY.on(source, this.candidates)
     }
     is ConeOperatorAmbiguityError -> FirErrors.ASSIGN_OPERATOR_AMBIGUITY.on(source, this.candidates)
     is ConeVariableExpectedError -> FirErrors.VARIABLE_EXPECTED.on(source)
+    is ConeValReassignmentError -> when (val symbol = this.variable) {
+        is FirBackingFieldSymbol -> FirErrors.VAL_REASSIGNMENT_VIA_BACKING_FIELD_ERROR.on(source, symbol.fir.symbol)
+        else -> FirErrors.VAL_REASSIGNMENT.on(source, symbol)
+    }
     is ConeTypeMismatchError -> FirErrors.TYPE_MISMATCH.on(qualifiedAccessSource ?: source, this.expectedType, this.actualType)
     is ConeUnexpectedTypeArgumentsError -> FirErrors.TYPE_ARGUMENTS_NOT_ALLOWED.on(this.source.safeAs() ?: source)
     is ConeIllegalAnnotationError -> FirErrors.NOT_AN_ANNOTATION_CLASS.on(source, this.name.asString())
@@ -132,9 +134,13 @@ private fun mapInapplicableCandidateError(
                 rootCause.argument.source ?: qualifiedAccessSource
             )
             is NamedArgumentNotAllowed -> FirErrors.NAMED_ARGUMENTS_NOT_ALLOWED.on(
-                rootCause.argument.source ?: qualifiedAccessSource,
+                rootCause.argument.source,
                 rootCause.forbiddenNamedArgumentsTarget
             )
+            is NonVarargSpread -> FirErrors.NON_VARARG_SPREAD.on(rootCause.argument.source?.getChild(KtTokens.MUL, depth = 1)!!)
+            is ArgumentPassedTwice -> FirErrors.ARGUMENT_PASSED_TWICE.on(rootCause.argument.source)
+            is TooManyArguments -> FirErrors.TOO_MANY_ARGUMENTS.on(rootCause.argument.source ?: source, rootCause.function)
+            is NoValueForParameter -> FirErrors.NO_VALUE_FOR_PARAMETER.on(qualifiedAccessSource ?: source, rootCause.valueParameter)
             else -> null
         }
     }.ifEmpty { listOf(FirErrors.INAPPLICABLE_CANDIDATE.on(source, diagnostic.candidate.symbol)) }

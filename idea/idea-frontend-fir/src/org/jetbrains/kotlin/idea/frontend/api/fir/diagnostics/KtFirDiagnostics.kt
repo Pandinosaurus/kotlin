@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.idea.frontend.api.fir.diagnostics
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiTypeElement
+import com.intellij.psi.impl.source.tree.LeafPsiElement
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.contracts.description.EventOccurrencesRange
@@ -17,6 +18,7 @@ import org.jetbrains.kotlin.idea.frontend.api.symbols.KtCallableSymbol
 import org.jetbrains.kotlin.idea.frontend.api.symbols.KtClassLikeSymbol
 import org.jetbrains.kotlin.idea.frontend.api.symbols.KtSymbol
 import org.jetbrains.kotlin.idea.frontend.api.symbols.KtTypeParameterSymbol
+import org.jetbrains.kotlin.idea.frontend.api.symbols.KtVariableLikeSymbol
 import org.jetbrains.kotlin.idea.frontend.api.symbols.KtVariableSymbol
 import org.jetbrains.kotlin.idea.frontend.api.types.KtType
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
@@ -42,6 +44,7 @@ import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeParameter
 import org.jetbrains.kotlin.psi.KtTypeParameterList
 import org.jetbrains.kotlin.psi.KtTypeReference
+import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtWhenExpression
 import org.jetbrains.kotlin.resolve.ForbiddenNamedArgumentsTarget
 
@@ -497,13 +500,31 @@ sealed class KtFirDiagnostic<PSI: PsiElement> : KtDiagnosticWithPsi<PSI> {
         override val diagnosticClass get() = VarargOutsideParentheses::class
     }
 
-    abstract class NamedArgumentsNotAllowed : KtFirDiagnostic<PsiElement>() {
+    abstract class NamedArgumentsNotAllowed : KtFirDiagnostic<KtValueArgument>() {
         override val diagnosticClass get() = NamedArgumentsNotAllowed::class
         abstract val forbiddenNamedArgumentsTarget: ForbiddenNamedArgumentsTarget
     }
 
-    abstract class Ambiguity : KtFirDiagnostic<PsiElement>() {
-        override val diagnosticClass get() = Ambiguity::class
+    abstract class NonVarargSpread : KtFirDiagnostic<LeafPsiElement>() {
+        override val diagnosticClass get() = NonVarargSpread::class
+    }
+
+    abstract class ArgumentPassedTwice : KtFirDiagnostic<KtValueArgument>() {
+        override val diagnosticClass get() = ArgumentPassedTwice::class
+    }
+
+    abstract class TooManyArguments : KtFirDiagnostic<PsiElement>() {
+        override val diagnosticClass get() = TooManyArguments::class
+        abstract val function: KtCallableSymbol
+    }
+
+    abstract class NoValueForParameter : KtFirDiagnostic<KtElement>() {
+        override val diagnosticClass get() = NoValueForParameter::class
+        abstract val violatedParameter: KtSymbol
+    }
+
+    abstract class OverloadResolutionAmbiguity : KtFirDiagnostic<PsiElement>() {
+        override val diagnosticClass get() = OverloadResolutionAmbiguity::class
         abstract val candidates: List<KtSymbol>
     }
 
@@ -532,8 +553,7 @@ sealed class KtFirDiagnostic<PSI: PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     abstract class UpperBoundViolated : KtFirDiagnostic<PsiElement>() {
         override val diagnosticClass get() = UpperBoundViolated::class
-        abstract val typeParameter: KtTypeParameterSymbol
-        abstract val violatedType: KtType
+        abstract val upperBound: KtType
     }
 
     abstract class TypeArgumentsNotAllowed : KtFirDiagnostic<PsiElement>() {
@@ -951,17 +971,17 @@ sealed class KtFirDiagnostic<PSI: PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     abstract class ValReassignment : KtFirDiagnostic<KtExpression>() {
         override val diagnosticClass get() = ValReassignment::class
-        abstract val variable: KtVariableSymbol
+        abstract val variable: KtVariableLikeSymbol
     }
 
     abstract class ValReassignmentViaBackingField : KtFirDiagnostic<KtExpression>() {
         override val diagnosticClass get() = ValReassignmentViaBackingField::class
-        abstract val variable: KtVariableSymbol
+        abstract val property: KtVariableSymbol
     }
 
     abstract class ValReassignmentViaBackingFieldError : KtFirDiagnostic<KtExpression>() {
         override val diagnosticClass get() = ValReassignmentViaBackingFieldError::class
-        abstract val variable: KtVariableSymbol
+        abstract val property: KtVariableSymbol
     }
 
     abstract class WrongInvocationKind : KtFirDiagnostic<PsiElement>() {
