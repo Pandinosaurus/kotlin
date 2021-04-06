@@ -34,6 +34,7 @@ import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtPropertyDelegate
+import org.jetbrains.kotlin.psi.KtReturnExpression
 import org.jetbrains.kotlin.psi.KtSimpleNameExpression
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeParameter
@@ -106,12 +107,6 @@ internal val KT_DIAGNOSTIC_CONVERTER = KtDiagnosticConverterBuilder.buildConvert
     }
     add(FirErrors.VARIABLE_EXPECTED) { firDiagnostic ->
         VariableExpectedImpl(
-            firDiagnostic as FirPsiDiagnostic<*>,
-            token,
-        )
-    }
-    add(FirErrors.RETURN_NOT_ALLOWED) { firDiagnostic ->
-        ReturnNotAllowedImpl(
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
@@ -449,81 +444,81 @@ internal val KT_DIAGNOSTIC_CONVERTER = KtDiagnosticConverterBuilder.buildConvert
     }
     add(FirErrors.EXPOSED_TYPEALIAS_EXPANDED_TYPE) { firDiagnostic ->
         ExposedTypealiasExpandedTypeImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
     }
     add(FirErrors.EXPOSED_FUNCTION_RETURN_TYPE) { firDiagnostic ->
         ExposedFunctionReturnTypeImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
     }
     add(FirErrors.EXPOSED_RECEIVER_TYPE) { firDiagnostic ->
         ExposedReceiverTypeImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
     }
     add(FirErrors.EXPOSED_PROPERTY_TYPE) { firDiagnostic ->
         ExposedPropertyTypeImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
     }
     add(FirErrors.EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR) { firDiagnostic ->
         ExposedPropertyTypeInConstructorImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
     }
     add(FirErrors.EXPOSED_PARAMETER_TYPE) { firDiagnostic ->
         ExposedParameterTypeImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
     }
     add(FirErrors.EXPOSED_SUPER_INTERFACE) { firDiagnostic ->
         ExposedSuperInterfaceImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
     }
     add(FirErrors.EXPOSED_SUPER_CLASS) { firDiagnostic ->
         ExposedSuperClassImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
     }
     add(FirErrors.EXPOSED_TYPE_PARAMETER_BOUND) { firDiagnostic ->
         ExposedTypeParameterBoundImpl(
-            firDiagnostic.a.toVisibility(),
+            firDiagnostic.a,
             firSymbolBuilder.buildSymbol(firDiagnostic.b as FirDeclaration),
-            firDiagnostic.c.toVisibility(),
+            firDiagnostic.c,
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )
@@ -1628,6 +1623,18 @@ internal val KT_DIAGNOSTIC_CONVERTER = KtDiagnosticConverterBuilder.buildConvert
     }
     add(FirErrors.USELESS_CALL_ON_NOT_NULL) { firDiagnostic ->
         UselessCallOnNotNullImpl(
+            firDiagnostic as FirPsiDiagnostic<*>,
+            token,
+        )
+    }
+    add(FirErrors.RETURN_NOT_ALLOWED) { firDiagnostic ->
+        ReturnNotAllowedImpl(
+            firDiagnostic as FirPsiDiagnostic<*>,
+            token,
+        )
+    }
+    add(FirErrors.RETURN_IN_FUNCTION_WITH_EXPRESSION_BODY) { firDiagnostic ->
+        ReturnInFunctionWithExpressionBodyImpl(
             firDiagnostic as FirPsiDiagnostic<*>,
             token,
         )

@@ -9,8 +9,8 @@ import org.jetbrains.kotlin.idea.fir.api.fixes.KtQuickFixRegistrar
 import org.jetbrains.kotlin.idea.fir.api.fixes.KtQuickFixesList
 import org.jetbrains.kotlin.idea.fir.api.fixes.KtQuickFixesListBuilder
 import org.jetbrains.kotlin.idea.frontend.api.fir.diagnostics.KtFirDiagnostic
-import org.jetbrains.kotlin.idea.quickfix.fixes.ChangeTypeQuickFix
-import org.jetbrains.kotlin.idea.quickfix.fixes.ReplaceCallFixFactories
+import org.jetbrains.kotlin.idea.quickfix.fixes.*
+import org.jetbrains.kotlin.idea.quickfix.fixes.InitializePropertyQuickFixFactory
 
 class MainKtQuickFixRegistrar : KtQuickFixRegistrar() {
     private val modifiers = KtQuickFixesListBuilder.registerPsiQuickFix {
@@ -56,6 +56,16 @@ class MainKtQuickFixRegistrar : KtQuickFixRegistrar() {
         )
     }
 
+    private val propertyInitialization = KtQuickFixesListBuilder.registerPsiQuickFix {
+        registerPsiQuickFixes(
+            KtFirDiagnostic.MustBeInitializedOrBeAbstract::class,
+            AddModifierFix.addAbstractModifier,
+        )
+        registerApplicator(InitializePropertyQuickFixFactory.initializePropertyFactory)
+        registerApplicator(AddLateInitFactory.addLateInitFactory)
+        registerApplicator(AddAccessorsFactories.addAccessorsToUninitializedProperty)
+    }
+
     private val overrides = KtQuickFixesListBuilder.registerPsiQuickFix {
         registerApplicator(ChangeTypeQuickFix.changeFunctionReturnTypeOnOverride)
         registerApplicator(ChangeTypeQuickFix.changePropertyReturnTypeOnOverride)
@@ -76,6 +86,7 @@ class MainKtQuickFixRegistrar : KtQuickFixRegistrar() {
 
     override val list: KtQuickFixesList = KtQuickFixesList.createCombined(
         modifiers,
+        propertyInitialization,
         overrides,
         mutability,
         expressions,

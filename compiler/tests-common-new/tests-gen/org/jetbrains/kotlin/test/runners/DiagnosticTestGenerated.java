@@ -18043,9 +18043,21 @@ public class DiagnosticTestGenerated extends AbstractDiagnosticTest {
                 }
 
                 @Test
+                @TestMetadata("expectSealedClassWithActualTypealias.kt")
+                public void testExpectSealedClassWithActualTypealias() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/multiplatform/exhaustiveness/expectSealedClassWithActualTypealias.kt");
+                }
+
+                @Test
                 @TestMetadata("expectSealedInterface.kt")
                 public void testExpectSealedInterface() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/multiplatform/exhaustiveness/expectSealedInterface.kt");
+                }
+
+                @Test
+                @TestMetadata("kt45796.kt")
+                public void testKt45796() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/multiplatform/exhaustiveness/kt45796.kt");
                 }
             }
 
@@ -18949,6 +18961,12 @@ public class DiagnosticTestGenerated extends AbstractDiagnosticTest {
             @TestMetadata("intValuesOutOfRange.kt")
             public void testIntValuesOutOfRange() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/numbers/intValuesOutOfRange.kt");
+            }
+
+            @Test
+            @TestMetadata("kt41679.kt")
+            public void testKt41679() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/numbers/kt41679.kt");
             }
 
             @Test
@@ -31535,9 +31553,15 @@ public class DiagnosticTestGenerated extends AbstractDiagnosticTest {
                 }
 
                 @Test
-                @TestMetadata("jvmFieldApplicability.kt")
-                public void testJvmFieldApplicability() throws Exception {
-                    runTest("compiler/testData/diagnostics/testsWithStdLib/annotations/jvmField/jvmFieldApplicability.kt");
+                @TestMetadata("jvmFieldApplicability_1_5.kt")
+                public void testJvmFieldApplicability_1_5() throws Exception {
+                    runTest("compiler/testData/diagnostics/testsWithStdLib/annotations/jvmField/jvmFieldApplicability_1_5.kt");
+                }
+
+                @Test
+                @TestMetadata("jvmFieldApplicability_1_6.kt")
+                public void testJvmFieldApplicability_1_6() throws Exception {
+                    runTest("compiler/testData/diagnostics/testsWithStdLib/annotations/jvmField/jvmFieldApplicability_1_6.kt");
                 }
             }
 
@@ -34483,6 +34507,12 @@ public class DiagnosticTestGenerated extends AbstractDiagnosticTest {
             @Test
             public void testAllFilesPresentInInline() throws Exception {
                 KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/testsWithStdLib/inline"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.fir\\.kts?$"), true);
+            }
+
+            @Test
+            @TestMetadata("inlineConstructorOfArray.kt")
+            public void testInlineConstructorOfArray() throws Exception {
+                runTest("compiler/testData/diagnostics/testsWithStdLib/inline/inlineConstructorOfArray.kt");
             }
 
             @Test

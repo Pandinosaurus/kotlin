@@ -61,6 +61,8 @@ private constructor(
 
     override val typeProviderImpl = KtFirTypeProvider(this, token)
 
+    override val typeInfoProviderImpl = KtFirTypeInfoProvider(this, token)
+
     override val subtypingComponentImpl = KtFirSubtypingComponent(this, token)
 
     override fun createContextDependentCopy(originalKtFile: KtFile, fakeKtElement: KtElement): KtAnalysisSession {

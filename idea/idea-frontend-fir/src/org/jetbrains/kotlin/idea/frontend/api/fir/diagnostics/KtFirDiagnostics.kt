@@ -11,6 +11,7 @@ import com.intellij.psi.impl.source.tree.LeafPsiElement
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.contracts.description.EventOccurrencesRange
+import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.diagnostics.WhenMissingCase
 import org.jetbrains.kotlin.idea.frontend.api.diagnostics.KtDiagnosticWithPsi
@@ -40,6 +41,7 @@ import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtPropertyDelegate
+import org.jetbrains.kotlin.psi.KtReturnExpression
 import org.jetbrains.kotlin.psi.KtSimpleNameExpression
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeParameter
@@ -95,10 +97,6 @@ sealed class KtFirDiagnostic<PSI: PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     abstract class VariableExpected : KtFirDiagnostic<PsiElement>() {
         override val diagnosticClass get() = VariableExpected::class
-    }
-
-    abstract class ReturnNotAllowed : KtFirDiagnostic<PsiElement>() {
-        override val diagnosticClass get() = ReturnNotAllowed::class
     }
 
     abstract class DelegationInInterface : KtFirDiagnostic<PsiElement>() {
@@ -326,65 +324,65 @@ sealed class KtFirDiagnostic<PSI: PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     abstract class ExposedTypealiasExpandedType : KtFirDiagnostic<KtNamedDeclaration>() {
         override val diagnosticClass get() = ExposedTypealiasExpandedType::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class ExposedFunctionReturnType : KtFirDiagnostic<KtNamedDeclaration>() {
         override val diagnosticClass get() = ExposedFunctionReturnType::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class ExposedReceiverType : KtFirDiagnostic<KtTypeReference>() {
         override val diagnosticClass get() = ExposedReceiverType::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class ExposedPropertyType : KtFirDiagnostic<KtNamedDeclaration>() {
         override val diagnosticClass get() = ExposedPropertyType::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class ExposedPropertyTypeInConstructor : KtFirDiagnostic<KtNamedDeclaration>() {
         override val diagnosticClass get() = ExposedPropertyTypeInConstructor::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class ExposedParameterType : KtFirDiagnostic<KtParameter>() {
         override val diagnosticClass get() = ExposedParameterType::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class ExposedSuperInterface : KtFirDiagnostic<KtTypeReference>() {
         override val diagnosticClass get() = ExposedSuperInterface::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class ExposedSuperClass : KtFirDiagnostic<KtTypeReference>() {
         override val diagnosticClass get() = ExposedSuperClass::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class ExposedTypeParameterBound : KtFirDiagnostic<KtTypeReference>() {
         override val diagnosticClass get() = ExposedTypeParameterBound::class
-        abstract val elementVisibility: Visibility
+        abstract val elementVisibility: EffectiveVisibility
         abstract val restrictingDeclaration: KtSymbol
-        abstract val restrictingVisibility: Visibility
+        abstract val restrictingVisibility: EffectiveVisibility
     }
 
     abstract class InapplicableInfixModifier : KtFirDiagnostic<PsiElement>() {
@@ -1147,6 +1145,14 @@ sealed class KtFirDiagnostic<PSI: PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     abstract class UselessCallOnNotNull : KtFirDiagnostic<PsiElement>() {
         override val diagnosticClass get() = UselessCallOnNotNull::class
+    }
+
+    abstract class ReturnNotAllowed : KtFirDiagnostic<KtReturnExpression>() {
+        override val diagnosticClass get() = ReturnNotAllowed::class
+    }
+
+    abstract class ReturnInFunctionWithExpressionBody : KtFirDiagnostic<KtReturnExpression>() {
+        override val diagnosticClass get() = ReturnInFunctionWithExpressionBody::class
     }
 
 }

@@ -167,4 +167,9 @@ object SourceElementPositioningStrategies {
         LightTreePositioningStrategies.ARRAY_ACCESS,
         PositioningStrategies.ARRAY_ACCESS
     )
+
+    val RETURN_WITH_LABEL = SourceElementPositioningStrategy(
+        LightTreePositioningStrategies.RETURN_WITH_LABEL,
+        PositioningStrategies.RETURN_WITH_LABEL
+    )
 }

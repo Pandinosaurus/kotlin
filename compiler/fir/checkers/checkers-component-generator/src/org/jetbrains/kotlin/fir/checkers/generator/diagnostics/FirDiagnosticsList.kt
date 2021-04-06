@@ -11,9 +11,9 @@ import com.intellij.psi.impl.source.tree.LeafPsiElement
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.contracts.description.EventOccurrencesRange
+import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.diagnostics.WhenMissingCase
-import org.jetbrains.kotlin.fir.FirEffectiveVisibility
 import org.jetbrains.kotlin.fir.FirSourceElement
 import org.jetbrains.kotlin.fir.PrivateForInline
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
@@ -59,7 +59,6 @@ object DIAGNOSTICS_LIST : DiagnosticList() {
         val BREAK_OR_CONTINUE_OUTSIDE_A_LOOP by error<FirSourceElement, PsiElement>()
         val NOT_A_LOOP_LABEL by error<FirSourceElement, PsiElement>()
         val VARIABLE_EXPECTED by error<FirSourceElement, PsiElement>()
-        val RETURN_NOT_ALLOWED by error<FirSourceElement, PsiElement>()
         val DELEGATION_IN_INTERFACE by error<FirSourceElement, PsiElement>()
         val NESTED_CLASS_NOT_ALLOWED by error<FirSourceElement, KtNamedDeclaration>(PositioningStrategy.DECLARATION_NAME) {
             parameter<String>("declaration")
@@ -391,7 +390,7 @@ object DIAGNOSTICS_LIST : DiagnosticList() {
         val CONFLICTING_OVERLOADS by error<FirSourceElement, PsiElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT) {
             parameter<Collection<AbstractFirBasedSymbol<*>>>("conflictingOverloads")
         }
-        val REDECLARATION by error<FirSourceElement, PsiElement>() {
+        val REDECLARATION by error<FirSourceElement, PsiElement> {
             parameter<Collection<AbstractFirBasedSymbol<*>>>("conflictingDeclarations")
         }
         val METHOD_OF_ANY_IMPLEMENTED_IN_INTERFACE by error<FirSourceElement, PsiElement>()
@@ -596,12 +595,17 @@ object DIAGNOSTICS_LIST : DiagnosticList() {
         val VARIABLE_NEVER_READ by warning<FirSourceElement, KtNamedDeclaration>(PositioningStrategy.DECLARATION_NAME)
         val USELESS_CALL_ON_NOT_NULL by warning<FirSourceElement, PsiElement>(PositioningStrategy.SELECTOR_BY_QUALIFIED)
     }
+
+    val RETURNS by object : DiagnosticGroup("Returns") {
+        val RETURN_NOT_ALLOWED by error<FirSourceElement, KtReturnExpression>(PositioningStrategy.RETURN_WITH_LABEL)
+        val RETURN_IN_FUNCTION_WITH_EXPRESSION_BODY by error<FirSourceElement, KtReturnExpression>(PositioningStrategy.RETURN_WITH_LABEL)
+    }
 }
 
 private val exposedVisibilityDiagnosticInit: DiagnosticBuilder.() -> Unit = {
-    parameter<FirEffectiveVisibility>("elementVisibility")
+    parameter<EffectiveVisibility>("elementVisibility")
     parameter<FirMemberDeclaration>("restrictingDeclaration")
-    parameter<FirEffectiveVisibility>("restrictingVisibility")
+    parameter<EffectiveVisibility>("restrictingVisibility")
 }
 
 private inline fun <reified P : PsiElement> DiagnosticGroup.exposedVisibilityError(
