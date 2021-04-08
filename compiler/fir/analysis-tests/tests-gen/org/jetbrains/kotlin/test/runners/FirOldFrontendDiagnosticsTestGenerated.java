@@ -9276,6 +9276,18 @@ public class FirOldFrontendDiagnosticsTestGenerated extends AbstractFirDiagnosti
             }
 
             @Test
+            @TestMetadata("privateInFile.kt")
+            public void testPrivateInFile() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/exposed/privateInFile.kt");
+            }
+
+            @Test
+            @TestMetadata("privateInFileDisabled.kt")
+            public void testPrivateInFileDisabled() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/exposed/privateInFileDisabled.kt");
+            }
+
+            @Test
             @TestMetadata("privatePropertyInPrivateConstructor.kt")
             public void testPrivatePropertyInPrivateConstructor() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/exposed/privatePropertyInPrivateConstructor.kt");
