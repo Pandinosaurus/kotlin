@@ -10,10 +10,7 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
 import org.gradle.workers.WorkParameters
-import org.jetbrains.kotlin.commonizer.CommonizerTarget
-import org.jetbrains.kotlin.commonizer.NativeDistributionCommonizerOutputLayout
-import org.jetbrains.kotlin.commonizer.SharedCommonizerTarget
-import org.jetbrains.kotlin.commonizer.level
+import org.jetbrains.kotlin.commonizer.*
 import org.jetbrains.kotlin.compilerRunner.GradleCliCommonizer
 import org.jetbrains.kotlin.compilerRunner.konanHome
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtensionOrNull
@@ -27,11 +24,11 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.kotlinSourceSetsIncludingDefault
 import org.jetbrains.kotlin.gradle.plugin.sources.resolveAllDependsOnSourceSets
 import org.jetbrains.kotlin.gradle.targets.native.internal.CInteropCommonizerTask.CInteropGist
 import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
-import org.jetbrains.kotlin.gradle.utils.transitiveClosure
-import org.jetbrains.kotlin.gradle.utils.fileProvider
+import org.jetbrains.kotlin.gradle.utils.filesProvider
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import java.io.File
 
+@CacheableTask
 internal open class CInteropCommonizerTask : AbstractCInteropCommonizerTask() {
 
     internal data class CInteropGist(
@@ -51,23 +48,6 @@ internal open class CInteropCommonizerTask : AbstractCInteropCommonizerTask() {
     @get:Nested
     internal var cinterops = setOf<CInteropGist>()
         private set
-
-    /**
-     * All library files produced by the [Project.commonizeNativeDistributionTask] that are relevant for commonization
-     */
-    @get:Classpath
-    internal val nativeDistributionLibraries: Set<File>
-        get() {
-            val commonizeNativeDistribution = project.commonizeNativeDistributionTask.get()
-            return getCommonizationParameters().flatMapTo(mutableSetOf()) { parameters ->
-                parameters.commonizerTarget.withAllTransitiveTargets().flatMap { target ->
-                    commonizeNativeDistribution.commonizerTargetOutputDirectories.flatMap { outputDirectory ->
-                        NativeDistributionCommonizerOutputLayout.getTargetDirectory(outputDirectory, target)
-                            .listFiles().orEmpty().toList()
-                    }
-                }
-            }
-        }
 
     @OutputDirectories
     fun getAllOutputDirectories(): Set<File> {
@@ -113,10 +93,29 @@ internal open class CInteropCommonizerTask : AbstractCInteropCommonizerTask() {
         GradleCliCommonizer(project).commonizeLibraries(
             konanHome = project.file(project.konanHome),
             outputCommonizerTarget = parameters.commonizerTarget,
-            inputLibraries = cinteropsForTarget.map { it.libraryFile.get() }.toSet(),
-            dependencyLibraries = cinteropsForTarget.flatMap { it.dependencies.files }.toSet() + nativeDistributionLibraries,
+            inputLibraries = cinteropsForTarget.map { it.libraryFile.get() }.filter { it.exists() }.toSet(),
+            dependencyLibraries = cinteropsForTarget.flatMap { it.dependencies.files }.map(::NonTargetedCommonizerDependency).toSet()
+                    + nativeDistributionDependencies(parameters),
             outputDirectory = outputDirectory(parameters)
         )
+    }
+
+    private fun nativeDistributionDependencies(parameters: CInteropCommonizationParameters): Set<CommonizerDependency> {
+        val task = project.commonizeNativeDistributionHierarchicallyTask?.get() ?: return emptySet()
+
+        val rootTarget = task.rootCommonizerTargets
+            .firstOrNull { rootTarget -> parameters.commonizerTarget in rootTarget } ?: return emptySet()
+
+        val rootTargetOutput = task.getRootOutputDirectory(rootTarget)
+
+        return parameters.commonizerTarget.withAllAncestors()
+            .flatMap { target -> createCommonizerDependencies(rootTargetOutput, target) }
+            .toSet()
+    }
+
+    private fun createCommonizerDependencies(rootOutput: File, target: CommonizerTarget): List<TargetedCommonizerDependency> {
+        return HierarchicalCommonizerOutputLayout.getTargetDirectory(rootOutput, target).listFiles().orEmpty()
+            .map { file -> TargetedCommonizerDependency(target, file) }
     }
 
     @Nested
@@ -139,7 +138,7 @@ internal open class CInteropCommonizerTask : AbstractCInteropCommonizerTask() {
         return sharedNativeCompilations.mapNotNull(::getCommonizationParameters).toSet()
             .run(::removeNotRegisteredInterops)
             .run(::removeEmptyInterops)
-            .run(::removeHierarchicalParameters)
+            .run(if (project.isHierarchicalCommonizationEnabled) ::identity else ::removeHierarchicalParameters)
             .run(::removeRedundantParameters)
     }
 
@@ -171,7 +170,7 @@ private fun CInteropProcess.toGist(): CInteropGist {
         konanTarget = konanTarget,
         sourceSets = project.provider { settings.compilation.kotlinSourceSetsIncludingDefault },
         libraryFile = outputFileProvider,
-        dependencies = project.fileProvider { settings.dependencyFiles }.filter(File::isValidDependency)
+        dependencies = project.filesProvider { settings.dependencyFiles }.filter(File::isValidDependency)
     )
 }
 
@@ -196,6 +195,8 @@ private fun removeEmptyInterops(parameters: Set<CInteropCommonizationParameters>
     return parameters.filterTo(mutableSetOf()) { it.interops.isNotEmpty() }
 }
 
+private fun identity(parameters: Set<CInteropCommonizationParameters>) = parameters
+
 private fun removeHierarchicalParameters(parameters: Set<CInteropCommonizationParameters>): Set<CInteropCommonizationParameters> {
     return parameters.filterTo(mutableSetOf()) { it.commonizerTarget.level <= 1 }
 }
@@ -210,12 +211,7 @@ private fun removeRedundantParameters(parameters: Set<CInteropCommonizationParam
 
 private operator fun CommonizerTarget.contains(other: CommonizerTarget): Boolean {
     if (this == other) return true
-    if (this !is SharedCommonizerTarget) return false
-    return targets.any { child -> other in child }
-}
-
-private fun SharedCommonizerTarget.withAllTransitiveTargets(): Set<CommonizerTarget> {
-    return setOf(this) + this.transitiveClosure<CommonizerTarget> { if (this is SharedCommonizerTarget) this.targets else emptySet() }
+    return this.isAncestorOf(other)
 }
 
 private fun Project.getDependingNativeCompilations(compilation: KotlinSharedNativeCompilation): Set<KotlinNativeCompilation> {
