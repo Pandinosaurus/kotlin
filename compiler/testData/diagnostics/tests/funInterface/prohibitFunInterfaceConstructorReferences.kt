@@ -1,5 +1,3 @@
-// FIR_IDENTICAL
-
 fun interface Foo {
     fun run()
 }
