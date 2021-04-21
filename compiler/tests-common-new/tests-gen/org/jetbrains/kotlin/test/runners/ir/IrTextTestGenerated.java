@@ -441,6 +441,12 @@ public class IrTextTestGenerated extends AbstractIrTextTest {
         }
 
         @Test
+        @TestMetadata("kt45308.kt")
+        public void testKt45308() throws Exception {
+            runTest("compiler/testData/ir/irText/declarations/kt45308.kt");
+        }
+
+        @Test
         @TestMetadata("localClassWithOverrides.kt")
         public void testLocalClassWithOverrides() throws Exception {
             runTest("compiler/testData/ir/irText/declarations/localClassWithOverrides.kt");
@@ -2398,6 +2404,12 @@ public class IrTextTestGenerated extends AbstractIrTextTest {
         @TestMetadata("kt24114.kt")
         public void testKt24114() throws Exception {
             runTest("compiler/testData/ir/irText/regressions/kt24114.kt");
+        }
+
+        @Test
+        @TestMetadata("kt45236.kt")
+        public void testKt45236() throws Exception {
+            runTest("compiler/testData/ir/irText/regressions/kt45236.kt");
         }
 
         @Test

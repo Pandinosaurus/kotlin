@@ -45,7 +45,7 @@ object CommonDeclarationCheckers : DeclarationCheckers() {
 
     override val propertyCheckers: Set<FirPropertyChecker>
         get() = setOf(
-            FirInapplicableLateinitChecker(),
+            FirInapplicableLateinitChecker,
             FirDestructuringDeclarationChecker,
             FirConstPropertyChecker,
             FirPropertyAccessorChecker,
@@ -74,14 +74,14 @@ object CommonDeclarationCheckers : DeclarationCheckers() {
             FirInterfaceWithSuperclassChecker,
             FirLocalEntityNotAllowedChecker,
             FirManyCompanionObjectsChecker,
-            FirMethodOfAnyImplementedInInterfaceChecker(),
+            FirMethodOfAnyImplementedInInterfaceChecker,
             FirDataClassPrimaryConstructorChecker,
             FirPrimaryConstructorSuperTypeChecker,
             FirTypeParametersInObjectChecker,
             FirMemberFunctionsChecker,
             FirMemberPropertiesChecker,
             FirNestedClassChecker,
-            FirInlineClassDeclarationChecker(),
+            FirInlineClassDeclarationChecker,
         )
 
     override val constructorCheckers: Set<FirConstructorChecker>

@@ -69,8 +69,8 @@ object DIAGNOSTICS_LIST : DiagnosticList() {
     }
 
     val UNRESOLVED by object : DiagnosticGroup("Unresolved") {
-        val HIDDEN by error<PsiElement>(PositioningStrategy.REFERENCE_BY_QUALIFIED) {
-            parameter<AbstractFirBasedSymbol<*>>("hidden")
+        val INVISIBLE_REFERENCE by error<PsiElement>(PositioningStrategy.REFERENCE_BY_QUALIFIED) {
+            parameter<AbstractFirBasedSymbol<*>>("reference")
         }
         val UNRESOLVED_REFERENCE by error<PsiElement>(PositioningStrategy.REFERENCED_NAME_BY_QUALIFIED) {
             parameter<String>("reference")
@@ -149,6 +149,7 @@ object DIAGNOSTICS_LIST : DiagnosticList() {
         val NULLABLE_TYPE_OF_ANNOTATION_MEMBER by error<KtTypeReference>()
         val VAR_ANNOTATION_PARAMETER by error<KtParameter>(PositioningStrategy.VAL_OR_VAR_NODE)
         val SUPERTYPES_FOR_ANNOTATION_CLASS by error<KtClass>(PositioningStrategy.SUPERTYPES_LIST)
+        val ANNOTATION_USED_AS_ANNOTATION_ARGUMENT by error<KtAnnotation>()
     }
 
     val EXPOSED_VISIBILITY by object : DiagnosticGroup("Exposed visibility") {

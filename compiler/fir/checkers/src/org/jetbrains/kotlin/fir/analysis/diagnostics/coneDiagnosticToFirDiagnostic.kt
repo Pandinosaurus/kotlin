@@ -30,7 +30,7 @@ private fun ConeDiagnostic.toFirDiagnostic(
     is ConeUnresolvedSymbolError -> FirErrors.UNRESOLVED_REFERENCE.on(source, this.classId.asString())
     is ConeUnresolvedNameError -> FirErrors.UNRESOLVED_REFERENCE.on(source, this.name.asString())
     is ConeUnresolvedQualifierError -> FirErrors.UNRESOLVED_REFERENCE.on(source, this.qualifier)
-    is ConeHiddenCandidateError -> FirErrors.HIDDEN.on(source, this.candidateSymbol)
+    is ConeHiddenCandidateError -> FirErrors.INVISIBLE_REFERENCE.on(source, this.candidateSymbol)
     is ConeAmbiguityError -> if (this.applicability.isSuccess) {
         FirErrors.OVERLOAD_RESOLUTION_AMBIGUITY.on(source, this.candidates.map { it.symbol })
     } else if (this.applicability == CandidateApplicability.UNSAFE_CALL) {
@@ -63,6 +63,7 @@ private fun ConeDiagnostic.toFirDiagnostic(
     is ConeContractDescriptionError -> FirErrors.ERROR_IN_CONTRACT_DESCRIPTION.on(source, this.reason)
     is ConeTypeParameterSupertype -> FirErrors.SUPERTYPE_NOT_A_CLASS_OR_INTERFACE.on(source, this.reason)
     is ConeTypeParameterInQualifiedAccess -> null // reported in various checkers instead
+    is ConeNotAnnotationContainer -> null
     else -> throw IllegalArgumentException("Unsupported diagnostic type: ${this.javaClass}")
 }
 
