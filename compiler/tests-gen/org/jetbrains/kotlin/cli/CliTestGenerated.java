@@ -446,6 +446,16 @@ public class CliTestGenerated extends AbstractCliTest {
             runTest("compiler/testData/cli/jvm/jdkPathDoesNotExist.args");
         }
 
+        @TestMetadata("jspecifyByLv15.args")
+        public void testJspecifyByLv15() throws Exception {
+            runTest("compiler/testData/cli/jvm/jspecifyByLv15.args");
+        }
+
+        @TestMetadata("jspecifyByLv16.args")
+        public void testJspecifyByLv16() throws Exception {
+            runTest("compiler/testData/cli/jvm/jspecifyByLv16.args");
+        }
+
         @TestMetadata("jspecifyDefault.args")
         public void testJspecifyDefault() throws Exception {
             runTest("compiler/testData/cli/jvm/jspecifyDefault.args");
@@ -694,6 +704,11 @@ public class CliTestGenerated extends AbstractCliTest {
         @TestMetadata("nonexistingArgfile.args")
         public void testNonexistingArgfile() throws Exception {
             runTest("compiler/testData/cli/jvm/nonexistingArgfile.args");
+        }
+
+        @TestMetadata("nullabilityAnnotations.args")
+        public void testNullabilityAnnotations() throws Exception {
+            runTest("compiler/testData/cli/jvm/nullabilityAnnotations.args");
         }
 
         @TestMetadata("pluginSimple.args")
