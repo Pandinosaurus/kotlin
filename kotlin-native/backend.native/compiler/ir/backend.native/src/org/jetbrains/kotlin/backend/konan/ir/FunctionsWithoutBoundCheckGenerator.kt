@@ -16,10 +16,8 @@ import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.addMember
-import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
-import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isAnnotationWithEqualFqName
@@ -66,7 +64,7 @@ internal class FunctionsWithoutBoundCheckGenerator(val context: KonanBackendCont
 
 
     fun generate() {
-        val arraysClasses = symbols.primitiveArrays.values + symbols.array
+        val arraysClasses = symbols.primitiveTypesToPrimitiveArrays.values + symbols.array
         arraysClasses.forEach { classSymbol ->
             val setFunction = classSymbol.owner.functions.single { it.name == OperatorNameConventions.SET }
             classSymbol.owner.addMember(generateFunction(setFunction, KonanNameConventions.setWithoutBoundCheck))
