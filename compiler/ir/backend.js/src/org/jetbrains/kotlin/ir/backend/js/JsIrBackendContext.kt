@@ -82,7 +82,6 @@ class JsIrBackendContext(
     val fieldToInitializer: MutableMap<IrField, IrExpression> = mutableMapOf()
 
     val localClassNames: MutableMap<IrClass, String> = mutableMapOf()
-    val extractedLocalClasses: MutableSet<IrClass> = hashSetOf()
 
     val minimizedNameGenerator: MinimizedNameGenerator =
         MinimizedNameGenerator()
@@ -109,7 +108,6 @@ class JsIrBackendContext(
     val errorPolicy = configuration[JSConfigurationKeys.ERROR_TOLERANCE_POLICY] ?: ErrorTolerancePolicy.DEFAULT
 
     val externalPackageFragment = mutableMapOf<IrFileSymbol, IrFile>()
-    val externalDeclarations = hashSetOf<IrDeclaration>()
 
     val additionalExportedDeclarations = mutableSetOf<IrDeclaration>()
 
