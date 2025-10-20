@@ -26053,6 +26053,18 @@ public class FirJsCodegenBoxWithInlinedFunInKlibTestGenerated extends AbstractFi
           }
 
           @Test
+          @TestMetadata("kt66359a.kt")
+          public void testKt66359a() {
+            runTest("compiler/testData/codegen/box/inference/pcla/issues/kt66359a.kt");
+          }
+
+          @Test
+          @TestMetadata("kt66359b.kt")
+          public void testKt66359b() {
+            runTest("compiler/testData/codegen/box/inference/pcla/issues/kt66359b.kt");
+          }
+
+          @Test
           @TestMetadata("kt67993.kt")
           public void testKt67993() {
             runTest("compiler/testData/codegen/box/inference/pcla/issues/kt67993.kt");
@@ -68240,6 +68252,12 @@ public class FirJsCodegenBoxWithInlinedFunInKlibTestGenerated extends AbstractFi
       @Test
       public void testAllFilesPresentInMultiModule() {
         KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/boxInline/multiModule"), Pattern.compile("^(.+)\\.kt$"), null, true);
+      }
+
+      @Test
+      @TestMetadata("notInlinedFunFromKlib.kt")
+      public void testNotInlinedFunFromKlib() {
+        runTest("compiler/testData/codegen/boxInline/multiModule/notInlinedFunFromKlib.kt");
       }
 
       @Test
