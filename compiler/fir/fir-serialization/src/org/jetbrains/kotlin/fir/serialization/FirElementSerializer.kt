@@ -453,7 +453,7 @@ class FirElementSerializer private constructor(
                 val dispatchReceiverLookupTag = declaration.dispatchReceiverClassLookupTagOrNull()
                 // Special case for data/value class equals/hashCode/toString, see KT-57510
                 val isFakeOverrideOfAnyFunctionInDataOrValueClass = this@collectDeclarations is FirRegularClass &&
-                        (this@collectDeclarations.isData || this@collectDeclarations.isInlineOrValue) &&
+                        (this@collectDeclarations.isData || this@collectDeclarations.isInlineOrValue && this@collectDeclarations.isFinal) &&
                         dispatchReceiverLookupTag?.classId == StandardClassIds.Any && !declaration.isFinal
                 // Related: https://youtrack.jetbrains.com/issue/KT-20427#focus=Comments-27-8652759.0-0
                 if (isFakeOverrideOfAnyFunctionInDataOrValueClass && !this@collectDeclarations.isExpect ||
@@ -1519,7 +1519,7 @@ class FirElementSerializer private constructor(
 
     private inline fun <M : GeneratedMessageLite.ExtendableMessage<M>, B : GeneratedMessageLite.Builder<M, B>> B.serializeCompilerPluginMetadata(
         declaration: FirDeclaration,
-        addCompilerPluginData: B.(ProtoBuf.CompilerPluginData.Builder) -> B
+        addCompilerPluginData: B.(ProtoBuf.CompilerPluginData.Builder) -> Unit
     ) {
         extension.additionalMetadataProvider?.findMetadataExtensionsFor(declaration)?.forEach { [pluginId, data] ->
             val pluginData = ProtoBuf.CompilerPluginData.newBuilder().apply {

@@ -9,11 +9,7 @@ import com.intellij.lang.LighterASTNode
 import org.jetbrains.kotlin.*
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.descriptors.FullValueClassRepresentation
-import org.jetbrains.kotlin.descriptors.InlineClassRepresentation
-import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.SourceElementPositioningStrategy
@@ -23,6 +19,7 @@ import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.analysis.checkers.RecursionType.Plain
 import org.jetbrains.kotlin.fir.analysis.checkers.RecursionType.ViaTypeParameters
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
+import org.jetbrains.kotlin.fir.analysis.checkers.context.findClosest
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.analysis.getChild
 import org.jetbrains.kotlin.fir.declarations.*
@@ -46,6 +43,7 @@ import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
+import org.jetbrains.kotlin.fir.symbols.resolvedControlFlowGraphReference
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 import org.jetbrains.kotlin.lexer.KtTokens.VAL_VAR
@@ -67,6 +65,12 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 private val INLINE_ONLY_ANNOTATION_CLASS_ID: ClassId = ClassId.topLevel(FqName("kotlin.internal.InlineOnly"))
+
+/**
+ * JEP 390 marks JDK classes whose identity must not be relied upon, and JEP 401 migrates all of them to value classes.
+ * It is the JVM counterpart of [StandardClassIds.Annotations.WillBecomeValue].
+ */
+val JDK_INTERNAL_VALUE_BASED_ANNOTATION_CLASS_ID: ClassId = ClassId.fromString("jdk/internal/ValueBased")
 
 context(context: CheckerContext)
 fun FirClass.unsubstitutedScope(): FirTypeScope =
@@ -150,15 +154,17 @@ private fun ConeKotlinType.getValueClassTypeRecursionType(
 
     val asRegularClass = plainRegularClass ?: leastUpperBound(session).toRegularClassSymbol(session) ?: return null
     val primaryConstructor = asRegularClass.primaryConstructorIfAny(session) ?: return null
+    val valueClassRepresentation = asRegularClass.valueClassRepresentation
+    val isOrWillBeFullValueClass = valueClassRepresentation is FullValueClassRepresentation ||
+            valueClassRepresentation == null && asRegularClass.willBecomeKotlinValueClass(session)
     // Recursion in Value Classes with nullable types (e.g. `value class VC(val x: VC?, ...)`) is supported only for Multi-Field Full Value Classes
     // Generally, there is no need to disallow it for single-field value classes as well, so there is KT-86498 for that.
     // Below we forbid recursion for all other cases
     // Reminder: single-field value class is considered inline if it has @JvmInline annotation or if the FullValueClasses feature is disabled
-    val isSubjectForCheck = when (asRegularClass.valueClassRepresentation) {
-        null -> false
-        is InlineClassRepresentation -> true
-        is FullValueClassRepresentation if isNullableType() -> primaryConstructor.valueParameterSymbols.size == 1
-        is FullValueClassRepresentation -> true
+    val isSubjectForCheck = when {
+        valueClassRepresentation is InlineClassRepresentation -> true
+        isOrWillBeFullValueClass && isNullableType() -> primaryConstructor.valueParameterSymbols.size == 1
+        else -> isOrWillBeFullValueClass
     }
     if (!isSubjectForCheck) return null
 
@@ -431,6 +437,8 @@ val CheckerContext.secondToLastContainer: FirElement?
 
 fun CheckerContext.nthLastContainer(n: Int): FirElement? = containingElements.let { it.getOrNull(it.size - n) }
 
+val CheckerContext.isInsideAnnotationCall: Boolean get() = callsOrAssignments.any { it is FirAnnotationCall }
+
 context(context: CheckerContext, reporter: DiagnosticReporter)
 fun checkTypeMismatch(
     lValueOriginalType: ConeKotlinType,
@@ -678,7 +686,7 @@ fun getActualTargetList(container: FirAnnotationContainer, session: FirSession):
     val annotated =
         if (container is FirBackingField) {
             when {
-                !container.propertySymbol.hasBackingField -> container.propertyIfBackingField
+                !container.propertySymbol.hasAnnotatableBackingField -> container.propertyIfBackingField
                 container.propertySymbol.getContainingClassSymbol()?.classKind == ClassKind.ANNOTATION_CLASS -> {
                     @OptIn(AnnotationTargetListForDeprecation::class)
                     return TargetLists.T_MEMBER_PROPERTY_IN_ANNOTATION
@@ -716,15 +724,23 @@ fun getActualTargetList(container: FirAnnotationContainer, session: FirSession):
                     if (annotated.source?.kind == KtFakeSourceElementKind.PropertyFromParameter) {
                         TargetLists.T_VALUE_PARAMETER_WITH_VAL
                     } else {
-                        TargetLists.T_MEMBER_PROPERTY(annotated.hasBackingField, annotated.delegate != null, isCompanionMember = false)
+                        TargetLists.T_MEMBER_PROPERTY(
+                            backingField = annotated.hasAnnotatableBackingField,
+                            delegate = annotated.delegate != null,
+                            isCompanionMember = false,
+                        )
                     }
                 annotated.isCompanionBlockMember -> TargetLists.T_MEMBER_PROPERTY(
-                    backingField = annotated.hasBackingField,
+                    backingField = annotated.hasAnnotatableBackingField,
                     delegate = annotated.delegate != null,
-                    isCompanionMember = true
+                    isCompanionMember = true,
                 )
                 else ->
-                    TargetLists.T_TOP_LEVEL_PROPERTY(annotated.hasBackingField, annotated.delegate != null, isCompanionExtension = annotated.isCompanionExtension)
+                    TargetLists.T_TOP_LEVEL_PROPERTY(
+                        backingField = annotated.hasAnnotatableBackingField,
+                        delegate = annotated.delegate != null,
+                        isCompanionExtension = annotated.isCompanionExtension,
+                    )
             }
         }
         is FirValueParameter -> {
@@ -945,6 +961,10 @@ fun ConeKotlinType.forEachClassId(f: (ClassId) -> Unit) {
         is ConeDefinitelyNotNullType -> original.forEachClassId(f)
         is ConeCapturedType -> constructor.supertypes?.forEach { it.forEachClassId(f) }
         is ConeIntersectionType -> intersectedTypes.forEach { it.forEachClassId(f) }
+        is ConeUnionType -> {
+            primaryType.forEachClassId(f)
+            richErrorTypes.forEach { it.forEachClassId(f) }
+        }
         is ConeTypeParameterType -> lookupTag.symbol.resolvedBounds.forEach { it.coneType.forEachClassId(f) }
         is ConeClassLikeType -> fullyExpandedType().classId.let(f)
         is ConeStubTypeForTypeVariableInSubtyping,
@@ -1202,7 +1222,7 @@ fun FirBasedSymbol<*>.isExportedToJs(): Boolean {
         hasAnnotationOrInsideAnnotatedClass(StandardClassIds.Annotations.jsExport, session) ||
         hasAnnotationOrInsideAnnotatedClass(StandardClassIds.Annotations.jsExportDefault, session) ||
         getAnnotationBooleanParameter(StandardClassIds.Annotations.jsImplicitExport, session) == true ||
-        getContainingFile()?.symbol?.hasAnnotation(StandardClassIds.Annotations.jsExport, session) == true
+        getContainingFile()?.symbol.hasAnnotation(StandardClassIds.Annotations.jsExport, session)
     ) {
         /**
          * The rules for exporting data class copy functions are inheriting rules for consistent `copy` visibility,
@@ -1257,3 +1277,13 @@ internal fun FirDeclaration.containsErrorTypes(): Boolean {
 
     return hasErrorType
 }
+
+context(context: CheckerContext)
+internal fun isInConstContext(): Boolean {
+    if (context.findClosest<FirPropertySymbol> { it.isConst } != null) return true
+    if (context.callsOrAssignments.any { it is FirAnnotation }) return true
+    return false
+}
+
+val ConeKotlinType.isTypealiasToAny: Boolean
+    get() = abbreviatedType != null && isAny

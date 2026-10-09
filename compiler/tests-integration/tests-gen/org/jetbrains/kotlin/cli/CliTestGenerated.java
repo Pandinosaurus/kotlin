@@ -191,6 +191,12 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
+    @TestMetadata("intermediateHasNonExistentDependency.args")
+    public void testIntermediateHasNonExistentDependency() {
+      run("intermediateHasNonExistentDependency.args");
+    }
+
+    @Test
     @TestMetadata("jvmDependenciesInCommonClasspath_dir.args")
     public void testJvmDependenciesInCommonClasspath_dir() {
       run("jvmDependenciesInCommonClasspath_dir.args");
@@ -200,6 +206,12 @@ public class CliTestGenerated extends AbstractCliTest {
     @TestMetadata("jvmDependenciesInCommonClasspath_friends.args")
     public void testJvmDependenciesInCommonClasspath_friends() {
       run("jvmDependenciesInCommonClasspath_friends.args");
+    }
+
+    @Test
+    @TestMetadata("jvmDependenciesInCommonClasspath_friendsWithKlib.args")
+    public void testJvmDependenciesInCommonClasspath_friendsWithKlib() {
+      run("jvmDependenciesInCommonClasspath_friendsWithKlib.args");
     }
 
     @Test
@@ -485,12 +497,6 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("inapplicableLateinitModifier.args")
-    public void testInapplicableLateinitModifier() {
-      run("inapplicableLateinitModifier.args");
-    }
-
-    @Test
     @TestMetadata("inlineCycle.args")
     public void testInlineCycle() {
       run("inlineCycle.args");
@@ -625,15 +631,33 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
+    @TestMetadata("checkerLv24.args")
+    public void testCheckerLv24() {
+      run("checkerLv24.args");
+    }
+
+    @Test
     @TestMetadata("contracts.args")
     public void testContracts() {
       run("contracts.args");
     }
 
     @Test
+    @TestMetadata("default.args")
+    public void testDefault() {
+      run("default.args");
+    }
+
+    @Test
     @TestMetadata("full.args")
     public void testFull() {
       run("full.args");
+    }
+
+    @Test
+    @TestMetadata("lv24.args")
+    public void testLv24() {
+      run("lv24.args");
     }
   }
 
@@ -714,6 +738,12 @@ public class CliTestGenerated extends AbstractCliTest {
     @TestMetadata("extraBooleanArgumentEqualsTrue.args")
     public void testExtraBooleanArgumentEqualsTrue() {
       run("extraBooleanArgumentEqualsTrue.args");
+    }
+
+    @Test
+    @TestMetadata("unknownExtraFlagWithWerror.args")
+    public void testUnknownExtraFlagWithWerror() {
+      run("unknownExtraFlagWithWerror.args");
     }
 
     @Test
@@ -1374,6 +1404,26 @@ public class CliTestGenerated extends AbstractCliTest {
   }
 
   @Nested
+  @TestMetadata("compiler/testData/cli/jvm/XminimumRuntimeJdk")
+  @TestDataPath("$PROJECT_ROOT")
+  public class XminimumRuntimeJdk {
+    private void run(String fileName) {
+      doJvmTest("compiler/testData/cli/jvm/XminimumRuntimeJdk/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInXminimumRuntimeJdk() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/cli/jvm/XminimumRuntimeJdk"), Pattern.compile("^(.+)\\.args$"), null, false);
+    }
+
+    @Test
+    @TestMetadata("minimumRuntimeJdkMinAllowed.args")
+    public void testMinimumRuntimeJdkMinAllowed() {
+      run("minimumRuntimeJdkMinAllowed.args");
+    }
+  }
+
+  @Nested
   @TestMetadata("compiler/testData/cli/jvm/XnewInference")
   @TestDataPath("$PROJECT_ROOT")
   public class XnewInference {
@@ -1428,12 +1478,6 @@ public class CliTestGenerated extends AbstractCliTest {
     @TestMetadata("multipleWarningSuppression.args")
     public void testMultipleWarningSuppression() {
       run("multipleWarningSuppression.args");
-    }
-
-    @Test
-    @TestMetadata("multipleWarningSuppressionWithDifferentArgs.args")
-    public void testMultipleWarningSuppressionWithDifferentArgs() {
-      run("multipleWarningSuppressionWithDifferentArgs.args");
     }
 
     @Test
@@ -1514,12 +1558,6 @@ public class CliTestGenerated extends AbstractCliTest {
     @TestMetadata("firMultiplatformCompilationWithError.args")
     public void testFirMultiplatformCompilationWithError() {
       run("firMultiplatformCompilationWithError.args");
-    }
-
-    @Test
-    @TestMetadata("firMultiplatformCompilationWithPsiWithoutErrors.args")
-    public void testFirMultiplatformCompilationWithPsiWithoutErrors() {
-      run("firMultiplatformCompilationWithPsiWithoutErrors.args");
     }
 
     @Test
@@ -1735,12 +1773,6 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("experimentalCheckers.args")
-    public void testExperimentalCheckers() {
-      run("experimentalCheckers.args");
-    }
-
-    @Test
     @TestMetadata("explicitBackingFields.args")
     public void testExplicitBackingFields() {
       run("explicitBackingFields.args");
@@ -1798,30 +1830,6 @@ public class CliTestGenerated extends AbstractCliTest {
     @TestMetadata("firFriendlyErrorIfNoJdkOptionIsSet.args")
     public void testFirFriendlyErrorIfNoJdkOptionIsSet() {
       run("firFriendlyErrorIfNoJdkOptionIsSet.args");
-    }
-
-    @Test
-    @TestMetadata("firHello.args")
-    public void testFirHello() {
-      run("firHello.args");
-    }
-
-    @Test
-    @TestMetadata("firHello20.args")
-    public void testFirHello20() {
-      run("firHello20.args");
-    }
-
-    @Test
-    @TestMetadata("firLightTreeOff.args")
-    public void testFirLightTreeOff() {
-      run("firLightTreeOff.args");
-    }
-
-    @Test
-    @TestMetadata("firLightTreeOn.args")
-    public void testFirLightTreeOn() {
-      run("firLightTreeOn.args");
     }
 
     @Test
@@ -2053,12 +2061,6 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("replLaunchError.args")
-    public void testReplLaunchError() {
-      run("replLaunchError.args");
-    }
-
-    @Test
     @TestMetadata("reportAllWarnings.args")
     public void testReportAllWarnings() {
       run("reportAllWarnings.args");
@@ -2086,12 +2088,6 @@ public class CliTestGenerated extends AbstractCliTest {
     @TestMetadata("reportPerfJson_detailedPerf.args")
     public void testReportPerfJson_detailedPerf() {
       run("reportPerfJson_detailedPerf.args");
-    }
-
-    @Test
-    @TestMetadata("reportPerfPsi.args")
-    public void testReportPerfPsi() {
-      run("reportPerfPsi.args");
     }
 
     @Test
@@ -2137,15 +2133,9 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("syntaxError_lt.args")
-    public void testSyntaxError_lt() {
-      run("syntaxError_lt.args");
-    }
-
-    @Test
-    @TestMetadata("syntaxError_psi.args")
-    public void testSyntaxError_psi() {
-      run("syntaxError_psi.args");
+    @TestMetadata("syntaxError.args")
+    public void testSyntaxError() {
+      run("syntaxError.args");
     }
 
     @Test
@@ -2167,6 +2157,12 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
+    @TestMetadata("tailrec.args")
+    public void testTailrec() {
+      run("tailrec.args");
+    }
+
+    @Test
     @TestMetadata("twoDiagnosticsOnSingleElement.args")
     public void testTwoDiagnosticsOnSingleElement() {
       run("twoDiagnosticsOnSingleElement.args");
@@ -2185,9 +2181,15 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("valhallaSupportIllegalConfiguration.args")
-    public void testValhallaSupportIllegalConfiguration() {
-      run("valhallaSupportIllegalConfiguration.args");
+    @TestMetadata("valhallaValueClassesIllegalConfiguration.args")
+    public void testValhallaValueClassesIllegalConfiguration() {
+      run("valhallaValueClassesIllegalConfiguration.args");
+    }
+
+    @Test
+    @TestMetadata("valhallaValueClassesJvmTarget27.args")
+    public void testValhallaValueClassesJvmTarget27() {
+      run("valhallaValueClassesJvmTarget27.args");
     }
 
     @Test
@@ -2349,12 +2351,6 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("experimentalCheckers.args")
-    public void testExperimentalCheckers() {
-      run("experimentalCheckers.args");
-    }
-
-    @Test
     @TestMetadata("exportKDoc.args")
     public void testExportKDoc() {
       run("exportKDoc.args");
@@ -2427,15 +2423,9 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("k2LightTree.args")
-    public void testK2LightTree() {
-      run("k2LightTree.args");
-    }
-
-    @Test
-    @TestMetadata("k2Psi.args")
-    public void testK2Psi() {
-      run("k2Psi.args");
+    @TestMetadata("k2.args")
+    public void testK2() {
+      run("k2.args");
     }
 
     @Test
@@ -2583,12 +2573,6 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("reportPerfPsi.args")
-    public void testReportPerfPsi() {
-      run("reportPerfPsi.args");
-    }
-
-    @Test
     @TestMetadata("reportPerfWithError.args")
     public void testReportPerfWithError() {
       run("reportPerfWithError.args");
@@ -2673,15 +2657,15 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("syntaxError_lt.args")
-    public void testSyntaxError_lt() {
-      run("syntaxError_lt.args");
+    @TestMetadata("syntaxError.args")
+    public void testSyntaxError() {
+      run("syntaxError.args");
     }
 
     @Test
-    @TestMetadata("syntaxError_psi.args")
-    public void testSyntaxError_psi() {
-      run("syntaxError_psi.args");
+    @TestMetadata("tailrec.args")
+    public void testTailrec() {
+      run("tailrec.args");
     }
 
     @Test
@@ -2777,6 +2761,12 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
+    @TestMetadata("tailrec.args")
+    public void testTailrec() {
+      run("tailrec.args");
+    }
+
+    @Test
     @TestMetadata("wasmExtraHelp.args")
     public void testWasmExtraHelp() {
       run("wasmExtraHelp.args");
@@ -2848,12 +2838,6 @@ public class CliTestGenerated extends AbstractCliTest {
     @TestMetadata("complexAnnotationArgument.args")
     public void testComplexAnnotationArgument() {
       run("complexAnnotationArgument.args");
-    }
-
-    @Test
-    @TestMetadata("experimentalCheckers.args")
-    public void testExperimentalCheckers() {
-      run("experimentalCheckers.args");
     }
 
     @Test
@@ -2965,27 +2949,15 @@ public class CliTestGenerated extends AbstractCliTest {
     }
 
     @Test
-    @TestMetadata("reportPerfPsi.args")
-    public void testReportPerfPsi() {
-      run("reportPerfPsi.args");
-    }
-
-    @Test
     @TestMetadata("reportPerfWithError.args")
     public void testReportPerfWithError() {
       run("reportPerfWithError.args");
     }
 
     @Test
-    @TestMetadata("syntaxError_lt.args")
-    public void testSyntaxError_lt() {
-      run("syntaxError_lt.args");
-    }
-
-    @Test
-    @TestMetadata("syntaxError_psi.args")
-    public void testSyntaxError_psi() {
-      run("syntaxError_psi.args");
+    @TestMetadata("syntaxError.args")
+    public void testSyntaxError() {
+      run("syntaxError.args");
     }
 
     @Test

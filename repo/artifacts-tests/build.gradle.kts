@@ -1,14 +1,10 @@
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.TemporaryTestFederationApi
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     kotlin("plugin.serialization")
-    id("project-tests-convention")
 }
 
 dependencies {
@@ -29,8 +25,9 @@ projectTests {
     testTask {
         workingDir = rootDir
 
-        @OptIn(TemporaryTestFederationApi::class)
-        smokeTestConfig = SmokeTestConfig.RunAllTests
+        testFederation {
+            smokeTests { includeAll() }
+        }
 
         val kotlinVersion = kotlinBuildProperties.kotlinVersion.get()
         val defaultMavenLocal: String = rootProject.projectDir.resolve("build/repo").absolutePath

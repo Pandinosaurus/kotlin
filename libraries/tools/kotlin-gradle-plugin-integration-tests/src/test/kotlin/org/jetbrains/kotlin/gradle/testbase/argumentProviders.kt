@@ -8,8 +8,7 @@ package org.jetbrains.kotlin.gradle.testbase
 import org.gradle.api.JavaVersion
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.TestVersions.AgpCompatibilityMatrix
-import org.jetbrains.kotlin.testFederation.TestFederationMode
-import org.jetbrains.kotlin.testFederation.testFederationMode
+import org.jetbrains.kotlin.testFederation.testFederationAllTestsRequested
 import org.junit.jupiter.api.extension.*
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -148,7 +147,8 @@ open class GradleArgumentsProvider : ArgumentsProvider {
         val minGradleVersion = GradleVersion.version(versionsAnnotation.minVersion)
         // Max is used for cases when test is annotated with `@GradleTestVersions(minVersion = LATEST)` but MAX_SUPPORTED isn't latest
         val maxGradleVersion = maxOf(GradleVersion.version(versionsAnnotation.maxVersion), minGradleVersion)
-        if (testFederationMode == TestFederationMode.Smoke) return setOf(maxGradleVersion)
+
+        if (!testFederationAllTestsRequested) return setOf(maxGradleVersion)
 
         val additionalGradleVersions = versionsAnnotation
             .additionalVersions
@@ -244,14 +244,13 @@ class GradleAndJdkArgumentsProvider : GradleArgumentsProvider() {
                     .map { it to providedJdk }
             }
             .asSequence()
-            .filter { [gradleVersion, _] -> versionFilter.map { gradleVersion == it }.orElse(true) }
+            .filter { (gradleVersion, _) -> versionFilter.map { gradleVersion == it }.orElse(true) }
             .map {
                 Arguments.of(it.first, it.second)
             }
             .run {
-                /* We only take the last configuration in smoke test mode */
-                if (testFederationMode == TestFederationMode.Smoke) toList().takeLast(1)
-                else toList()
+                if (testFederationAllTestsRequested) toList()
+                else toList().takeLast(1)
             }
             .stream()
     }
@@ -347,7 +346,7 @@ class GradleAndAgpArgumentsProvider : GradleArgumentsProvider() {
             }
         )
 
-        if (testFederationMode == TestFederationMode.Smoke) {
+        if (!testFederationAllTestsRequested) {
             agpVersions = setOf(agpVersions.last())
         }
 
@@ -388,6 +387,98 @@ class GradleAndAgpArgumentsProvider : GradleArgumentsProvider() {
         val agpVersion: String,
         val jdkVersion: JdkVersions.ProvidedJdk,
     )
+}
+
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class CompilerVersions(
+    val versions: Array<String> = [],
+    val additionalVersions: Array<String> = [],
+) {
+    companion object {
+        const val CURRENT = "CURRENT"
+        const val STABLE_RELEASE = TestVersions.Kotlin.STABLE_RELEASE
+    }
+}
+
+/**
+ * Parameterized test against different Gradle and Kotlin compiler versions.
+ * Test should accept [GradleVersion] and [String] (compiler version) as parameters.
+ *
+ * By default, [TestVersions.Gradle.MIN_SUPPORTED] and [TestVersions.Gradle.MAX_SUPPORTED] Gradle versions are provided.
+ * To modify it use additional [GradleTestVersions] annotation on the test method.
+ *
+ * By default, [TestVersions.Kotlin.STABLE_RELEASE] and [TestVersions.Kotlin.CURRENT] compiler versions are provided.
+ * To modify it use additional [CompilerVersions] annotation on the test method.
+ *
+ * @see [GradleTestVersions]
+ * @see [CompilerVersions]
+ */
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+@GradleTestVersions
+@CompilerVersions
+@ParameterizedTest(name = "{1} with {0}: {displayName}")
+@ArgumentsSource(GradleAndCompilerVersionArgumentsProvider::class)
+annotation class GradleWithCompilerVersionTest
+
+class GradleAndCompilerVersionArgumentsProvider : GradleArgumentsProvider() {
+    override fun provideArguments(
+        parameters: ParameterDeclarations,
+        context: ExtensionContext,
+    ): Stream<out Arguments> {
+        val compilerVersions = compilerVersions(context)
+        val gradleVersions = gradleVersions(context)
+        val versionFilter = context.getConfigurationParameter("gradle.integration.tests.gradle.version.filter")
+            .map { GradleVersion.version(it) }
+
+        return compilerVersions
+            .flatMap { compilerVersion ->
+                gradleVersions.map { gradleVersion ->
+                    gradleVersion to compilerVersion
+                }
+            }
+            .asSequence()
+            .filter { pair -> versionFilter.map { pair.first == it }.orElse(true) }
+            .map { it: Pair<GradleVersion, String> ->
+                Arguments.of(it.first, it.second)
+            }
+            .run {
+                /* We only take the last configuration in smoke test mode */
+                if (!testFederationAllTestsRequested) toList().takeLast(1)
+                else toList()
+            }
+            .stream()
+    }
+
+    protected fun compilerVersions(context: ExtensionContext): Set<String> {
+        val versionsAnnotation = findAnnotationOrNull<CompilerVersions>(context)
+
+        val defaultVersions = listOf(TestVersions.Kotlin.STABLE_RELEASE, TestVersions.Kotlin.CURRENT)
+        val baseVersions = if (versionsAnnotation == null || versionsAnnotation.versions.isEmpty()) {
+            defaultVersions
+        } else {
+            versionsAnnotation.versions.map { resolveCompilerVersion(it) }
+        }
+
+        val additionalVersions = versionsAnnotation?.additionalVersions?.map { resolveCompilerVersion(it) } ?: emptyList()
+
+        val allVersions = (baseVersions + additionalVersions).distinct()
+
+        if (!testFederationAllTestsRequested) {
+            return setOf(allVersions.last())
+        }
+
+        return allVersions.toSet()
+    }
+
+    companion object {
+        private fun resolveCompilerVersion(version: String): String = when (version.uppercase()) {
+            CompilerVersions.CURRENT -> TestVersions.Kotlin.CURRENT
+            "STABLE_RELEASE", "STABLE" -> TestVersions.Kotlin.STABLE_RELEASE
+            else -> version
+        }
+    }
 }
 
 /**

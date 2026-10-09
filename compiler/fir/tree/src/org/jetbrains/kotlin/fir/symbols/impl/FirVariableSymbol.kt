@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.fir.declarations.utils.isConst
 import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousObjectExpression
 import org.jetbrains.kotlin.fir.expressions.FirExpression
-import org.jetbrains.kotlin.fir.references.FirControlFlowGraphReference
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
@@ -34,15 +33,6 @@ sealed class FirVariableSymbol<out E : FirVariable> : FirCallableSymbol<E>() {
             }
             lazyResolveToPhase(requiredPhase)
             return fir.initializer
-        }
-
-    val resolvedDefaultValue: FirExpression?
-        get() {
-            val valueParameter = fir as? FirValueParameter
-            if (valueParameter?.defaultValue == null) return null
-
-            lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
-            return valueParameter.defaultValue
         }
 
     val isVal: Boolean
@@ -79,12 +69,6 @@ sealed class FirPropertySymbol : FirVariableSymbol<FirProperty>(), PropertySymbo
 
     val initializerSource: KtSourceElement?
         get() = fir.initializer?.source
-
-    val controlFlowGraphReference: FirControlFlowGraphReference?
-        get() {
-            lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
-            return fir.controlFlowGraphReference
-        }
 
     override fun deprecationsAreDefinitelyEmpty(): Boolean {
         return currentDeclarationDeprecationsAreDefinitelyEmpty()
@@ -159,8 +143,16 @@ class FirValueParameterSymbol() : FirVariableSymbol<FirValueParameter>(), ValueP
     val hasDefaultValue: Boolean
         get() = fir.defaultValue != null
 
-    val defaultValueSource: KtSourceElement?
-        get() = fir.defaultValue?.source
+    val resolvedDefaultValueSource: KtSourceElement?
+        get() = resolvedDefaultValue?.source
+
+    val resolvedDefaultValue: FirExpression?
+        get() {
+            if (fir.defaultValue == null) return null
+
+            lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
+            return fir.defaultValue
+        }
 
     val isCrossinline: Boolean
         get() = fir.isCrossinline

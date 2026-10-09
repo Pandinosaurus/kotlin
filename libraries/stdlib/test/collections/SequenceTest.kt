@@ -30,7 +30,7 @@ public class SequenceTest {
         TriggerSequence(source).let { s ->
             val result = operation(s)
             assertFalse(s.iterated, "Source should not be iterated before the result is")
-            result.iterator().hasNext()
+            val _ = result.iterator().hasNext()
             assertTrue(s.iterated, "Source should be iterated after the result is iterated")
         }
     }
@@ -532,6 +532,7 @@ public class SequenceTest {
         }
     }
 
+    @Suppress("RETURN_VALUE_NOT_USED")
     @Test fun makeSequenceOneTimeConstrained() {
         val sequence = sequenceOf(1, 2, 3, 4)
         sequence.toList()
@@ -547,9 +548,8 @@ public class SequenceTest {
 
     }
 
-    private fun <T, C : MutableCollection<in T>> Sequence<T>.takeWhileTo(result: C, predicate: (T) -> Boolean): C {
+    private fun <T, C : MutableCollection<in T>> Sequence<T>.takeWhileTo(result: C, predicate: (T) -> Boolean) {
         for (element in this) if (predicate(element)) result.add(element) else break
-        return result
     }
 
     @Test fun sequenceExtensions() {
@@ -764,16 +764,28 @@ public class SequenceTest {
         compare(emptyList<Int>().asSequence(), sequenceOf<Int>()) {
             sequenceBehavior()
         }
+
+        compare(emptyList<String>().asSequence(), Sequence.of<String>()) {
+            sequenceBehavior()
+        }
     }
 
     @Test fun sequenceOfSingleElement() {
         compare(listOf(42).asSequence(), sequenceOf(42)) {
             sequenceBehavior()
         }
+
+        compare(listOf(42).asSequence(), Sequence.of(42)) {
+            sequenceBehavior()
+        }
     }
 
     @Test fun sequenceOfVararg() {
         compare(listOf(1, 2, 3).asSequence(), sequenceOf(1, 2, 3)) {
+            sequenceBehavior()
+        }
+
+        compare(listOf(1, 2, 3).asSequence(), Sequence.of(1, 2, 3)) {
             sequenceBehavior()
         }
 

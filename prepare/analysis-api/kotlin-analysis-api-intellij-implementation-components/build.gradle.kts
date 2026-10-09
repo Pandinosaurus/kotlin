@@ -1,6 +1,5 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     `java-library`
     id("analysis-api-artifact")
@@ -13,7 +12,6 @@ dependencies {
     implementation(libs.org.jetbrains.annotations)
     implementation(libs.kotlinx.serialization.json)
     implementation(commonDependency("javax.inject"))
-    implementation(variantOf(libs.jline) { classifier("jdk8") })
     implementation(commonDependency("org.fusesource.jansi", "jansi"))
     implementation(commonDependency("com.google.code.findbugs", "jsr305"))
     implementation(commonDependency("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm"))
@@ -31,13 +29,13 @@ dependencies {
     embedded(commonDependency("org.jetbrains.intellij.deps.jna:jna-platform")) { isTransitive = false }
     embedded(commonDependency("org.jetbrains.intellij.deps:log4j")) { isTransitive = false }
     embedded(intellijJDom()) { isTransitive = false }
-    embedded(libs.analysis.api.intellij.patched.kotlinx.coroutines.core.jvm) { isTransitive = false }
+    embedded(libs.intellij.patched.kotlinx.coroutines.core.jvm) { isTransitive = false }
     embedded(libs.intellij.fastutil)
     embedded(libs.intellij.asm)
 }
 
 analysisApiArtifact {
     content {
-        project(":dependencies:intellij-core-implementation", isTransitive = true)
+        project(":dependencies:intellij-core-implementation")
     }
 }

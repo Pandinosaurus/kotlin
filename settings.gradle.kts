@@ -164,6 +164,7 @@ include(
     ":compiler:arguments",
     ":compiler:container",
     ":compiler:resolution.common",
+    ":compiler:resolution.common.js",
     ":compiler:resolution.common.jvm",
     ":compiler:resolution",
     ":compiler:serialization.common",
@@ -217,15 +218,11 @@ include(
     ":compiler:tests-compiler-utils",
     ":compiler:tests-common",
     ":compiler:tests-integration",
-    ":compiler:tests-mutes",
-    ":compiler:tests-mutes:mutes-junit5",
     ":compiler:jklib.tests",
     ":js:js.ast",
     ":js:js.sourcemap",
     ":js:js.parser",
     ":js:js.config",
-    ":js:js.frontend.common",
-    ":js:js.frontend",
     ":js:js.translator",
     ":js:js.tests",
     ":js:js.tests:klib-compatibility",
@@ -285,6 +282,7 @@ include(
     ":dependencies:bootstrap:kotlin-build-tools-impl-bootstrap",
     ":dependencies:bootstrap:kotlin-build-tools-compat-bootstrap",
     ":dependencies:bootstrap:kotlin-build-tools-cri-impl-bootstrap",
+    ":dependencies:bootstrap:typescript-export-standalone-embeddable-bootstrap",
     ":dependencies:bootstrap:kotlin-script-runtime-bootstrap",
     ":dependencies:bootstrap:kotlin-scripting-common-bootstrap",
     ":dependencies:bootstrap:kotlin-scripting-jvm-bootstrap",
@@ -383,12 +381,14 @@ include(
     ":kotlin-gradle-plugin-api",
     ":kotlin-gradle-plugin-annotations",
     ":kotlin-gradle-plugin-idea",
+    ":kotlin-gradle-plugin-idea-browser-debug",
     ":kotlin-gradle-plugin-idea-proto",
     ":kotlin-gradle-plugin-idea-for-compatibility-tests",
     ":analysis:analysis-tools:deprecated-k1-frontend-internals-for-ide-generator",
     ":analysis:analysis-tools:deprecated-k1-frontend-internals-for-ide-generated",
     ":kotlin-gradle-plugin-dsl-codegen",
     ":kotlin-gradle-statistics",
+    ":kotlin-gradle-statistics:metric-helpers-generator",
     ":kotlin-gradle-build-metrics",
     ":kotlin-gradle-plugin",
     ":gradle:kotlin-gradle-ecosystem-plugin",
@@ -396,6 +396,7 @@ include(
     ":kotlin-gradle-plugin-test-utils-embeddable",
     ":kotlin-gradle-plugin-integration-tests",
     ":kotlin-gradle-plugins-bom",
+    ":kotlin-gradle-plugin-test-coverage",
     ":kotlin-privacy-manifests-plugin",
     ":compiler:build-tools:kotlin-build-statistics",
     ":gradle:android-test-fixes",
@@ -448,6 +449,8 @@ include(
     ":examples:scripting-jvm-maven-deps",
     ":examples:scripting-jvm-maven-deps-host",
     ":examples:scripting-jvm-embeddable-host",
+    ":examples:scripting-jsr223-daemon",
+    ":examples:scripting-jsr223-bta",
     ":libraries:kotlin-prepush-hook",
     ":libraries:tools:mutability-annotations-compat",
     ":plugins:jvm-abi-gen",
@@ -459,7 +462,7 @@ include(
     ":wasm:wasm.frontend",
     ":wasm:wasm.config",
     ":wasm:wasm.debug.browsers",
-    ":repo:test-federation-runtime",
+    ":repo:test-runtime",
     ":repo:codebase-tests",
     ":repo:auto-code-review",
     ":repo:artifacts-tests"
@@ -509,16 +512,15 @@ include(
     ":compiler:fir:raw-fir:raw-fir.common",
     ":compiler:fir:raw-fir:psi2fir",
     ":compiler:fir:raw-fir:light-tree2fir",
+    ":compiler:fir:raw-fir:mp-parsing2fir",
     ":compiler:fir:fir2ir",
     ":compiler:fir:fir2ir:jvm-backend",
-    ":compiler:fir:providers",
-    ":compiler:fir:semantics",
+    ":compiler:fir:semantics.api",
     ":compiler:fir:resolve",
     ":compiler:fir:plugin-utils",
     ":compiler:fir:fir-serialization",
     ":compiler:fir:fir-deserialization",
     ":compiler:fir:fir-jvm",
-    ":compiler:fir:fir-js",
     ":compiler:fir:fir-native",
     ":compiler:fir:modularized-tests",
     ":compiler:fir:checkers",
@@ -535,13 +537,11 @@ include(
 )
 
 include(
-    ":kotlin-scripting-ide-services-unshaded",
-    ":kotlin-scripting-ide-services-test",
-    ":kotlin-scripting-ide-services",
     ":kotlin-scripting-ide-common"
 )
 
 include(
+    ":compiler:test-coverage",
     ":compiler:test-infrastructure",
     ":compiler:test-infrastructure:grouping-test-engine",
     ":compiler:test-infrastructure-utils",
@@ -637,20 +637,13 @@ include(
     ":prepare:analysis-api:kotlin-analysis-api-standalone-implementation",
     ":prepare:analysis-api:kotlin-analysis-api-intellij-api-surface-components",
     ":prepare:analysis-api:kotlin-analysis-api-intellij-implementation-components",
-    ":prepare:analysis-api:kotlin-analysis-api-allopen-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-assignment-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-compose-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-dataframe-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-js-plain-objects-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-kotlinx-serialization-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-lombok-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-noarg-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-parcelize-compiler-plugin-support",
-    ":prepare:analysis-api:kotlin-analysis-api-sam-with-receiver-compiler-plugin-support",
+    ":prepare:analysis-api:kotlin-analysis-api-internal-test-framework",
 )
 
 include(
     ":compiler:build-tools:kotlin-build-tools-api",
+    ":compiler:build-tools:kotlin-build-tools-api-jps",
+    ":compiler:build-tools:kotlin-build-tools-api-backports",
     ":compiler:build-tools:kotlin-build-tools-impl",
     ":compiler:build-tools:kotlin-build-tools-compat",
     ":compiler:build-tools:kotlin-build-tools-api-tests",
@@ -698,14 +691,14 @@ include(":native:swift:swift-export-embeddable")
 include(
     ":js:typescript-export-model",
     ":js:typescript-printer",
-    ":js:typescript-export-standalone"
+    ":js:typescript-export-standalone",
+    ":js:typescript-export-standalone-embeddable"
 )
 
 include(
     ":jps:jps-common",
     ":jps:jps-plugin",
     ":prepare:kotlin-jps-plugin",
-    ":jps:jps-platform-api-signatures"
 )
 
 include(
@@ -727,11 +720,7 @@ include(
     ":analysis:light-classes-base",
     ":analysis:analysis-api-standalone",
     ":analysis:analysis-api-standalone:analysis-api-standalone-fir",
-    ":analysis:decompiled:decompiler-to-psi",
-    ":analysis:decompiled:decompiler-to-stubs",
-    ":analysis:decompiled:decompiler-to-file-stubs",
-    ":analysis:decompiled:decompiler-js",
-    ":analysis:decompiled:decompiler-native",
+    ":analysis:decompiled:decompiler",
     ":analysis:decompiled:light-classes-for-decompiled",
     ":tools:ide-plugin-dependencies-validator"
 )
@@ -755,6 +744,7 @@ include(
     ":tools:binary-compatibility-validator",
     ":tools:jdk-api-validator",
     ":tools:kotlin-stdlib-gen",
+    ":tools:kotlin-documentation-model:analyzer",
 
     ":kotlin-test",
     ":kotlin-test:kotlin-test-js-it",
@@ -783,6 +773,8 @@ project(":tools").projectDir = File("$rootDir/libraries/tools")
 project(":tools:binary-compatibility-validator").projectDir = File("$rootDir/libraries/tools/binary-compatibility-validator")
 project(":tools:jdk-api-validator").projectDir = File("$rootDir/libraries/tools/jdk-api-validator")
 project(":tools:kotlin-stdlib-gen").projectDir = File("$rootDir/libraries/tools/kotlin-stdlib-gen")
+project(":tools:kotlin-documentation-model").projectDir = File("$rootDir/libraries/tools/kotlin-documentation-model")
+project(":tools:kotlin-documentation-model:analyzer").projectDir = File("$rootDir/libraries/tools/kotlin-documentation-model/analyzer")
 project(":tools:ide-plugin-dependencies-validator").projectDir = File("$rootDir/libraries/tools/ide-plugin-dependencies-validator")
 
 project(":kotlin-test").projectDir = File("$rootDir/libraries/kotlin.test")
@@ -913,11 +905,15 @@ project(":kotlin-gradle-compiler-types").projectDir = File("$rootDir/libraries/t
 project(":kotlin-gradle-plugin-api").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugin-api")
 project(":kotlin-gradle-plugin-annotations").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugin-annotations")
 project(":kotlin-gradle-plugin-idea").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugin-idea")
+project(":kotlin-gradle-plugin-idea-browser-debug").projectDir =
+    File("$rootDir/libraries/tools/kotlin-gradle-plugin-idea-browser-debug")
 project(":kotlin-gradle-plugin-idea-proto").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugin-idea-proto")
 project(":kotlin-gradle-plugin-idea-for-compatibility-tests").projectDir =
     File("$rootDir/libraries/tools/kotlin-gradle-plugin-idea-for-compatibility-tests")
 project(":kotlin-gradle-plugin-dsl-codegen").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugin-dsl-codegen")
 project(":kotlin-gradle-statistics").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-statistics")
+project(":kotlin-gradle-statistics:metric-helpers-generator").projectDir =
+    File("$rootDir/libraries/tools/kotlin-gradle-statistics/metric-helpers-generator")
 project(":kotlin-gradle-build-metrics").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-build-metrics")
 project(":kotlin-gradle-plugin").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugin")
 project(":gradle:kotlin-gradle-ecosystem-plugin").projectDir = File("$rootDir/libraries/tools/gradle/kotlin-gradle-ecosystem-plugin")
@@ -926,6 +922,7 @@ project(":kotlin-gradle-plugin-test-utils-embeddable").projectDir =
     File("$rootDir/libraries/tools/kotlin-gradle-plugin-test-utils-embeddable")
 project(":kotlin-gradle-plugin-integration-tests").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugin-integration-tests")
 project(":kotlin-gradle-plugins-bom").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugins-bom")
+project(":kotlin-gradle-plugin-test-coverage").projectDir = File("$rootDir/libraries/tools/kotlin-gradle-plugin-test-coverage")
 project(":kotlin-privacy-manifests-plugin").projectDir = File("$rootDir/libraries/tools/kotlin-privacy-manifests-plugin")
 project(":gradle:android-test-fixes").projectDir = File("$rootDir/libraries/tools/gradle/android-test-fixes")
 project(":gradle:documentation").projectDir = File("$rootDir/libraries/tools/gradle/documentation")
@@ -975,6 +972,8 @@ project(":examples:scripting-jvm-simple-script-host").projectDir = File("$rootDi
 project(":examples:scripting-jvm-maven-deps").projectDir = File("$rootDir/libraries/examples/scripting/jvm-maven-deps/script")
 project(":examples:scripting-jvm-maven-deps-host").projectDir = File("$rootDir/libraries/examples/scripting/jvm-maven-deps/host")
 project(":examples:scripting-jvm-embeddable-host").projectDir = File("$rootDir/libraries/examples/scripting/jvm-embeddable-host")
+project(":examples:scripting-jsr223-daemon").projectDir = File("$rootDir/libraries/examples/scripting/jsr223-daemon")
+project(":examples:scripting-jsr223-bta").projectDir = File("$rootDir/libraries/examples/scripting/jsr223-bta")
 project(":libraries:kotlin-prepush-hook").projectDir = File("$rootDir/libraries/tools/kotlin-prepush-hook")
 project(":plugins:jvm-abi-gen").projectDir = File("$rootDir/plugins/jvm-abi-gen")
 project(":plugins:jvm-abi-gen-embeddable").projectDir = File("$rootDir/plugins/jvm-abi-gen/embeddable")
@@ -1023,9 +1022,6 @@ if (buildProperties.isInIdeaSync.get()) {
         file("$rootDir/plugins/compose/compiler-hosted/runtime-tests")
 }
 
-project(":kotlin-scripting-ide-services-unshaded").projectDir = File("$rootDir/plugins/scripting/scripting-ide-services")
-project(":kotlin-scripting-ide-services-test").projectDir = File("$rootDir/plugins/scripting/scripting-ide-services-test")
-project(":kotlin-scripting-ide-services").projectDir = File("$rootDir/plugins/scripting/scripting-ide-services-embeddable")
 project(":kotlin-scripting-ide-common").projectDir = File("$rootDir/plugins/scripting/scripting-ide-common")
 project(":kotlin-scripting-compiler").projectDir = File("$rootDir/plugins/scripting/scripting-compiler")
 project(":kotlin-scripting-compiler-impl").projectDir = File("$rootDir/plugins/scripting/scripting-compiler-impl")

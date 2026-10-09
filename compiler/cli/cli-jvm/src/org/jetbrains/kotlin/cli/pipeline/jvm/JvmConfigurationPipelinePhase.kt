@@ -60,7 +60,7 @@ object JvmConfigurationPipelinePhase : AbstractConfigurationPhase<K2JVMCompilerA
                 add("plugin:kotlin.scripting:script-templates=${arguments.scriptTemplates.joinToString(",")}")
             }
             if (arguments.scriptResolverEnvironment.isNotEmpty()) {
-                add("plugin:kotlin.scripting:script-resolver-environment=${arguments.scriptResolverEnvironment.joinToString(",")}")
+                add("plugin:kotlin.scripting:script-refinement-environment=${arguments.scriptResolverEnvironment.joinToString(",")}")
             }
         }
     }
@@ -105,7 +105,6 @@ object JvmConfigurationUpdater : ConfigurationUpdater<K2JVMCompilerArguments>() 
             configuration.expressionToEvaluate = arguments.expression
             configuration.defaultExtensionForScripts = arguments.defaultScriptExtension
         } else {
-            configuration.replMode = @Suppress("DEPRECATION") arguments.repl
             configuration.freeArgsForScript += arguments.freeArgs
         }
         // should be called after configuring jdk home from build file

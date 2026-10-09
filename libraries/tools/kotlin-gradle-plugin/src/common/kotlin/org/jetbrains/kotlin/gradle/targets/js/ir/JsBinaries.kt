@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:OptIn(ExperimentalWasmDsl::class)
-
 package org.jetbrains.kotlin.gradle.targets.js.ir
 
 import org.gradle.api.Project
@@ -13,7 +11,6 @@ import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompilerOptionsHelper
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
@@ -29,9 +26,11 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBinaryMode
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsBinaryContainer.Companion.generateBinaryName
 import org.jetbrains.kotlin.gradle.targets.js.npm.npmProject
 import org.jetbrains.kotlin.gradle.targets.js.subtargets.createDefaultDistribution
+import org.jetbrains.kotlin.gradle.targets.js.typescript.KotlinJsDtsGenerationTask
 import org.jetbrains.kotlin.gradle.targets.js.typescript.TypeScriptValidationTask
 import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenExec
 import org.jetbrains.kotlin.gradle.tasks.configuration.KotlinJsIrLinkConfig
+import org.jetbrains.kotlin.gradle.tasks.locateTask
 import org.jetbrains.kotlin.gradle.tasks.registerTask
 import org.jetbrains.kotlin.gradle.utils.filesProvider
 import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
@@ -58,6 +57,8 @@ sealed class JsIrBinary(
 
     val validateGeneratedTsTaskName: String = validateTypeScriptTaskName()
 
+    internal val dtsGenerationTaskName: String = dtsGenerationTaskName()
+
     @Deprecated(
         "No longer used. To enable TypeScript definitions use generateTypeScriptDefinitions() in the Kotlin JS target instead. Scheduled for removal in Kotlin 2.4.",
         level = DeprecationLevel.ERROR
@@ -72,6 +73,9 @@ sealed class JsIrBinary(
 
     val linkTask: TaskProvider<KotlinJsIrLink> =
         project.registerTask(linkTaskName, KotlinJsIrLink::class.java, listOf(project, target.platformType))
+
+    internal val dtsGenerationTask: TaskProvider<KotlinJsDtsGenerationTask>?
+        get() = project.locateTask(dtsGenerationTaskName)
 
     @Suppress("PropertyName")
     protected val _linkSyncTask: TaskProvider<DefaultIncrementalSyncTask>? =
@@ -155,6 +159,14 @@ sealed class JsIrBinary(
             TypeScriptValidationTask.NAME
         )
 
+    private fun dtsGenerationTaskName(): String =
+        lowerCamelCaseName(
+            compilation.target.disambiguationClassifier,
+            compilation.name.takeIf { it != KotlinCompilation.MAIN_COMPILATION_NAME },
+            name,
+            KotlinJsDtsGenerationTask.NAME
+        )
+
     protected fun wasmFileFromJsFile(jsFile: Provider<RegularFile>): Provider<RegularFile> {
         return project.objects.fileProperty().fileProvider(
             jsFile.map {
@@ -192,7 +204,6 @@ sealed class JsIrBinary(
     }
 }
 
-@ExperimentalWasmDsl
 interface WasmBinary {
     val compilation: KotlinJsIrCompilation
 
@@ -272,7 +283,6 @@ open class Executable(
         )
 }
 
-@ExperimentalWasmDsl
 class ExecutableWasm(
     compilation: KotlinJsIrCompilation,
     name: String,
@@ -352,7 +362,6 @@ open class Library(
     mode
 )
 
-@ExperimentalWasmDsl
 class LibraryWasm(
     compilation: KotlinJsIrCompilation,
     name: String,
@@ -379,7 +388,6 @@ class LibraryWasm(
         }
     }
 
-    @OptIn(ExperimentalWasmDsl::class)
     override val optimizeTask: TaskProvider<BinaryenExec> = BinaryenExec.register(compilation, optimizeTaskName()) {
         val compileWasmDestDir = linkTask.map {
             it.destinationDirectory

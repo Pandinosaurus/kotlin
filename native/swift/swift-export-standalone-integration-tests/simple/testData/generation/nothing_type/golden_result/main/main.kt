@@ -1,164 +1,177 @@
 @file:kotlin.Suppress("DEPRECATION_ERROR")
 @file:kotlin.native.internal.objc.BindClassToObjCName(Bar::class, "4main3BarC")
 
-import kotlin.native.internal.ExportedBridge
+import kotlin.native.internal.ImportedBridge
 import kotlinx.cinterop.*
-import kotlinx.cinterop.internal.convertBlockPtrToKotlinFunction
+import kotlin.native.internal.ExportedBridge
+
+@ImportedBridge("main_internal_functional_type_callee_SwiftU2ENever__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
+internal external fun main_internal_functional_type_callee_SwiftU2ENever__TypesOfArguments__Swift_UnsafeMutableRawPointer__(pointerToClosure: kotlin.native.internal.NativePtr): Boolean
+
+@ImportedBridge("main_internal_functional_type_callee_SwiftU2EOptionalU3CSwiftU2ENeverU3E__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
+internal external fun main_internal_functional_type_callee_SwiftU2EOptionalU3CSwiftU2ENeverU3E__TypesOfArguments__Swift_UnsafeMutableRawPointer__(pointerToClosure: kotlin.native.internal.NativePtr): Boolean
+
+@ImportedBridge("main_internal_functional_type_callee_SwiftU2EString__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Optional_Swift_Never___")
+internal external fun main_internal_functional_type_callee_SwiftU2EString__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Optional_Swift_Never___(pointerToClosure: kotlin.native.internal.NativePtr, _1: Boolean): kotlin.native.internal.NativePtr
 
 @ExportedBridge("Bar_p_get")
 public fun Bar_p_get(self: kotlin.native.internal.NativePtr): Boolean {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as Bar
-    val _result = run { __self.p }
+    val _result = __self.p
     return _result
 }
 
 @ExportedBridge("__root___meaningOfLife")
 public fun __root___meaningOfLife(): Boolean {
-    val _result = run { meaningOfLife() }
+    val _result = meaningOfLife()
     return _result
 }
 
 @ExportedBridge("__root___meaningOfLife__TypesOfArguments__Swift_Int32__")
 public fun __root___meaningOfLife__TypesOfArguments__Swift_Int32__(input: Int): Boolean {
     val __input = input
-    val _result = run { meaningOfLife(__input) }
+    val _result = meaningOfLife(__input)
     return run { _result; true }
 }
 
 @ExportedBridge("__root___meaningOfLife__TypesOfArguments__Swift_Optional_Swift_Never___")
 public fun __root___meaningOfLife__TypesOfArguments__Swift_Optional_Swift_Never___(input: Boolean): kotlin.native.internal.NativePtr {
     val __input = run { input; null }
-    val _result = run { meaningOfLife(__input) }
+    val _result = meaningOfLife(__input)
     return _result.objcPtr()
 }
 
 @ExportedBridge("__root___nothingClosure__TypesOfArguments__U2829202D_U20Swift_Never__")
 public fun __root___nothingClosure__TypesOfArguments__U2829202D_U20Swift_Never__(block: kotlin.native.internal.NativePtr): Boolean {
     val __block = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<()->Boolean>(block);
+        val closurePtr = block;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         {
-            val _result = kotlinFun()
+            val _result = main_internal_functional_type_callee_SwiftU2ENever__TypesOfArguments__Swift_UnsafeMutableRawPointer__(closureBox.objcPtr())
             run { _result; throw IllegalStateException() }
         }
     }
-    val _result = run { nothingClosure(__block) }
+    val _result = nothingClosure(__block)
     return _result
 }
 
 @ExportedBridge("__root___nothingClosureParam__TypesOfArguments__U28Swift_NeverU29202D_U20Swift_String__")
 public fun __root___nothingClosureParam__TypesOfArguments__U28Swift_NeverU29202D_U20Swift_String__(block: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __block = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<(Boolean)->kotlin.native.internal.NativePtr>(block);
+        val closurePtr = block;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         { arg0: Nothing ->
             val _arg0 = arg0
-            val _result = kotlinFun(_arg0)
+            val _result = error("Unsupported functional type: (Swift.Never) -> Swift.String")
             interpretObjCPointer<kotlin.String>(_result)
         }
     }
-    val _result = run { nothingClosureParam(__block) }
+    val _result = nothingClosureParam(__block)
     return _result.objcPtr()
 }
 
 @ExportedBridge("__root___nothingFunctional")
 public fun __root___nothingFunctional(): kotlin.native.internal.NativePtr {
-    val _result = run { nothingFunctional() }
+    val _result = nothingFunctional()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("__root___nothingFunctionalParam")
 public fun __root___nothingFunctionalParam(): kotlin.native.internal.NativePtr {
-    val _result = run { nothingFunctionalParam() }
+    val _result = nothingFunctionalParam()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("__root___nothingOptClosure__TypesOfArguments__U2829202D_U20Swift_Optional_Swift_Never___")
 public fun __root___nothingOptClosure__TypesOfArguments__U2829202D_U20Swift_Optional_Swift_Never___(block: kotlin.native.internal.NativePtr): Boolean {
     val __block = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<()->Boolean>(block);
+        val closurePtr = block;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         {
-            val _result = kotlinFun()
+            val _result = main_internal_functional_type_callee_SwiftU2EOptionalU3CSwiftU2ENeverU3E__TypesOfArguments__Swift_UnsafeMutableRawPointer__(closureBox.objcPtr())
             run { _result; null }
         }
     }
-    val _result = run { nothingOptClosure(__block) }
+    val _result = nothingOptClosure(__block)
     return _result
 }
 
 @ExportedBridge("__root___nothingOptClosureParam__TypesOfArguments__U28Swift_Optional_Swift_Never_U29202D_U20Swift_String__")
 public fun __root___nothingOptClosureParam__TypesOfArguments__U28Swift_Optional_Swift_Never_U29202D_U20Swift_String__(block: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __block = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<(Boolean)->kotlin.native.internal.NativePtr>(block);
+        val closurePtr = block;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         { arg0: Nothing? ->
             val _arg0 = run { arg0; true }
-            val _result = kotlinFun(_arg0)
+            val _result = main_internal_functional_type_callee_SwiftU2EString__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Optional_Swift_Never___(closureBox.objcPtr(), _arg0)
             interpretObjCPointer<kotlin.String>(_result)
         }
     }
-    val _result = run { nothingOptClosureParam(__block) }
+    val _result = nothingOptClosureParam(__block)
     return _result.objcPtr()
 }
 
 @ExportedBridge("__root___nothingOptFunctional")
 public fun __root___nothingOptFunctional(): kotlin.native.internal.NativePtr {
-    val _result = run { nothingOptFunctional() }
+    val _result = nothingOptFunctional()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("__root___nothingOptFunctionalParam")
 public fun __root___nothingOptFunctionalParam(): kotlin.native.internal.NativePtr {
-    val _result = run { nothingOptFunctionalParam() }
+    val _result = nothingOptFunctionalParam()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("__root___nullableNothingInput__TypesOfArguments__Swift_Optional_Swift_Never___")
 public fun __root___nullableNothingInput__TypesOfArguments__Swift_Optional_Swift_Never___(input: Boolean): Boolean {
     val __input = run { input; null }
-    val _result = run { nullableNothingInput(__input) }
-    return run { _result; true }
+    nullableNothingInput(__input)
+    return true
 }
 
 @ExportedBridge("__root___nullableNothingOutput")
 public fun __root___nullableNothingOutput(): Boolean {
-    val _result = run { nullableNothingOutput() }
+    val _result = nullableNothingOutput()
     return run { _result; true }
 }
 
 @ExportedBridge("__root___nullableNothingVariable_get")
 public fun __root___nullableNothingVariable_get(): Boolean {
-    val _result = run { nullableNothingVariable }
+    val _result = nullableNothingVariable
     return run { _result; true }
 }
 
 @ExportedBridge("__root___nullableNothingVariable_set__TypesOfArguments__Swift_Optional_Swift_Never___")
 public fun __root___nullableNothingVariable_set__TypesOfArguments__Swift_Optional_Swift_Never___(newValue: Boolean): Boolean {
     val __newValue = run { newValue; null }
-    val _result = run { nullableNothingVariable = __newValue }
-    return run { _result; true }
+    nullableNothingVariable = __newValue
+    return true
 }
 
 @ExportedBridge("__root___value_get")
 public fun __root___value_get(): Boolean {
-    val _result = run { value }
+    val _result = value
     return _result
 }
 
 @ExportedBridge("__root___variable_get")
 public fun __root___variable_get(): Boolean {
-    val _result = run { variable }
+    val _result = variable
     return _result
 }
 
 @ExportedBridge("main_internal_functional_type_caller_SwiftU2ENever__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
 public fun main_internal_functional_type_caller_SwiftU2ENever__TypesOfArguments__Swift_UnsafeMutableRawPointer__(pointerToBlock: kotlin.native.internal.NativePtr): Boolean {
     val __pointerToBlock = kotlin.native.internal.ref.dereferenceExternalRCRef(pointerToBlock)!!
-    val _result = run { (__pointerToBlock as Function0<Nothing>).invoke() }
+    val _result = (__pointerToBlock as Function0<Nothing>).invoke()
     return _result
 }
 
 @ExportedBridge("main_internal_functional_type_caller_SwiftU2EOptionalU3CSwiftU2ENeverU3E__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
 public fun main_internal_functional_type_caller_SwiftU2EOptionalU3CSwiftU2ENeverU3E__TypesOfArguments__Swift_UnsafeMutableRawPointer__(pointerToBlock: kotlin.native.internal.NativePtr): Boolean {
     val __pointerToBlock = kotlin.native.internal.ref.dereferenceExternalRCRef(pointerToBlock)!!
-    val _result = run { (__pointerToBlock as Function0<Nothing?>).invoke() }
+    val _result = (__pointerToBlock as Function0<Nothing?>).invoke()
     return run { _result; true }
 }
 
@@ -166,6 +179,6 @@ public fun main_internal_functional_type_caller_SwiftU2EOptionalU3CSwiftU2ENever
 public fun main_internal_functional_type_caller_SwiftU2EString__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Optional_Swift_Never___(pointerToBlock: kotlin.native.internal.NativePtr, _1: Boolean): kotlin.native.internal.NativePtr {
     val __pointerToBlock = kotlin.native.internal.ref.dereferenceExternalRCRef(pointerToBlock)!!
     val ___1 = run { _1; null }
-    val _result = run { (__pointerToBlock as Function1<Nothing?, kotlin.String>).invoke(___1) }
+    val _result = (__pointerToBlock as Function1<Nothing?, kotlin.String>).invoke(___1)
     return _result.objcPtr()
 }

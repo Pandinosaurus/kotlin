@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-79330
-// LANGUAGE: +CollectionLiterals
 
 class MyList {
     companion object {

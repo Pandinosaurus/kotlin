@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.UsesKotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.useXcodeMessageStyle
+import org.jetbrains.kotlin.gradle.plugin.statistics.CompilerArgumentMetrics
 import org.jetbrains.kotlin.gradle.plugin.statistics.UsesBuildFusService
 import org.jetbrains.kotlin.gradle.report.UsesBuildMetricsService
 import org.jetbrains.kotlin.gradle.targets.native.DisableNativeCacheSettings
@@ -48,7 +49,6 @@ import org.jetbrains.kotlin.internal.compilerRunner.native.KotlinNativeCompilerR
 import org.jetbrains.kotlin.internal.compilerRunner.native.KotlinNativeToolRunner
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.HostManager
-import org.jetbrains.kotlin.project.model.LanguageSettings
 import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
 import org.jetbrains.kotlin.tooling.core.toKotlinVersion
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
@@ -146,14 +146,6 @@ constructor(
         binary.buildType.name.lowercase(Locale.ROOT).replaceFirstChar { it.titlecase(Locale.ROOT) }
     }
 
-    @Suppress("DEPRECATION_ERROR")
-    @Deprecated(
-        message = "Use toolOptions to configure the task",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val languageSettings: LanguageSettings = compilation.defaultSourceSet.languageSettings
-
     @get:Internal
     internal val disableCache: Provider<Boolean> = objects.propertyWithConvention(
         simpleKotlinNativeVersion
@@ -191,15 +183,6 @@ constructor(
         object NonCacheableTarget : CacheSettingsInput
         data class Configured(val kind: NativeCacheKind) : CacheSettingsInput
     }
-
-    @Suppress("unused", "UNCHECKED_CAST")
-    @Deprecated(
-        message = "Use toolOptions.freeCompilerArgs",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("toolOptions.freeCompilerArgs.get()")
-    )
-    @get:Internal
-    val additionalCompilerOptions: Provider<Collection<String>> = toolOptions.freeCompilerArgs as Provider<Collection<String>>
 
     @Suppress("DEPRECATION_ERROR")
     @Deprecated(KOTLIN_OPTIONS_AS_TOOLS_DEPRECATION_MESSAGE)
@@ -294,7 +277,7 @@ constructor(
     )
 
     private val cacheSettings = CacheSettings(
-        project.isKonanIncrementalCompilationEnabled(),
+        project.isKonanIncrementalCompilationEnabled(konanTarget),
         project.getKonanParallelThreads(),
         project.gradle.gradleUserHomeDir,
         project.layout.buildDirectory.get().asFile,
@@ -469,20 +452,6 @@ constructor(
             NoopKotlinNativeProvider(project)
         )
 
-    @Deprecated(
-        message = "This property will be removed in future releases. Don't use it in your code.",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val konanDataDir: Provider<String?> = kotlinNativeProvider.flatMap { it.konanDataDir }
-
-    @Deprecated(
-        message = "This property will be removed in future releases. Don't use it in your code.",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val konanHome: Provider<String> = kotlinNativeProvider.flatMap { it.bundleDirectory }
-
     @get:Internal
     internal abstract val kotlinCompilerArgumentsLogLevel: Property<KotlinCompilerArgumentsLogLevel>
 
@@ -538,6 +507,11 @@ constructor(
 
             val arguments = createCompilerArguments()
             val buildArguments = ArgumentUtils.convertArgumentsToStringList(arguments) + additionalOptions
+
+            // 'additionalOptions' is appended after serialization, so only the flat list is the complete picture.
+            buildFusService.orNull?.reportFusMetrics {
+                CompilerArgumentMetrics.collectMetrics(arguments, buildArguments.toTypedArray(), logger, it)
+            }
 
             nativeCompilerRunner.runTool(
                 KotlinNativeToolRunner.ToolArguments(

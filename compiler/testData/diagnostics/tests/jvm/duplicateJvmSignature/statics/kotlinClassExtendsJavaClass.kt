@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
 // FILE: A.java
 
@@ -12,7 +12,7 @@ public class A {
 
 open class K : A() {
     val a = 1
-    <!ACCIDENTAL_OVERRIDE!>fun foo() {}<!>
+    <!ACCIDENTAL_OVERRIDE!>fun foo()<!> {}
     fun foo(i: Int) {}
     fun baz(i: Int) {}
 

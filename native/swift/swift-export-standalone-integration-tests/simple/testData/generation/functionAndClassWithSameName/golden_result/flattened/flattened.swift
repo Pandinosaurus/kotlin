@@ -7,17 +7,17 @@ public typealias FlattenedPackageClass = ExportedKotlinPackages.flattenedPackage
 public func flattenedPackageClass(
     i: Swift.Int32
 ) -> ExportedKotlinPackages.flattenedPackage.FlattenedPackageClass {
-    ExportedKotlinPackages.flattenedPackage.flattenedPackageClass(i: i)
+    return ExportedKotlinPackages.flattenedPackage.flattenedPackageClass(i: i)
 }
 extension ExportedKotlinPackages.flattenedPackage {
     public final class FlattenedPackageClass: KotlinRuntime.KotlinBase {
-        public init() {
+        public override init() {
             let __kt = flattenedPackage_FlattenedPackageClass_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { flattenedPackage_FlattenedPackageClass_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -42,7 +42,7 @@ extension ExportedKotlinPackages.test.factory.suffix {
     }
     public final class BasicFoo: ExportedKotlinPackages.test.factory.suffix.Foo {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -53,13 +53,16 @@ extension ExportedKotlinPackages.test.factory.suffix {
     }
     open class Foo: KotlinRuntime.KotlinBase {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         open func sealedType() -> ExportedKotlinPackages.test.factory.suffix.Foo_SealedType {
-            fatalError("must implement sealedType in subclass")
+            switch self {
+            case let value as ExportedKotlinPackages.test.factory.suffix.BasicFoo: .basicFoo(.init(value))
+            default: fatalError("missing sealedType for \(self)")
+            }
         }
     }
     public struct BasicFoo_SealedType: KotlinRuntimeSupport.SealedType {

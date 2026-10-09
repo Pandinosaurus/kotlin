@@ -1,13 +1,11 @@
-import org.jetbrains.kotlin.build.foreign.CheckForeignClassUsageTask
+import org.jetbrains.kotlin.build.foreign.registerForeignClassUsageTasks
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("kotlin-git.gradle-build-conventions.foreign-class-usage-checker")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -24,12 +22,10 @@ dependencies {
     compileOnly(project(":compiler:psi:psi-api"))
     compileOnly(project(":core:compiler.common"))
     compileOnly(project(":core:compiler.common.jvm"))
-    compileOnly(project(":core:compiler.common.js"))
     implementation(kotlinxCollectionsImmutable())
 
     api(intellijCore())
-    api(libs.intellij.asm)
-    api(libs.guava)
+    implementation(libs.intellij.asm)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)
@@ -38,7 +34,6 @@ dependencies {
 
     testImplementation(testFixtures(project(":compiler:psi:psi-api")))
     testImplementation(testFixtures(project(":compiler:tests-common")))
-    testImplementation(project(":analysis:analysis-internal-utils"))
 }
 
 private val unstableNonPublicMarkers = listOf(
@@ -73,12 +68,12 @@ projectTests {
     testCodebaseTask()
 }
 
-val checkForeignClassUsage = tasks.register("checkForeignClassUsage", CheckForeignClassUsageTask::class) {
+registerForeignClassUsageTasks {
     outputFile = file("api/analysis-api.foreign")
     nonPublicMarkers.addAll(stableNonPublicMarkers)
 }
 
-val checkForeignClassUsageUnstable = tasks.register("checkForeignClassUsageUnstable", CheckForeignClassUsageTask::class) {
+registerForeignClassUsageTasks(nameSuffix = "Unstable") {
     outputFile = file("api-unstable/analysis-api.foreign")
     nonPublicMarkers.addAll(unstableNonPublicMarkers)
 }

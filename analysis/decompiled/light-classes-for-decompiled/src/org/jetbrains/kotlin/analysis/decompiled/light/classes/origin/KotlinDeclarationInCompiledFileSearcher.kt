@@ -2,31 +2,31 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.decompiled.light.classes.origin
 
 import com.intellij.lang.jvm.JvmModifier
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.psi.*
 import org.jetbrains.kotlin.analysis.decompiler.psi.file.KtClsFile
-import org.jetbrains.kotlin.analysis.decompiler.psi.text.getQualifiedName
-import org.jetbrains.kotlin.asJava.LightClassUtil
 import org.jetbrains.kotlin.asJava.elements.psiType
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.constant.StringValue
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.load.java.propertyNameByGetMethodName
 import org.jetbrains.kotlin.load.java.propertyNamesBySetMethodName
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
 import org.jetbrains.kotlin.psi.psiUtil.isCompanion
+import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinAnnotationEntryStubImpl
 import org.jetbrains.kotlin.utils.SmartList
 import org.jetbrains.kotlin.utils.addIfNotNull
+import org.jetbrains.kotlin.utils.addToStdlib.forEachZipped
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
@@ -163,8 +163,7 @@ class KotlinDeclarationInCompiledFileSearcher {
 
                     // To simplify the logic around the mangling name creation (especially for JvmField case),
                     // it is enough to just check the mangling fact
-                    @OptIn(IntellijInternalApi::class)
-                    return memberName == name || LightClassUtil.isMangled(memberName, name)
+                    return memberName == name || isMangled(memberName, name)
                 })
             }
             else -> declarations.singleOrNull { it.name == memberName }
@@ -218,12 +217,11 @@ class KotlinDeclarationInCompiledFileSearcher {
      * `<enclosingFun>$<localFun>` synthetics for local functions), which must not be matched
      * against an unrelated source declaration with the same prefix.
      */
-    @OptIn(IntellijInternalApi::class)
     private fun matchesAny(name: String?, names: SmartList<String>, declaration: KtDeclaration): Boolean {
         if (name == null) return false
         if (name in names) return true
         if (!declaration.hasVisibilityMangledJvmName()) return false
-        return names.any { LightClassUtil.isMangled(it, name) }
+        return names.any { isMangled(it, name) }
     }
 
     private fun KtDeclaration.hasVisibilityMangledJvmName(): Boolean {
@@ -337,7 +335,7 @@ class KotlinDeclarationInCompiledFileSearcher {
 
     private fun doTypeParametersMatchByName(member: PsiMethod, callableDeclaration: KtCallableDeclaration): Boolean {
         if (member.typeParameters.size != callableDeclaration.typeParameters.size) return false
-        member.typeParameters.zip(callableDeclaration.typeParameters) { psiTypeParam, ktTypeParameter ->
+        member.typeParameters.forEachZipped(callableDeclaration.typeParameters) { psiTypeParam, ktTypeParameter ->
             if (psiTypeParam.name.toString() != ktTypeParameter.name) {
                 return false
             }
@@ -416,7 +414,7 @@ class KotlinDeclarationInCompiledFileSearcher {
     private fun doTypeParameters(member: PsiMethod, ktNamedFunction: KtFunction): Boolean {
         if (member.typeParameters.size != ktNamedFunction.typeParameters.size) return false
         val boundsByName = ktNamedFunction.typeConstraints.groupBy { it.subjectTypeParameterName?.getReferencedName() }
-        member.typeParameters.zip(ktNamedFunction.typeParameters) { psiTypeParam, ktTypeParameter ->
+        member.typeParameters.forEachZipped(ktNamedFunction.typeParameters) { psiTypeParam, ktTypeParameter ->
             if (psiTypeParam.name.toString() != ktTypeParameter.name) return false
             val psiBounds = mutableListOf<KtTypeReference>()
             psiBounds.addIfNotNull(ktTypeParameter.extendsBound)
@@ -425,7 +423,7 @@ class KotlinDeclarationInCompiledFileSearcher {
             }
             val expectedBounds = psiTypeParam.extendsListTypes
             if (psiBounds.size != expectedBounds.size) return false
-            expectedBounds.zip(psiBounds) { expectedBound, candidateBound ->
+            expectedBounds.forEachZipped(psiBounds) { expectedBound, candidateBound ->
                 if (!areTypesTheSame(candidateBound, expectedBound, false)) {
                     return false
                 }
@@ -469,8 +467,39 @@ class KotlinDeclarationInCompiledFileSearcher {
         return false
     }
 
+    private fun isMangled(wrapperName: String, prefix: String): Boolean {
+        //see KT-54803 for other mangling strategies
+        // A memory optimization for `wrapperName.startsWith("$prefix$")`, see KT-63486
+        return wrapperName.length > prefix.length
+                && wrapperName[prefix.length] == '$'
+                && wrapperName.startsWith(prefix)
+    }
+
     companion object {
         fun getInstance(): KotlinDeclarationInCompiledFileSearcher =
             ApplicationManager.getApplication().getService(KotlinDeclarationInCompiledFileSearcher::class.java)
     }
+}
+
+private fun getQualifiedName(typeElement: KtTypeElement?, isSuspend: Boolean): String? {
+    val referencedName = when (typeElement) {
+        is KtUserType -> getQualifiedName(typeElement)
+        is KtFunctionType -> {
+            var parametersCount = typeElement.parameters.size
+            typeElement.receiverTypeReference?.let { parametersCount++ }
+            if (isSuspend) {
+                StandardNames.getSuspendFunctionClassId(parametersCount).asFqNameString()
+            } else {
+                StandardNames.getFunctionClassId(parametersCount).asFqNameString()
+            }
+        }
+        is KtNullableType -> getQualifiedName(typeElement.unwrapNullability(), isSuspend)
+        else -> null
+    }
+    return referencedName
+}
+
+private fun getQualifiedName(userType: KtUserType): String? {
+    val qualifier = userType.qualifier ?: return userType.referencedName
+    return getQualifiedName(qualifier) + "." + userType.referencedName
 }

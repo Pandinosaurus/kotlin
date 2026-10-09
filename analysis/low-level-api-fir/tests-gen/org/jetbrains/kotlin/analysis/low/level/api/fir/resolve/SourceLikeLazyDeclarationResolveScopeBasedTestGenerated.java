@@ -154,6 +154,12 @@ public class SourceLikeLazyDeclarationResolveScopeBasedTestGenerated extends Abs
   }
 
   @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
   @TestMetadata("intersectionOverride.kt")
   public void testIntersectionOverride() {
     run("intersectionOverride.kt");
@@ -199,6 +205,12 @@ public class SourceLikeLazyDeclarationResolveScopeBasedTestGenerated extends Abs
   @TestMetadata("intersectionOverrideWithoutImplicitTypeInsideAnonymousObjectScript.kts")
   public void testIntersectionOverrideWithoutImplicitTypeInsideAnonymousObjectScript() {
     run("intersectionOverrideWithoutImplicitTypeInsideAnonymousObjectScript.kts");
+  }
+
+  @Test
+  @TestMetadata("javaClassScopeWithoutRequiredPhase.kt")
+  public void testJavaClassScopeWithoutRequiredPhase() {
+    run("javaClassScopeWithoutRequiredPhase.kt");
   }
 
   @Test

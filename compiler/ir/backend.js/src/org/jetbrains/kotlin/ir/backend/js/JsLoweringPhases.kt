@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.ir.backend.js
 import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.common.LoweringContext
 import org.jetbrains.kotlin.backend.common.ModuleLoweringPass
+import org.jetbrains.kotlin.backend.common.TailrecCheckerLowering
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.common.lower.coroutines.AddContinuationToLocalSuspendFunctionsLowering
 import org.jetbrains.kotlin.backend.common.lower.coroutines.AddContinuationToNonLocalSuspendFunctionsLowering
@@ -18,6 +19,7 @@ import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.phaser.NamedCompilerPhase
+import org.jetbrains.kotlin.ir.at
 import org.jetbrains.kotlin.ir.backend.js.checkers.JsKlibErrors
 import org.jetbrains.kotlin.ir.backend.js.lower.*
 import org.jetbrains.kotlin.ir.backend.js.lower.calls.CallsLowering
@@ -94,6 +96,7 @@ fun jsLoweringsOfTheFirstPhase(
             this += ::createJsCodeOutliningPhaseOnFirstStage
         }
         this += loweringsOfTheFirstPhase(languageVersionSettings)
+        this += ::TailrecCheckerLowering
     }
     return createModulePhases(*phases.toTypedArray())
 }
@@ -120,13 +123,13 @@ val jsLowerings: List<NamedCompilerPhase<JsIrBackendContext, IrModuleFragment, I
     ::createConstEvaluationPhase,
     ::CopyInlineFunctionBodyLowering,
     ::RemoveInlineDeclarationsWithReifiedTypeParametersLowering,
+    ::ImplicitlyExportedDeclarationsMarkingLowering,
     ::PrepareInlineClassesToBeExportedLowering,
     ::PrepareExportedDefaultImplementationsLowering,
     ::ReplaceSuspendIntrinsicLowering,
     ::PrepareSuspendFunctionsForExportLowering,
     ::ReplaceExportedSuspendFunctionsCallsWithTheirBridgeCall,
     ::IgnoreOriginalSuspendFunctionsThatWereExportedLowering,
-    ::ImplicitlyExportedDeclarationsMarkingLowering,
     ::ExcludeSyntheticDeclarationsFromExportLowering,
     ::JsStaticLowering,
     ::JsInventNamesForLocalClasses,
@@ -217,11 +220,12 @@ val jsLowerings: List<NamedCompilerPhase<JsIrBackendContext, IrModuleFragment, I
     ::CallsLowering,
     ::EscapedIdentifiersLowering,
     ::MainFunctionCallWrapperLowering,
+    ::EffectAnalysisLowering,
     ::CleanupLowering,
     ::IrValidationAfterLoweringsSecondStagePhase,
 )
 
-val optimizationLoweringList: List<NamedCompilerPhase<JsIrBackendContext, IrModuleFragment, IrModuleFragment>> = createModulePhases(
+val optimizationLoweringList: List<NamedCompilerPhase<JsIrOptimizationContext, IrModuleFragment, IrModuleFragment>> = createModulePhases(
     ::ES6CollectConstructorsWhichNeedBoxParameters,
     ::ES6CollectPrimaryConstructorsWhichCouldBeOptimizedLowering,
     ::ES6ConstructorBoxParameterOptimizationLowering,
@@ -229,7 +233,6 @@ val optimizationLoweringList: List<NamedCompilerPhase<JsIrBackendContext, IrModu
     ::ES6PrimaryConstructorUsageOptimizationLowering,
     ::PurifyObjectInstanceGettersLowering,
     ::InlineObjectsWithPureInitializationLowering,
-    ::JsCleanupPurifiedLeftoverDeclarationsLowering,
     ::JsCleanupPurifiedLeftoverUsagesLowering,
     ::MoveCallableFactoriesToDeclarationsLowering,
     ::DeduplicateCallableReferenceFactoriesLowering,

@@ -29,8 +29,7 @@ kotlin {
     listOf(
         watchosArm64(),
         watchosDeviceArm64(),
-        watchosSimulatorArm64(),
-        watchosX64()
+        watchosSimulatorArm64()
     ).forEach { target ->
         target.binaries.framework {
             baseName = "shared"

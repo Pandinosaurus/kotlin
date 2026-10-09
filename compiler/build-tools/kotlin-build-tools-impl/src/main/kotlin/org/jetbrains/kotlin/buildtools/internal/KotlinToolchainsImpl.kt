@@ -9,8 +9,8 @@ import org.jetbrains.kotlin.buildtools.api.*
 import org.jetbrains.kotlin.buildtools.api.ProjectId.Companion.RandomProjectUUID
 import org.jetbrains.kotlin.buildtools.api.abi.AbiValidationToolchain
 import org.jetbrains.kotlin.buildtools.api.cri.CriToolchain
-import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain
 import org.jetbrains.kotlin.buildtools.api.js.JsPlatformToolchain
+import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain
 import org.jetbrains.kotlin.buildtools.api.metadata.KotlinMetadataPlatformToolchain
 import org.jetbrains.kotlin.buildtools.api.wasm.WasmPlatformToolchain
 import org.jetbrains.kotlin.buildtools.internal.abi.AbiValidationToolchainImpl
@@ -22,7 +22,6 @@ import org.jetbrains.kotlin.buildtools.internal.metadata.KotlinMetadataPlatformT
 import org.jetbrains.kotlin.buildtools.internal.wasm.WasmPlatformToolchainImpl
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
-import java.io.File
 import java.util.concurrent.*
 
 private const val DEFAULT_CLASSLOADERS_CACHE_SIZE = 10
@@ -77,6 +76,7 @@ internal class KotlinToolchainsImpl() : KotlinToolchains {
             Executors.newCachedThreadPool()
         }
         private val executor by executorDelegate
+        private val daemonConnectionRegistry = DaemonConnectionRegistry(sessionIsAliveFlagFile)
 
         /**
          * Pins the shared application environment to this session so it is reused across build operations and
@@ -106,14 +106,14 @@ internal class KotlinToolchainsImpl() : KotlinToolchains {
                     projectId,
                     executionPolicy,
                     logger,
-                    ExecutionContext(sessionIsAliveFlagFile, classloadersCacheWithLogger)
+                    ExecutionContext(classloadersCacheWithLogger, daemonConnectionRegistry)
                 )
             }
             return if (executionPolicy is ExecutionPolicy.InProcess) {
                 // For an operation that uses the shared application environment, pin it just before, so that it is kept
                 // alive for reuse by subsequent operations and only disposed when the session ends.
                 if (operation.usesApplicationEnvironment) {
-                    applicationEnvironmentPin.value
+                    val _ = applicationEnvironmentPin.value
                 }
                 unwrapExecutionException(executor.submit(operationBody))
             } else {
@@ -143,6 +143,7 @@ internal class KotlinToolchainsImpl() : KotlinToolchains {
             if (sessionIsAliveFlagFile.isInitialized()) {
                 sessionIsAliveFlagFile.value.delete()
             }
+            daemonConnectionRegistry.close()
         }
     }
 
@@ -161,6 +162,6 @@ internal sealed interface BtaApiVersion {
 }
 
 internal class ExecutionContext(
-    val sessionIsAliveFlagFile: Lazy<File>,
     val classloadersCache: LruClassLoadersCache?,
+    val daemonConnectionRegistry: DaemonConnectionRegistry
 )

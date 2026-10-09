@@ -1,0 +1,32 @@
+/*
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
+ */
+
+package org.jetbrains.kotlin.testFederation
+
+const val TEST_FEDERATION_ENABLED_KEY = "test.federation.enabled"
+const val TEST_FEDERATION_ENABLED_ENV_KEY = "TEST_FEDERATION_ENABLED"
+
+const val TEST_FEDERATION_MODE_KEY = "test.federation.mode"
+const val TEST_FEDERATION_MODE_ENV_KEY = "TEST_FEDERATION_MODE"
+
+const val TEST_FEDERATION_AFFECTED_DOMAINS_KEY = "test.federation.affected.domains"
+const val TEST_FEDERATION_AFFECTED_DOMAINS_ENV_KEY = "TEST_FEDERATION_AFFECTED_DOMAINS"
+
+internal const val TEST_FEDERATION_CHANGED_FILES_KEY = "test.federation.changed.files"
+
+internal const val TEST_FEDERATION_CHANGED_DOMAINS_KEY = "test.federation.changed.domains"
+internal const val TEST_FEDERATION_CHANGED_DOMAINS_ENV_KEY = "TEST_FEDERATION_CHANGED_DOMAINS"
+
+const val TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE_KEY = "test.federation.auto.smoke.test.percentage"
+const val TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE_ENV_KEY = "TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE"
+
+const val TEST_FEDERATION_SUBSETS_KEY = "test.federation.subsets"
+const val TEST_FEDERATION_SUBSETS_ENV_KEY = "TEST_FEDERATION_SUBSETS"
+
+const val TEST_FEDERATION_NIGHTLY_KEY = "test.federation.nightly"
+const val TEST_FEDERATION_NIGHTLY_ENV_KEY = "TEST_FEDERATION_NIGHTLY"
+
+const val TEST_FEDERATION_DOMAINS_KEY = "test.federation.domains"
+const val TEST_FEDERATION_DOMAINS_ENV_KEY = "TEST_FEDERATION_DOMAINS"

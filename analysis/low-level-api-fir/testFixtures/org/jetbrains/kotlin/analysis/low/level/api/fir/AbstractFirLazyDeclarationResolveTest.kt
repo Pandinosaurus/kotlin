@@ -28,7 +28,7 @@ import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.singleOrZeroValue
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.moduleStructure
-import org.jetbrains.kotlin.testFederation.SmokeTest
+import org.jetbrains.kotlin.testFederation.MustRunAlways
 
 abstract class AbstractFirLazyDeclarationResolveTest : AbstractFirLazyDeclarationResolveOverAllPhasesTest() {
     override val additionalDirectives: List<DirectivesContainer>
@@ -106,10 +106,10 @@ abstract class AbstractFirLazyDeclarationResolveTest : AbstractFirLazyDeclaratio
      * for lazy resolve tests with [KaDanglingFileResolutionMode.IGNORE_SELF] mode if the copy file differs from the original one.
      * That's why we need to use outer [analyzeCopy] call to manually set the dangling file resolution mode.
      */
-    private inline fun <R> wrapWithAnalyzeCopyIfNeeded(
+    private inline fun wrapWithAnalyzeCopyIfNeeded(
         file: KtFile,
         danglingFileResolutionMode: KaDanglingFileResolutionMode?,
-        crossinline action: () -> R
+        crossinline action: () -> Unit
     ) {
         if (file.copyOrigin != null && danglingFileResolutionMode != null) {
             analyzeCopy(file, danglingFileResolutionMode) {
@@ -157,7 +157,7 @@ abstract class AbstractFirLazyDeclarationResolveTest : AbstractFirLazyDeclaratio
     }
 }
 
-@SmokeTest
+@MustRunAlways
 abstract class AbstractFirSourceLikeLazyDeclarationResolveTest : AbstractFirLazyDeclarationResolveTest() {
     override val configurator = LLSourceLikeTestConfigurator()
 }

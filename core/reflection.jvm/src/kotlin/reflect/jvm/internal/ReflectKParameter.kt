@@ -9,13 +9,10 @@ import org.jetbrains.kotlin.descriptors.runtime.structure.safeClassLoader
 import java.lang.reflect.Constructor
 import java.lang.reflect.Member
 import java.lang.reflect.Method
-import java.lang.reflect.Modifier
 import kotlin.LazyThreadSafetyMode.PUBLICATION
-import kotlin.reflect.KClass
-import kotlin.reflect.KMutableProperty
-import kotlin.reflect.KParameter
-import kotlin.reflect.KType
+import kotlin.reflect.*
 import kotlin.reflect.full.createDefaultType
+import kotlin.reflect.full.instanceParameter
 
 internal abstract class ReflectKParameter : KParameter {
     abstract val callable: ReflectKCallable<*>
@@ -23,10 +20,14 @@ internal abstract class ReflectKParameter : KParameter {
     abstract val declaresDefaultValue: Boolean
 
     override val annotations: List<Annotation> by lazy(PUBLICATION) {
-        if (callable.isAnnotationConstructor) return@lazy loadAnnotationsOnAnnotationParameter()
+        // In Kotlin, parameters of annotation constructors have no annotations in JVM bytecode, so we load them from metadata.
+        if (callable.isAnnotationConstructor) return@lazy loadAnnotationsFromMetadata()
+
+        // Workaround for KT-13077: members of built-in classes don't have caller, so we load parameter annotations from metadata.
+        if (callable.isMappedBuiltinMember) return@lazy loadAnnotationsFromMetadata()
 
         val java = javaParameter
-        when (val callable = java?.callable) {
+        when (val callable = java.callable) {
             is Method -> callable.parameterAnnotations[java.index].toList()
             is Constructor<*> -> callable.parameterAnnotations[java.index].toList()
             else -> emptyList()
@@ -60,11 +61,12 @@ internal class InstanceParameter(override val callable: ReflectKCallable<*>, kla
     override val declaresDefaultValue: Boolean get() = false
 }
 
-private fun ReflectKParameter.loadAnnotationsOnAnnotationParameter(): List<Annotation> {
-    // In Java, there's no notion of annotation constructors.
+private val ReflectKCallable<*>.isMappedBuiltinMember: Boolean
+    get() = this is KotlinKCallable<*> && (container as? KClassImpl<*>)?.isMappedBuiltin == true
+
+private fun ReflectKParameter.loadAnnotationsFromMetadata(): List<Annotation> {
     if (this !is KotlinKParameter) return emptyList()
 
-    // In Kotlin, parameters of annotation constructors have no annotations in JVM bytecode, so we load them from metadata.
     return kmParameter.annotations.map { it.toAnnotation(callable.container.jClass.safeClassLoader) }
 }
 
@@ -93,25 +95,42 @@ internal class DefaultSetterValueParameter(private val property: ReflectKPropert
  */
 internal class JavaParameter(val callable: Member, val index: Int)
 
-internal val ReflectKParameter.javaParameter: JavaParameter?
-    get() = when (val callable = callable.caller.member) {
-        is Method -> {
-            JavaParameter(callable, index + (if (Modifier.isStatic(callable.modifiers)) 0 else -1))
-        }
-        is Constructor<*> -> {
-            val shift = when {
+internal val ReflectKParameter.javaParameter: JavaParameter
+    get() {
+        val member = callable.caller.member ?: throw KotlinReflectionInternalError("Unsupported parameter owner: $this")
+        val index = computeJavaParameterAnnotationIndexWithWorkarounds(member, index, callable.instanceParameter != null, callable.isBound)
+        return JavaParameter(member, index)
+    }
+
+/**
+ * Returns the index in [Method.getParameterAnnotations]/[Constructor.getParameterAnnotations] of [member], corresponding to the parameter
+ * with the given [index] in the parameter list of a callable.
+ *
+ * Note that this function should not call [KCallable.parameters], because it is also used while enhancing them
+ * (see [JavaKFunction.enhancedSignature]).
+ */
+internal fun computeJavaParameterAnnotationIndexWithWorkarounds(
+    member: Member?, index: Int, hasInstanceParameter: Boolean, isBound: Boolean,
+): Int = when (member) {
+    is Method -> index + (if (hasInstanceParameter) -1 else 0)
+    is Constructor<*> -> {
+        val shift = when {
+            member.declaringClass.kotlin.isInner -> {
+                val boundShift = if (isBound) 1 else 0
                 // Inner class constructors before JDK 9 did not have the outer class parameter in `parameterAnnotations`, see
                 // https://bugs.java.com/bugdatabase/view_bug?bug_id=8074977.
-                callable.declaringClass.kotlin.isInner && isJdk8() -> -1
-                // Enum constructors before JDK 17 did not have additional name/ordinal parameters in case there was at least one annotation
-                // on any constructor parameter. (Probably some fixed bug in the JDK as well.)
-                callable.declaringClass.isEnum -> callable.parameterAnnotations.size - callable.parameterTypes.size + 2
-                else -> 0
+                val jdk8Shift = if (isJdk8()) -1 else 0
+                boundShift + jdk8Shift
             }
-            JavaParameter(callable, index + shift)
+            // Enum constructors before JDK 17 did not have additional name/ordinal parameters in case there was at least one annotation
+            // on any constructor parameter. (Probably some fixed bug in the JDK as well.)
+            member.declaringClass.isEnum -> member.parameterAnnotations.size - member.parameterTypes.size + 2
+            else -> 0
         }
-        else -> throw KotlinReflectionInternalError("Unsupported parameter owner: $callable")
+        index + shift
     }
+    else -> throw KotlinReflectionInternalError("Unsupported parameter owner: $member")
+}
 
 private fun isJdk8(): Boolean =
     System.getProperty("java.version")?.startsWith("1.") == true

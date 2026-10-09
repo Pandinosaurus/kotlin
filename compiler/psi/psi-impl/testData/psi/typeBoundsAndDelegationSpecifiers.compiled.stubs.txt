@@ -3,7 +3,7 @@ A.class:
     PACKAGE_DIRECTIVE
       REFERENCE_EXPRESSION[referencedName=test]
     IMPORT_LIST
-    CLASS[classId=test/A, fqName=test.A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=A, superNames=[]]
+    CLASS[classId=test/A, fqName=test.A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=A, superNames=[]]
       MODIFIER_LIST[public open]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=A]
         MODIFIER_LIST[public]
@@ -16,7 +16,7 @@ T.class:
     PACKAGE_DIRECTIVE
       REFERENCE_EXPRESSION[referencedName=test]
     IMPORT_LIST
-    CLASS[classId=test/T, fqName=test.T, isClsStubCompiledToJvmDefaultImplementation=true, isInterface=true, isLocal=false, isTopLevel=true, name=T, superNames=[]]
+    CLASS[classId=test/T, fqName=test.T, isClsStubCompiledToJvmDefaultImplementation=true, isInterface=true, isTopLevel=true, name=T, superNames=[]]
       MODIFIER_LIST[public]
       CLASS_BODY
 
@@ -26,7 +26,7 @@ TypeBoundsAndDelegationSpecifiers.class:
     PACKAGE_DIRECTIVE
       REFERENCE_EXPRESSION[referencedName=test]
     IMPORT_LIST
-    CLASS[classId=test/TypeBoundsAndDelegationSpecifiers, fqName=test.TypeBoundsAndDelegationSpecifiers, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=TypeBoundsAndDelegationSpecifiers, superNames=[A, T]]
+    CLASS[classId=test/TypeBoundsAndDelegationSpecifiers, fqName=test.TypeBoundsAndDelegationSpecifiers, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=TypeBoundsAndDelegationSpecifiers, superNames=[A, T]]
       MODIFIER_LIST[public final]
       TYPE_PARAMETER_LIST
         TYPE_PARAMETER[fqName=null, name=H]
@@ -36,12 +36,14 @@ TypeBoundsAndDelegationSpecifiers.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Any]
+                isClassRef: true
         TYPE_PARAMETER[fqName=null, name=C]
           TYPE_REFERENCE
             USER_TYPE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=test]
               REFERENCE_EXPRESSION[referencedName=T]
+                isClassRef: true
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=TypeBoundsAndDelegationSpecifiers]
         MODIFIER_LIST[public]
         VALUE_PARAMETER_LIST
@@ -52,12 +54,14 @@ TypeBoundsAndDelegationSpecifiers.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=test]
               REFERENCE_EXPRESSION[referencedName=A]
+                isClassRef: true
         SUPER_TYPE_ENTRY
           TYPE_REFERENCE
             USER_TYPE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=test]
               REFERENCE_EXPRESSION[referencedName=T]
+                isClassRef: true
       TYPE_CONSTRAINT_LIST
         TYPE_CONSTRAINT
           REFERENCE_EXPRESSION[referencedName=H]
@@ -68,6 +72,7 @@ TypeBoundsAndDelegationSpecifiers.class:
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=collections]
               REFERENCE_EXPRESSION[referencedName=List]
+                isClassRef: true
               TYPE_ARGUMENT_LIST
                 TYPE_PROJECTION[projectionKind=NONE]
                   TYPE_REFERENCE
@@ -75,6 +80,7 @@ TypeBoundsAndDelegationSpecifiers.class:
                       USER_TYPE
                         REFERENCE_EXPRESSION[referencedName=kotlin]
                       REFERENCE_EXPRESSION[referencedName=String]
+                        isClassRef: true
         TYPE_CONSTRAINT
           REFERENCE_EXPRESSION[referencedName=G]
           TYPE_REFERENCE
@@ -82,6 +88,7 @@ TypeBoundsAndDelegationSpecifiers.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=CharSequence]
+                isClassRef: true
         TYPE_CONSTRAINT
           REFERENCE_EXPRESSION[referencedName=C]
           TYPE_REFERENCE
@@ -90,4 +97,5 @@ TypeBoundsAndDelegationSpecifiers.class:
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Any]
+                  isClassRef: true
       CLASS_BODY

@@ -125,6 +125,14 @@ public abstract class CallableReference implements KCallable, Serializable, Kotl
                isTopLevel ? Reflection.getOrCreateKotlinPackage(owner) : Reflection.getOrCreateKotlinClass(owner);
     }
 
+    private boolean isLocalFunction() {
+        return owner != null && owner.getName().equals("kotlin.jvm.internal.Intrinsics$Kotlin");
+    }
+
+    private boolean isLocalProperty() {
+        return signature.startsWith("<v#");
+    }
+
     /**
      * @return Kotlin name of the callable, the one which was declared in the source code (@JvmName doesn't change it)
      */
@@ -213,5 +221,18 @@ public abstract class CallableReference implements KCallable, Serializable, Kotl
     @SinceKotlin(version = "1.3")
     public boolean isSuspend() {
         return getReflected().isSuspend();
+    }
+
+    @Override
+    @ExperimentalCompanionExtensions
+    public KClass<?> getCompanionExtensionClass() {
+        return getReflected().getCompanionExtensionClass();
+    }
+
+    @Override
+    @Nullable
+    public KDeclarationContainer getContainer() {
+        if (isLocalFunction() || isLocalProperty()) return null;
+        return getOwner();
     }
 }

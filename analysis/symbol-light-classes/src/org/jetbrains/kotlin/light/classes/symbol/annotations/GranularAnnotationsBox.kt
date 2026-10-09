@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.light.classes.symbol.annotations
 
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.light.classes.symbol.toArrayIfNotEmptyOrDefault
+import org.jetbrains.kotlin.light.classes.symbol.utils.toArrayIfNotEmptyOrDefault
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.StandardClassIds
@@ -25,10 +25,8 @@ internal class GranularAnnotationsBox(
     private fun getOrComputeCachedAnnotations(owner: PsiElement): Collection<PsiAnnotation> {
         cachedAnnotations?.let { return it }
 
-        val annotations = annotationsProvider.annotationInfos().mapNotNullTo(SmartList<PsiAnnotation>()) { applicationInfo ->
-            applicationInfo.annotation.classId?.let { _ ->
-                SymbolLightLazyAnnotation(annotationsProvider, applicationInfo, owner)
-            }
+        val annotations = annotationsProvider.annotationInfos().mapTo(SmartList<PsiAnnotation>()) { applicationInfo ->
+            SymbolLightLazyAnnotation(annotationsProvider, applicationInfo, owner)
         }
 
         val foundQualifiers = annotations.mapNotNullTo(hashSetOf()) { it.qualifiedName }
@@ -110,6 +108,7 @@ internal class GranularAnnotationsBox(
             StandardClassIds.Annotations.Target,
             StandardClassIds.Annotations.IntroducedAt,
             StandardClassIds.Annotations.EqualityBound,
+            StandardClassIds.Annotations.NumericClass,
         ).associateBy { it.asFqNameString() } + specialAnnotationsListWithSafeArgumentsResolve
     }
 }

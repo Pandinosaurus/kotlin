@@ -6,11 +6,12 @@
 package org.jetbrains.kotlin.code
 
 import com.intellij.openapi.util.io.FileUtil
-import org.jetbrains.kotlin.repoTestFixtures.isGitIgnored
+import org.jetbrains.kotlin.code.tools.FileMatcher
+import org.jetbrains.kotlin.code.tools.excludeWalkTopDown
 import org.junit.jupiter.api.Test
-import kotlin.test.fail
 import java.io.File
 import java.util.regex.Pattern
+import kotlin.test.fail
 
 class CodeConformanceTest {
     companion object {
@@ -78,9 +79,9 @@ class CodeConformanceTest {
             "jps/jps-plugin/src",
         )
 
-        targetDirs.map {
+        targetDirs.flatMap {
             FileUtil.findFilesByMask(KOTLIN_FILE_PATTERN, File(it))
-        }.flatten().forEach { sourceFile ->
+        }.forEach { sourceFile ->
             val matcher = canonicalPattern.matcher(sourceFile.readText())
             if (matcher.find()) {
                 fail("KT-69613 canonicalPath and canonicalFile apis should not be used: ${matcher.group()}\nin file: $sourceFile")
@@ -102,9 +103,9 @@ class CodeConformanceTest {
             "compiler/build-tools/kotlin-build-tools-cri-impl/src",
         )
 
-        targetDirs.map {
+        targetDirs.flatMap {
             FileUtil.findFilesByMask(KOTLIN_FILE_PATTERN, File(it))
-        }.flatten().forEach { sourceFile ->
+        }.forEach { sourceFile ->
             val matcher = absolutePathStringPattern.matcher(sourceFile.readText())
             if (matcher.find()) {
                 fail("KT-83715 absolutePathString should not be used as it loses information about FileSystem: ${matcher.group()}\nin file: $sourceFile")
@@ -136,7 +137,10 @@ class CodeConformanceTest {
             FileTestCase(
                 "%d source files contain @author javadoc tag.\nPlease remove them or exclude in this test:\n%s",
                 allowedFiles = listOf(
-                    "native/swift/swift-export-standalone-integration-tests/simple/testData/generation/docc/"
+                    "native/swift/swift-export-standalone-integration-tests/simple/testData/generation/docc/",
+                    "libraries/tools/kotlin-documentation-model/analyzer/src/test/kotlin/translators/JavadocInheritedDocTagsTest.kt",
+                    "libraries/tools/kotlin-documentation-model/analyzer/src/test/kotlin/translators/JavadocParserTest.kt",
+                    "libraries/tools/kotlin-documentation-model/analyzer/src/main/kotlin/org/jetbrains/dokka/analysis/java/parsers/doctag/PsiElementToHtmlConverter.kt"
                 )
             ) { _, source ->
                 // substring check is an optimization
@@ -267,40 +271,6 @@ class CodeConformanceTest {
         }
     }
 
-    private class FileMatcher(val root: File, paths: Collection<String>) {
-        private val files = paths.map { File(it) }
-        private val paths = files.mapTo(HashSet()) { it.invariantSeparatorsPath }
-        private val relativePaths = files.filterTo(ArrayList()) { it.isDirectory }.mapTo(HashSet()) { it.invariantSeparatorsPath + "/" }
-
-        private fun File.invariantRelativePath() = relativeTo(root).invariantSeparatorsPath
-
-        fun matchExact(file: File): Boolean {
-            return file.invariantRelativePath() in paths
-        }
-
-        fun matchWithContains(file: File): Boolean {
-            if (matchExact(file)) return true
-            val relativePath = file.invariantRelativePath()
-            return relativePaths.any { relativePath.startsWith(it) }
-        }
-
-        fun unmatched(files: List<File>): Set<String> {
-            val filePaths = files.map { it.invariantRelativePath() }.toSet()
-            val relativePaths = paths.filter { p -> filePaths.any { it.startsWith(p) } }.toSet()
-            return paths - filePaths - relativePaths
-        }
-    }
-
-    private fun FileMatcher.excludeWalkTopDown(filePattern: Pattern): Sequence<File> {
-        return root.walkTopDown()
-            .onEnter { dir ->
-                !matchExact(dir) && !dir.toPath().isGitIgnored() // Don't enter to ignored dirs
-            }
-            .filter { file -> !matchExact(file) } // filter ignored files
-            .filter { file -> filePattern.matcher(file.name).matches() }
-            .filter { file -> file.isFile }
-    }
-
     @Test
     fun testRepositoriesAbuse() {
         class RepoAllowList(val repo: String, root: File, allowList: Set<String>, val exclude: String? = null) {
@@ -393,7 +363,7 @@ class CodeConformanceTest {
      */
     @Test
     fun testNoHardcodedPathSeparatorInSSOT() {
-        val pattern = Pattern.compile("""(?<![\\$])\$\{File\.pathSeparator\}""")
+        val pattern = Pattern.compile("""(?<![\\$])\$\{File\.pathSeparator}""")
         val targetDirs = listOf(
             "compiler/arguments/src/org/jetbrains/kotlin/arguments/dsl/types"
         )
@@ -415,7 +385,7 @@ class CodeConformanceTest {
 
                 fail(
                     "[KT-84449] Platform-specific File.pathSeparator must be escaped for runtime evaluation. " +
-                            "Use \\${'$'}{File.pathSeparator} or raw string literals.\nin file: $sourceFile"
+                            $$"Use \\${File.pathSeparator} or raw string literals.\nin file: $$sourceFile"
                 )
             }
         }

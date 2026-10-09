@@ -183,26 +183,28 @@ fun GradleProject.assertDirectoryInProjectExists(
 fun assertDirectoryExists(
     dirPath: Path,
     message: String? = null,
-) = assertDirectoriesExist(dirPath, message = message)
+) = assertDirectoriesExist(dirPath, message = { message ?: it })
 
 fun assertDirectoriesExist(
     vararg dirPaths: Path,
-    message: String? = null,
+    message: (defaultMessage: String) -> String = { it },
 ) {
-    val [exist, notExist] = dirPaths.partition { it.exists() }
+    val (exist, notExist) = dirPaths.partition { it.exists() }
     val notDirectories = exist.filterNot { it.isDirectory() }
 
     assert(notExist.isEmpty() && notDirectories.isEmpty()) {
-        message ?: buildString {
-            if (notExist.isNotEmpty()) {
-                appendLine("Following directories do not exist:")
-                appendLine(notExist.joinToString(separator = "\n"))
+        message(
+            buildString {
+                if (notExist.isNotEmpty()) {
+                    appendLine("Following directories do not exist:")
+                    appendLine(notExist.joinToString(separator = "\n"))
+                }
+                if (notDirectories.isNotEmpty()) {
+                    appendLine("Following files should be directories:")
+                    appendLine(notExist.joinToString(separator = "\n"))
+                }
             }
-            if (notDirectories.isNotEmpty()) {
-                appendLine("Following files should be directories:")
-                appendLine(notExist.joinToString(separator = "\n"))
-            }
-        }
+        )
     }
 }
 
@@ -405,7 +407,7 @@ class GradleVariantAssertions(
 
 private fun Map<String, Any?>.toSortedStringWithLines() = entries
     .sortedBy { it.key }
-    .joinToString("\n") { [key, value] -> "'$key' => '$value'" }
+    .joinToString("\n") { (key, value) -> "'$key' => '$value'" }
 
 fun assertGradleVariant(gradleModuleFile: Path, variantName: String, code: GradleVariantAssertions.() -> Unit) {
     val moduleJson = JsonParser.parseString(gradleModuleFile.readText()).asJsonObject

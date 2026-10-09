@@ -15,13 +15,16 @@ import org.jetbrains.kotlin.gradle.dependencyResolutionTests.configureRepositori
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
+import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.reportDiagnostic
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.AppleTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.appleTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.SwiftExportConstants
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.SwiftExportExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.internal.SwiftExportedModule
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.internal.SwiftExportedModuleMode
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.tasks.BuildSPMSwiftExportPackage
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.tasks.MergeStaticLibrariesTask
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.tasks.SwiftExportTask
@@ -119,7 +122,7 @@ class SwiftExportUnitTests {
         val project = swiftExportProject()
         project.evaluate()
 
-        val swiftExportTask = project.tasks.getByName("iosSimulatorArm64DebugSwiftExport")
+        val swiftExportTask = project.tasks.getByName("iosSimulatorArm64SwiftExport")
         val generateSPMPackageTask = project.tasks.getByName("iosSimulatorArm64DebugGenerateSPMPackage")
         val buildSPMPackageTask = project.tasks.getByName("iosSimulatorArm64DebugBuildSPMPackage")
         val linkSwiftExportBinaryTask = project.tasks.getByName("linkSwiftExportBinaryDebugStaticIosSimulatorArm64")
@@ -181,7 +184,7 @@ class SwiftExportUnitTests {
     @Test
     fun `test swift export missing arch`() {
         val project = swiftExportProject(archs = "arm64", multiplatform = {
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            @Suppress("DEPRECATION_ERROR") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
             listOf(iosSimulatorArm64(), iosX64(), iosArm64())
         })
 
@@ -193,7 +196,7 @@ class SwiftExportUnitTests {
 
         val arm64SimLib = project.multiplatformExtension.iosSimulatorArm64().binaries.findStaticLib("SwiftExportBinary", buildType)
         val arm64Lib = project.multiplatformExtension.iosArm64().binaries.findStaticLib("SwiftExportBinary", buildType)
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+        @Suppress("DEPRECATION_ERROR") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
         val x64Lib = project.multiplatformExtension.iosX64().binaries.findStaticLib("SwiftExportBinary", buildType)
 
         assertNotNull(arm64SimLib)
@@ -210,7 +213,7 @@ class SwiftExportUnitTests {
     @Test
     fun `test swift export embed and sign inputs`() {
         val project = swiftExportProject(archs = "arm64 x86_64", multiplatform = {
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            @Suppress("DEPRECATION_ERROR") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
             listOf(iosSimulatorArm64(), iosX64())
         })
 
@@ -237,11 +240,8 @@ class SwiftExportUnitTests {
         val iosArm64Prefix = "iosSimulatorArm64"
         val iosX64Prefix = "iosX64"
 
-        fun swiftExportExpectedTaskName(prefix: String): String = lowerCamelCaseName(
-            prefix,
-            buildTypeName,
-            "swiftExport"
-        )
+        // One run per target, so the build type isn't part of the name.
+        fun swiftExportExpectedTaskName(prefix: String): String = lowerCamelCaseName(prefix, "swiftExport")
 
         // Swift Export should be registered
         assertEquals(
@@ -322,7 +322,7 @@ class SwiftExportUnitTests {
         val project = projects.first()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -373,7 +373,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -387,11 +387,11 @@ class SwiftExportUnitTests {
 
         assertEquals(
             expectedModules,
-            actualModules.filter { it.shouldBeFullyExported }.toModulesForAssertion(),
+            actualModules.filter { it.exportMode == SwiftExportedModuleMode.FULL }.toModulesForAssertion(),
         )
 
         val KotlinxIoCore = actualModules.single { it.moduleName == "OrgJetbrainsKotlinxKotlinxIoCore" }
-        assertFalse(KotlinxIoCore.shouldBeFullyExported, "Compilation dependency kotlinx-io-core should not be exported")
+        assertNotEquals(SwiftExportedModuleMode.FULL, KotlinxIoCore.exportMode, "Compilation dependency kotlinx-io-core should not be exported")
     }
 
     @Test
@@ -405,7 +405,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList()).filter { it.shouldBeFullyExported }
+        val actualModules = swiftExportTask.resolveSwiftExportedModules().filter { it.exportMode == SwiftExportedModuleMode.FULL }
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(SwiftExportModuleForAssertion("OrgJetbrainsKotlinxKotlinxDatetime", "kotlinx-datetime.klib", true))
@@ -438,7 +438,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList()).filter { it.shouldBeFullyExported }
+        val actualModules = swiftExportTask.resolveSwiftExportedModules().filter { it.exportMode == SwiftExportedModuleMode.FULL }
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -478,7 +478,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList()).filter { it.shouldBeFullyExported }
+        val actualModules = swiftExportTask.resolveSwiftExportedModules().filter { it.exportMode == SwiftExportedModuleMode.FULL }
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -518,7 +518,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList()).filter { it.shouldBeFullyExported }
+        val actualModules = swiftExportTask.resolveSwiftExportedModules().filter { it.exportMode == SwiftExportedModuleMode.FULL }
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -552,7 +552,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -591,6 +591,39 @@ class SwiftExportUnitTests {
         val taskSettings = swiftExportTask.parameters.swiftExportSettings.get()
 
         assertEquals(taskSettings, customSettings)
+    }
+
+    @Test
+    fun `test swift export worker max heap size defaults to 1g`() {
+        val project = swiftExportProject()
+        project.evaluate()
+
+        val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
+
+        assertEquals(listOf("-Xmx1g"), swiftExportTask.workerJvmArgs)
+    }
+
+    @Test
+    fun `test swift export worker jvm args from property keep default max heap size`() {
+        val project = swiftExportProject()
+        project.propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_SWIFT_EXPORT_JVM_ARGS, " -XX:+UseG1GC  -Dfoo=bar ")
+        project.evaluate()
+
+        val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
+
+        assertEquals(listOf("-XX:+UseG1GC", "-Dfoo=bar"), swiftExportTask.customJvmArgs.get())
+        assertEquals(listOf("-XX:+UseG1GC", "-Dfoo=bar", "-Xmx1g"), swiftExportTask.workerJvmArgs)
+    }
+
+    @Test
+    fun `test swift export worker max heap size from property overrides default`() {
+        val project = swiftExportProject()
+        project.propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_SWIFT_EXPORT_JVM_ARGS, "-Xmx4g -XX:+UseG1GC")
+        project.evaluate()
+
+        val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
+
+        assertEquals(listOf("-Xmx4g", "-XX:+UseG1GC"), swiftExportTask.workerJvmArgs)
     }
 
     @Test
@@ -693,7 +726,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -732,7 +765,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         assertTrue(actualModules.isEmpty(), "No modules should be exported for JVM dependencies")
     }
@@ -752,7 +785,9 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        // Module resolution now happens at task execution. Route its diagnostics into the project collector so the
+        // resolution error stays observable here (the task's own reporter renders immediately without storing it).
+        val actualModules = swiftExportTask.resolveSwiftExportedModules { project.reportDiagnostic(it) }
 
         project.assertContainsDiagnostic(KotlinToolingDiagnostics.SwiftExportModuleResolutionError)
         assertTrue(actualModules.isEmpty(), "No modules should be exported for invalid dependencies")
@@ -778,7 +813,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -823,7 +858,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -884,7 +919,7 @@ class SwiftExportUnitTests {
         projectDependency.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -948,7 +983,7 @@ class SwiftExportUnitTests {
         projectDependency.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -1012,7 +1047,7 @@ class SwiftExportUnitTests {
         projectDependency.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -1076,7 +1111,7 @@ class SwiftExportUnitTests {
         projectDependency.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -1142,7 +1177,7 @@ class SwiftExportUnitTests {
         projectDependency_1.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -1205,7 +1240,7 @@ class SwiftExportUnitTests {
         project.evaluate()
 
         val swiftExportTask = project.tasks.withType(SwiftExportTask::class.java).single()
-        val actualModules = swiftExportTask.parameters.swiftModules.getOrElse(emptyList())
+        val actualModules = swiftExportTask.resolveSwiftExportedModules()
 
         val expectedModules = SmartSet.create<SwiftExportModuleForAssertion>().apply {
             add(
@@ -1268,6 +1303,7 @@ private fun multiModuleSwiftExportProject(
     return listOf(project) + projectDependencies
 }
 
+@Suppress("DEPRECATION") // Exercises the deprecated legacy Swift Export DSL on purpose.
 private fun swiftExportProject(
     configuration: String = "DEBUG",
     sdk: String = "iphonesimulator",
@@ -1297,6 +1333,7 @@ private fun swiftExportProject(
     }
 )
 
+@Suppress("DEPRECATION") // Exercises the deprecated legacy Swift Export DSL on purpose.
 private fun ProjectInternal.setupForSwiftExport(
     configuration: String = "DEBUG",
     sdk: String = "iphonesimulator",
@@ -1339,7 +1376,7 @@ private fun List<SwiftExportedModule>.toModulesForAssertion() = mapToSetOrEmpty 
     SwiftExportModuleForAssertion(
         module.moduleName,
         module.artifact.name,
-        module.shouldBeFullyExported
+        module.exportMode == SwiftExportedModuleMode.FULL
     )
 }
 

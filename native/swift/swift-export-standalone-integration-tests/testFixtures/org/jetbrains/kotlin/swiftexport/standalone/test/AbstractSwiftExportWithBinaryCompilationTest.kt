@@ -9,6 +9,7 @@ import com.intellij.testFramework.TestDataFile
 import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.test.blackbox.support.TestCase
 import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.TestCompilationArtifact
+import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.TestCompilationFactory.ProduceStaticCache
 import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.TestCompilationResult.Companion.assertSuccess
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.BinaryLibraryKind
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.KotlinNativeTargets
@@ -16,15 +17,15 @@ import org.jetbrains.kotlin.konan.test.blackbox.support.util.flatMapToSet
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.getAbsoluteFile
 import org.jetbrains.kotlin.swiftexport.standalone.SwiftExportModule
 import org.jetbrains.kotlin.test.backend.handlers.UpdateTestDataSupport
-import org.jetbrains.kotlin.testFederation.AffectedByAnalysisApi
-import org.jetbrains.kotlin.testFederation.AffectedByNative
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInAnalysisApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInNative
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 
-@AffectedByNative
-@AffectedByAnalysisApi
+@MustRunOnChangesInNative
+@MustRunOnChangesInAnalysisApi
 @ExtendWith(UpdateTestDataSupport::class)
 // TODO: KT-75530 — extend beyond OSX/IOS once other Apple families can build these apps.
 @EnabledOnNativeTargets(families = [Family.OSX, Family.IOS])
@@ -54,6 +55,8 @@ abstract class AbstractSwiftExportWithBinaryCompilationTest : AbstractSwiftExpor
         val kotlinBinaryLibrary = testCompilationFactory.testCaseToBinaryLibrary(
             resultingTestCase, testRunSettings,
             kind = BinaryLibraryKind.STATIC,
+            // Include the generated bridges in the cache when testing with caches for user libraries.
+            produceStaticCache = ProduceStaticCache.decideForRegularKlib(testRunSettings),
         ).result.assertSuccess().resultingArtifact
         val testPathFull = getAbsoluteFile(testDir)
 

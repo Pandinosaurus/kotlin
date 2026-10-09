@@ -11,7 +11,6 @@ import org.gradle.api.file.Directory
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.ExperimentalJsTestDsl
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.targets.js.NpmVersions
 import org.jetbrains.kotlin.gradle.targets.js.RequiredKotlinJsDependency
@@ -24,25 +23,24 @@ import org.jetbrains.kotlin.gradle.targets.js.testing.karma.KotlinKarma
 import org.jetbrains.kotlin.gradle.targets.js.testing.playwright.KotlinPlaywrightJsTestFramework
 import org.jetbrains.kotlin.gradle.targets.js.testing.playwright.PlaywrightBrowserInstall
 import org.jetbrains.kotlin.gradle.targets.js.testing.playwright.PwBrowserKind
+import org.jetbrains.kotlin.gradle.targets.js.testing.playwright.PwExecutionSpec
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.testing.prettyPrinted
 import org.jetbrains.kotlin.gradle.util.assertDependsOn
 import org.jetbrains.kotlin.gradle.util.buildProjectWithMPP
+import org.jetbrains.kotlin.gradle.utils.processes.ProcessLaunchOptions.Companion.processLaunchOptions
 import org.junit.jupiter.api.io.TempDir
 import java.net.URI
+import java.net.URLDecoder
+import java.net.URLEncoder
 import java.nio.file.Path
 import java.time.Duration
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.jvm.java
+import kotlin.test.*
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
-import kotlin.to
+import kotlin.time.Duration.Companion.seconds
 
 class KotlinPlaywrightTestFrameworkWiringTest {
 
@@ -56,28 +54,6 @@ class KotlinPlaywrightTestFrameworkWiringTest {
         }
 
         assertIs<KotlinPlaywrightJsTestFramework>(setup.jsBrowserTestTask.testFramework)
-    }
-
-    @Test
-    fun `without runners the default karma framework is kept and bundle task stays disabled`() {
-        val setup = buildBrowserTestProject {}
-
-        assertIs<KotlinKarma>(setup.jsBrowserTestTask.testFramework)
-
-        val bundleTask = setup.webpackBundleTask
-        setup.mockJsTestLinkOutput()
-        assertFalse(
-            bundleTask.browserRunnersDeclared.get(),
-            "Expected the bundle task to stay disabled when no browser runners are declared"
-        )
-        assertTrue(
-            bundleTask.requiredNpmDependencies.isEmpty(),
-            "Expected no npm dependencies to be contributed while the bundle task is disabled"
-        )
-        assertFalse(
-            bundleTask.onlyIf.isSatisfiedBy(bundleTask),
-            "Expected the bundle task to be skipped, as no browser runners are declared"
-        )
     }
 
     @Test
@@ -139,7 +115,7 @@ class KotlinPlaywrightTestFrameworkWiringTest {
 
         val framework = assertIs<KotlinPlaywrightJsTestFramework>(setup.jsBrowserTestTask.testFramework)
         assertEquals(
-            setOf<RequiredKotlinJsDependency>(NpmVersions().playwrightCore,).prettyPrinted,
+            setOf<RequiredKotlinJsDependency>(NpmVersions().playwrightCore).prettyPrinted,
             framework.requiredNpmDependencies.prettyPrinted
         )
     }
@@ -157,18 +133,57 @@ class KotlinPlaywrightTestFrameworkWiringTest {
                 setup.project.tasks.getByName(it.getPwInstallBrowserTaskName())
             )
 
-            assertNotNull(installTask, "Expected ${it.getPwInstallBrowserTaskName()} task to be registered to install ${it.browserName} browsers")
+            assertNotNull(
+                installTask,
+                "Expected ${it.getPwInstallBrowserTaskName()} task to be registered to install ${it.browserName} browsers"
+            )
         }
     }
 
     @Test
-    fun `without runners no playwright install task is registered`() {
+    fun `without runners default playwright install task is registered`() {
         val setup = buildBrowserTestProject {}
 
-        PwBrowserKind.entries.forEach {
+        val defaultBrowserKind = PwBrowserKind.CHROMIUM
+        val defaultInstallTask = setup.project.tasks.findByName(defaultBrowserKind.getPwInstallBrowserTaskName())
+        assertNotNull(
+            defaultInstallTask,
+            "Expected ${defaultBrowserKind.getPwInstallBrowserTaskName()} task is created for a default browser"
+        )
+
+        PwBrowserKind.entries.filter { it != defaultBrowserKind }.forEach {
             val installTask = setup.project.tasks.findByName(it.getPwInstallBrowserTaskName())
             assertNull(installTask, "Expected no ${it.getPwInstallBrowserTaskName()} task when no runners declared")
         }
+    }
+
+    @Test
+    fun `without touching the test DSL no playwright test framework is created`() {
+        val project = buildProjectWithMPP {
+            with(multiplatformExtension) {
+                js {
+                    browser {}
+                }
+            }
+        }
+        project.evaluate()
+
+        val testTask = project.tasks.getByName("jsBrowserTest") as KotlinJsTest
+        assertIs<KotlinKarma>(
+            testTask.testFramework,
+            "Expected karma to stay the test framework when browser.test was never touched"
+        )
+
+        PwBrowserKind.entries.forEach {
+            assertNull(
+                project.tasks.findByName(it.getPwInstallBrowserTaskName()),
+                "Expected no ${it.getPwInstallBrowserTaskName()} task when the new browser test DSL is not used"
+            )
+        }
+        assertNull(
+            project.tasks.findByName("prepareWebpackBundleForKotlinJsTests"),
+            "Expected no test bundle task when the new browser test DSL is not used"
+        )
     }
 
     @Test
@@ -217,7 +232,6 @@ class KotlinPlaywrightTestFrameworkWiringTest {
                     }
                 }
 
-                @OptIn(ExperimentalWasmDsl::class)
                 wasmJs {
                     browser {
                         test {
@@ -254,7 +268,6 @@ class KotlinPlaywrightTestFrameworkWiringTest {
     fun `playwright install should use wasmJs npm tooling dir when only wasmJs is declared`() {
         val project = buildProjectWithMPP {
             with(multiplatformExtension) {
-                @OptIn(ExperimentalWasmDsl::class)
                 wasmJs {
                     browser {
                         test {
@@ -363,7 +376,67 @@ class KotlinPlaywrightTestFrameworkWiringTest {
         assertEquals(mockLocation4, webkit2Runner.testsLocation.get())
     }
 
+    @Test
+    fun `test browser runner URL contains correct configuration data`() {
+        val project = buildProjectWithMPP {
+            with(multiplatformExtension) {
+                js {
+                    browser {
+                        testTask {
+                            it.filter.excludeTestsMatching("JsBrowserFilterTest.assertFails")
+                        }
+                        test {
+                            it.chromium {
+                                it.timeout.set(42.seconds)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        project.evaluate()
+
+        // simulate configuration from CLI that happens after evaluation
+        val testTask = project.tasks.named("jsBrowserTest", KotlinJsTest::class.java).get()
+        testTask.filter.includeTestsMatching("JsBrowserFilterTest.assertOk")
+        testTask.filter.includeTestsMatching("test↘balloon↘utf-8🎈*")
+
+        val framework = assertIs<KotlinPlaywrightJsTestFramework>(testTask.testFramework)
+        // mock existence of pw-core/cli.js to be able to call `createTestExecutionSpec`
+        val npmToolingEnvDir = tempDirectory.resolve("npm-tooling").toFile()
+        npmToolingEnvDir.resolve("node_modules/playwright-core/cli.js").apply {
+            parentFile.mkdirs()
+            createNewFile()
+        }
+        framework.npmToolingEnvDir.set(npmToolingEnvDir)
+
+        val executionSpec = assertIs<PwExecutionSpec>(
+            framework.createTestExecutionSpec(
+                task = testTask,
+                launchOpts = project.objects.processLaunchOptions(),
+                nodeJsArgs = mutableListOf(),
+                debug = false,
+            )
+        )
+        val baseUri = URI("http://localhost:8080/test.html")
+        val actualUrl = executionSpec.runners.first().buildTestsExecutionerUrl(baseUri, false)
+        val expectedUrl = baseUri.resolve(
+            "test.html?kotlinTestConfig=" + """
+                {"reporterOptions":{"flowId":"default"},"mochaSetupOptions":{"timeout":"42000"},"kotlinTestCliArguments":["--include","test↘balloon↘utf-8🎈*,JsBrowserFilterTest.assertOk","--exclude","JsBrowserFilterTest.assertFails"],"include":["test↘balloon↘utf-8🎈*","JsBrowserFilterTest.assertOk"],"exclude":["JsBrowserFilterTest.assertFails"],"testsFinishedMarker":"KOTLIN_TEST_FINISHED"}
+            """.trimIndent().urlEncode()
+        )
+        @OptIn(ExperimentalKotlinTestApi::class)
+        assertEquals(
+            expectedUrl,
+            actualUrl
+        ) {
+            "URL mismatch. Decoded actual URL: ${actualUrl.urlDecode()}"
+        }
+    }
 }
+
+private fun String.urlEncode(): String = URLEncoder.encode(this, Charsets.UTF_8)
+private fun URI.urlDecode(): String = URLDecoder.decode(this.toString(), Charsets.UTF_8)
 
 private class BrowserTestProject(
     val project: ProjectInternal,

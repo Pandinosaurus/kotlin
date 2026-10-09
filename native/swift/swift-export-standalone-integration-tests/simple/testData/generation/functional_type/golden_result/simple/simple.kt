@@ -1,92 +1,107 @@
 @file:kotlin.Suppress("DEPRECATION_ERROR")
 
-import kotlin.native.internal.ExportedBridge
+import kotlin.native.internal.ImportedBridge
 import kotlinx.cinterop.*
-import kotlinx.cinterop.internal.convertBlockPtrToKotlinFunction
+import kotlin.native.internal.ExportedBridge
+
+@ImportedBridge("simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_U28Swift_UInt32_U20Swift_UInt32U29202D_U20Swift_ClosedRange_Swift_Int32___")
+internal external fun simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_U28Swift_UInt32_U20Swift_UInt32U29202D_U20Swift_ClosedRange_Swift_Int32___(pointerToClosure: kotlin.native.internal.NativePtr, _1: kotlin.native.internal.NativePtr): Boolean
+
+@ImportedBridge("simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
+internal external fun simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__(pointerToClosure: kotlin.native.internal.NativePtr): Boolean
+
+@ImportedBridge("simple_internal_functional_type_callee_U2829202D3E20SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
+internal external fun simple_internal_functional_type_callee_U2829202D3E20SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__(pointerToClosure: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr
 
 @ExportedBridge("__root___closure_property_get")
 public fun __root___closure_property_get(): kotlin.native.internal.NativePtr {
-    val _result = run { closure_property }
+    val _result = closure_property
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("__root___closure_property_set__TypesOfArguments__U2829202D_U20Swift_Void__")
 public fun __root___closure_property_set__TypesOfArguments__U2829202D_U20Swift_Void__(newValue: kotlin.native.internal.NativePtr): Boolean {
     val __newValue = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<()->Boolean>(newValue);
+        val closurePtr = newValue;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         {
-            val _result = kotlinFun()
+            val _result = simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__(closureBox.objcPtr())
             run<Unit> { _result }
         }
     }
-    val _result = run { closure_property = __newValue }
-    return run { _result; true }
+    closure_property = __newValue
+    return true
 }
 
 @ExportedBridge("__root___foo_1")
 public fun __root___foo_1(): kotlin.native.internal.NativePtr {
-    val _result = run { foo_1() }
+    val _result = foo_1()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("__root___foo_consume_consuming__TypesOfArguments__U2840escapingU2028Swift_UInt32_U20Swift_UInt32U29202D_U20Swift_ClosedRange_Swift_Int32_U29202D_U20Swift_Void__")
 public fun __root___foo_consume_consuming__TypesOfArguments__U2840escapingU2028Swift_UInt32_U20Swift_UInt32U29202D_U20Swift_ClosedRange_Swift_Int32_U29202D_U20Swift_Void__(block: kotlin.native.internal.NativePtr): Boolean {
     val __block = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<(kotlin.native.internal.NativePtr)->Boolean>(block);
+        val closurePtr = block;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         { arg0: Function2<UInt, UInt, kotlin.ranges.IntRange> ->
             val _arg0 = kotlin.native.internal.ref.createRetainedExternalRCRef(arg0)
-            val _result = kotlinFun(_arg0)
+            val _result = simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_U28Swift_UInt32_U20Swift_UInt32U29202D_U20Swift_ClosedRange_Swift_Int32___(closureBox.objcPtr(), _arg0)
             run<Unit> { _result }
         }
     }
-    val _result = run { foo_consume_consuming(__block) }
-    return run { _result; true }
+    foo_consume_consuming(__block)
+    return true
 }
 
 @ExportedBridge("__root___foo_consume_consuming_2__TypesOfArguments__U2840escapingU2028Swift_UInt32_U20Swift_UInt32U29202D_U20Swift_ClosedRange_Swift_Int32_U29202D_U20Swift_Void__")
 public fun __root___foo_consume_consuming_2__TypesOfArguments__U2840escapingU2028Swift_UInt32_U20Swift_UInt32U29202D_U20Swift_ClosedRange_Swift_Int32_U29202D_U20Swift_Void__(block: kotlin.native.internal.NativePtr): Boolean {
     val __block = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<(kotlin.native.internal.NativePtr)->Boolean>(block);
+        val closurePtr = block;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         { arg0: Function2<UInt, UInt, kotlin.ranges.IntRange> ->
             val _arg0 = kotlin.native.internal.ref.createRetainedExternalRCRef(arg0)
-            val _result = kotlinFun(_arg0)
+            val _result = simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_U28Swift_UInt32_U20Swift_UInt32U29202D_U20Swift_ClosedRange_Swift_Int32___(closureBox.objcPtr(), _arg0)
             run<Unit> { _result }
         }
     }
-    val _result = run { foo_consume_consuming_2(__block) }
-    return run { _result; true }
+    foo_consume_consuming_2(__block)
+    return true
 }
 
 @ExportedBridge("__root___foo_consume_producing__TypesOfArguments__U2829202D_U202829202D_U20Swift_Void__")
 public fun __root___foo_consume_producing__TypesOfArguments__U2829202D_U202829202D_U20Swift_Void__(block: kotlin.native.internal.NativePtr): Boolean {
     val __block = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<()->kotlin.native.internal.NativePtr>(block);
+        val closurePtr = block;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         {
-            val _result = kotlinFun()
+            val _result = simple_internal_functional_type_callee_U2829202D3E20SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__(closureBox.objcPtr())
             run {
-                val kotlinFun = convertBlockPtrToKotlinFunction<()->Boolean>(_result);
+                val closurePtr = _result;
+                val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
                 {
-                    val _result = kotlinFun()
+                    val _result = simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__(closureBox.objcPtr())
                     run<Unit> { _result }
                 }
             }
         }
     }
-    val _result = run { foo_consume_producing(__block) }
-    return run { _result; true }
+    foo_consume_producing(__block)
+    return true
 }
 
 @ExportedBridge("__root___foo_consume_simple__TypesOfArguments__U2829202D_U20Swift_Void__")
 public fun __root___foo_consume_simple__TypesOfArguments__U2829202D_U20Swift_Void__(block: kotlin.native.internal.NativePtr): Boolean {
     val __block = run {
-        val kotlinFun = convertBlockPtrToKotlinFunction<()->Boolean>(block);
+        val closurePtr = block;
+        val closureBox = interpretObjCPointer<kotlin.Any>(closurePtr).also { objc_release(closurePtr) };
         {
-            val _result = kotlinFun()
+            val _result = simple_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__(closureBox.objcPtr())
             run<Unit> { _result }
         }
     }
-    val _result = run { foo_consume_simple(__block) }
-    return run { _result; true }
+    foo_consume_simple(__block)
+    return true
 }
 
 @ExportedBridge("kotlin_ranges_intRange_create_int_simple")
@@ -111,13 +126,13 @@ public fun simple_internal_functional_type_caller_SwiftU2EClosedRangeU3CSwiftU2E
     val __pointerToBlock = kotlin.native.internal.ref.dereferenceExternalRCRef(pointerToBlock)!!
     val ___1 = _1
     val ___2 = _2
-    val _result = run { (__pointerToBlock as Function2<UInt, UInt, kotlin.ranges.IntRange>).invoke(___1, ___2) }
+    val _result = (__pointerToBlock as Function2<UInt, UInt, kotlin.ranges.IntRange>).invoke(___1, ___2)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("simple_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
 public fun simple_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer__(pointerToBlock: kotlin.native.internal.NativePtr): Boolean {
     val __pointerToBlock = kotlin.native.internal.ref.dereferenceExternalRCRef(pointerToBlock)!!
-    val _result = run { (__pointerToBlock as Function0<Unit>).invoke() }
-    return run { _result; true }
+    (__pointerToBlock as Function0<Unit>).invoke()
+    return true
 }

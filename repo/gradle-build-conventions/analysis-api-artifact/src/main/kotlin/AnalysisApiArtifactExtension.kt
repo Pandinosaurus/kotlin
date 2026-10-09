@@ -4,13 +4,9 @@
  */
 
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.result.ResolvedArtifactResult
+import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.provider.Property
-import org.gradle.jvm.JvmLibrary
-import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.dependencies
-import org.gradle.language.base.artifact.SourcesArtifact
 import javax.inject.Inject
 
 abstract class AnalysisApiArtifactExtension @Inject constructor(private val project: Project) {
@@ -45,10 +41,15 @@ abstract class AnalysisApiArtifactExtension @Inject constructor(private val proj
         isPublishedProjectsConfigured = true
 
         val includedProjects = LinkedHashMap<String, Boolean>()
+        val includedTestFixtures = LinkedHashSet<String>()
 
         val builder = object : ArtifactContentBuilder {
             override fun project(path: String, isTransitive: Boolean) {
                 includedProjects.compute(path) { _, oldValue -> oldValue == true || isTransitive }
+            }
+
+            override fun testFixtures(path: String) {
+                includedTestFixtures.add(path)
             }
         }
 
@@ -60,37 +61,24 @@ abstract class AnalysisApiArtifactExtension @Inject constructor(private val proj
             for ((projectPath, shouldBeTransitive) in includedProjects) {
                 artifactContent(project(projectPath)) { isTransitive = shouldBeTransitive }
             }
+
+            for (projectPath in includedTestFixtures) {
+                artifactContent(testFixtures(project(projectPath)) as ModuleDependency) { isTransitive = false }
+            }
         }
 
         sourcesJar {
             val artifactContentElements = configurations.getByName("artifactContentElements")
 
             // Build the included projects' artifacts so their code-generation tasks run and
-            // the generated sources exist on disk for 'addEmbeddedSources'.
+            // the generated sources exist on disk for the published project source JARs.
             dependsOn(artifactContentElements)
 
-            addEmbeddedSources(artifactContentElements.name)
+            addEmbeddedProjectSourcesJars(artifactContentElements.name)
             addEmbeddedLibrarySources(artifactContentElements)
         }
 
         javadocJar()
-    }
-
-    private fun Jar.addEmbeddedLibrarySources(configuration: Configuration) = with(project) {
-        val allLibrarySources by lazy {
-            val moduleComponentIds = configuration.incoming.resolutionResult.allComponents.map { it.id }
-
-            dependencies.createArtifactResolutionQuery()
-                .forComponents(moduleComponentIds)
-                .withArtifacts(JvmLibrary::class.java, SourcesArtifact::class.java)
-                .execute()
-                .resolvedComponents
-                .flatMap { it.getArtifacts(SourcesArtifact::class.java) }
-                .filterIsInstance<ResolvedArtifactResult>()
-                .map { zipTree(it.file) }
-        }
-
-        from({ allLibrarySources })
     }
 }
 
@@ -115,5 +103,19 @@ interface ArtifactContentBuilder {
      */
     fun projects(paths: Array<String>, isTransitive: Boolean = false) {
         projects(paths.asList(), isTransitive)
+    }
+
+    /**
+     * Include test fixtures of the project with the given [path] into the artifact.
+     * Neither the production code of the project nor dependencies of its test fixtures are included.
+     */
+    fun testFixtures(path: String)
+
+    /**
+     * Include test fixtures of all projects with the given [paths] into the artifact.
+     * Neither the production code of the projects nor dependencies of their test fixtures are included.
+     */
+    fun testFixtures(paths: Iterable<String>) {
+        paths.forEach { testFixtures(it) }
     }
 }

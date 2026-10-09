@@ -736,6 +736,15 @@ class Collections {
             // Sets do not support duplicates, so there is no way to add yet another 'c'
             assertFalse(set.add('c'))
             assertPrints(set, "[a, b, c]")
+
+            data class User(val name: String)
+
+            val alice = User("Alice")
+            val users = mutableSetOf(alice)
+            val anotherAlice = User("Alice")
+            assertPrints(users.add(anotherAlice), "false")
+            // the original instance of User("Alice") remains in the set after trying to add a duplicate
+            assertPrints(users.single() === alice, "true")
         }
 
         @Sample
@@ -1416,6 +1425,16 @@ class Collections {
         }
 
         @Sample
+        fun first() {
+            val list = listOf(1, 2, 3)
+            assertPrints(list.first(), "1")
+            assertPrints(list.first { it > 1 }, "2")
+            assertFailsWith<NoSuchElementException> { list.first { it > 3 } }
+
+            assertFailsWith<NoSuchElementException> { emptyList<Int>().first() }
+        }
+
+        @Sample
         fun getOrElse() {
             val list = listOf(1, 2, 3)
             assertPrints(list.getOrElse(0) { 42 }, "1")
@@ -1774,5 +1793,23 @@ class Collections {
             assertPrints(cats, "[Scratchy]")
         }
 
+    }
+
+    @Nested
+    inner class Deques {
+
+        @Sample
+        fun arrayDequeAddFirst() {
+            val deque = ArrayDeque(listOf(2, 3, 4))
+            deque.addFirst(1)
+            assertPrints(deque, "[1, 2, 3, 4]")
+        }
+
+        @Sample
+        fun arrayDequeAddLast() {
+            val deque = ArrayDeque(listOf(1, 2, 3))
+            deque.addLast(4)
+            assertPrints(deque, "[1, 2, 3, 4]")
+        }
     }
 }

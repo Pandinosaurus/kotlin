@@ -74,6 +74,7 @@ fun KGPBaseTest.project(
     localRepoDir: Path? = defaultLocalRepo(gradleVersion),
     environmentVariables: EnvironmentalVariables = EnvironmentalVariables(),
     dependencyManagement: DependencyManagement = DependencyManagement.DefaultDependencyManagement(),
+    compilerVersion: String? = null,
     test: TestProject.() -> Unit = {},
 ): TestProject {
     val projectPath = setupProjectFromTestResources(
@@ -85,6 +86,7 @@ fun KGPBaseTest.project(
     projectPath.addDefaultSettingsToSettingsGradle(
         dependencyManagement,
         localRepoDir,
+        compilerVersion,
     )
     projectPath.enableCacheRedirector()
     projectPath.enableAndroidSdk()
@@ -301,11 +303,7 @@ private fun TestProject.buildWithAction(
         )
         val gradleRunnerForBuild = gradleRunner
             .also { if (forwardBuildOutput) it.forwardOutput() }
-            .withEnvironment(
-                if (environmentVariables.environmentalVariables.isNotEmpty()) {
-                    System.getenv() + environmentVariables.environmentalVariables
-                } else null
-            )
+            .withEnvironment(environmentVariables.resolve())
             .withDebug(runWithDebug && !connectSubprocessVMToDebugger)
             .withArguments(allBuildArguments)
 
@@ -564,15 +562,48 @@ open class GradleProject(
 }
 
 /**
- * You need at least Gradle "7.0" for supporting environment variables with Gradle runner
+ * You need at least Gradle "7.0" for supporting environment variables with Gradle runner.
+ *
+ * [environmentProvider] receives the environment of the current process and returns the complete environment
+ * for the build, e.g. `EnvironmentalVariables { it - "CI" }`. The default `null` inherits the environment
+ * of the current process unchanged. To add or override variables on top of the current environment,
+ * use the secondary constructors taking a map or pairs.
  */
 class EnvironmentalVariables @EnvironmentalVariablesOverride constructor(
-    val environmentalVariables: Map<String, String> = emptyMap(),
+    private val environmentProvider: ((systemEnvironment: Map<String, String>) -> Map<String, String>)? = null,
 ) {
-    val overridingEnvironmentVariablesInstantiationBacktrace: Throwable? = if (environmentalVariables.isNotEmpty()) Throwable() else null
+    val overridingEnvironmentVariablesInstantiationBacktrace: Throwable? =
+        if (environmentProvider != null) Throwable() else null
+
+    /**
+     * Adds [environmentalVariables] on top of the environment of the current process.
+     */
+    @EnvironmentalVariablesOverride
+    constructor(environmentalVariables: Map<String, String>) : this(
+        // An empty map must not count as an override: it would force a forked daemon and disable `withDebug`
+        if (environmentalVariables.isEmpty()) null else ({ systemEnvironment -> systemEnvironment + environmentalVariables })
+    )
 
     @EnvironmentalVariablesOverride
-    constructor(vararg environmentVariables: Pair<String, String>) : this(mapOf(*environmentVariables))
+    constructor(vararg environmentalVariables: Pair<String, String>) : this(mapOf(*environmentalVariables))
+
+    /**
+     * The complete environment for the build, or `null` to inherit the environment of the current process.
+     */
+    fun resolve(): Map<String, String>? = environmentProvider?.invoke(System.getenv())
+
+    /**
+     * Variables that are added or changed compared to the environment of the current process,
+     * i.e. what has to be passed to a child process that inherits the current environment.
+     * Variables removed by [environmentProvider] cannot be expressed this way and are not included.
+     */
+    val environmentalVariables: Map<String, String>
+        get() {
+            val systemEnvironment = System.getenv()
+            return environmentProvider?.invoke(systemEnvironment)
+                ?.filter { (key, value) -> systemEnvironment[key] != value }
+                .orEmpty()
+        }
 }
 
 @RequiresOptIn("Environmental variables override may lead to interference of parallel builds")
@@ -792,6 +823,25 @@ private fun collectGradleJvmOptions(
     if (addHeapDumpOptions) {
         addAll(heapDumpJvmOptions())
     }
+
+    addJacocoRuntimeIfEnabled()
+}
+
+private fun MutableList<String>.addJacocoRuntimeIfEnabled() {
+    val testCoverageEnabled = System.getProperty("kgp.jacoco.enabled").toBoolean()
+    if (!testCoverageEnabled) return
+
+    val jacocoRuntimeJar = System.getProperty("jacocoRuntimeJar") ?: return
+    val jacocoDestFile = System.getProperty("jacocoDestFile") ?: return
+
+    // Offline instrumentation: probes are already embedded in bytecode.
+    // Add JaCoCo runtime to boot classpath so probes can reach it from any classloader.
+    add("-Xbootclasspath/a:$jacocoRuntimeJar")
+    // configure jacoco output instead of default task name files
+    add("-Djacoco-agent.destfile=${jacocoDestFile}")
+    // explicitly configure file strategy, it matches the defaults
+    add("-Djacoco-agent.append=true")
+    add("-Djacoco-agent.output=file")
 }
 
 private fun collectKotlinJvmArgs(
@@ -886,6 +936,7 @@ private val String.testProjectPath: Path get() = Paths.get("src", "test", "resou
 internal fun Path.addDefaultSettingsToSettingsGradle(
     dependencyManagement: DependencyManagement = DependencyManagement.DefaultDependencyManagement(),
     localRepo: Path? = null,
+    overrideCompilerVersion: String? = null,
 ) {
     addPluginManagementToSettings()
     when (dependencyManagement) {
@@ -896,6 +947,9 @@ internal fun Path.addDefaultSettingsToSettingsGradle(
             )
         }
         is DependencyManagement.DisabledDependencyManagement -> {}
+    }
+    if (overrideCompilerVersion != null) {
+        addCompilerVersionOverrideToSettings(overrideCompilerVersion)
     }
 }
 
@@ -1055,6 +1109,45 @@ internal fun Path.addPluginManagementToSettings() {
     }
 }
 
+
+internal fun Path.addCompilerVersionOverrideToSettings(compilerVersion: String) {
+    val buildGradle = resolve("build.gradle")
+    val buildGradleKts = resolve("build.gradle.kts")
+    val settingsGradle = resolve("settings.gradle")
+    val settingsGradleKts = resolve("settings.gradle.kts")
+    when {
+        Files.exists(settingsGradle) -> settingsGradle.append(getGroovyCompilerVersionBlock(compilerVersion))
+        Files.exists(settingsGradleKts) -> settingsGradleKts.append(getKtsCompilerVersionBlock(compilerVersion))
+        Files.exists(buildGradle) ->settingsGradle.writeText(getGroovyCompilerVersionBlock(compilerVersion))
+        Files.exists(buildGradleKts) -> settingsGradleKts.writeText(getKtsCompilerVersionBlock(compilerVersion))
+        else -> error("No build-file or settings file found")
+    }
+}
+
+private fun getKtsCompilerVersionBlock(compilerVersion: String) = """
+    gradle.lifecycle.beforeProject {
+        val action = Action<Any> {
+            val ext = extensions.getByName("kotlin")
+            val method = ext.javaClass.getMethod("getCompilerVersion")
+            val property = method.invoke(ext)
+            @Suppress("UNCHECKED_CAST")
+            (property as org.gradle.api.provider.Property<Any>).set("$compilerVersion")
+        }
+        plugins.withId("org.jetbrains.kotlin.jvm", action)
+        plugins.withId("org.jetbrains.kotlin.multiplatform", action)
+    }
+""".trimIndent()
+
+private fun getGroovyCompilerVersionBlock(compilerVersion: String) = """
+    gradle.lifecycle.beforeProject {     
+        plugins.withId("org.jetbrains.kotlin.jvm") {
+            extensions.getByName("kotlin").compilerVersion = "$compilerVersion"
+        }
+        plugins.withId("org.jetbrains.kotlin.multiplatform") {
+            extensions.getByName("kotlin").compilerVersion = "$compilerVersion"
+        }
+    }
+""".trimIndent()
 
 internal fun Path.addDependencyManagementToSettings(
     gradleRepositoriesMode: RepositoriesMode = RepositoriesMode.PREFER_SETTINGS,

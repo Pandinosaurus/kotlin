@@ -1,15 +1,13 @@
 import com.github.gradle.node.npm.task.NpmTask
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.TemporaryTestFederationApi
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 import java.util.*
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     kotlin("plugin.serialization")
@@ -19,7 +17,6 @@ plugins {
     // id("swc-configuration")
     id("nodejs-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -112,8 +109,11 @@ sourceSets {
 val testDataDir = project(":js:js.translator").projectDir.resolve("testData")
 
 fun Test.setUpJsBoxTests() {
-    with(nodeJsKotlinBuild) {
-        setupNodeJs(nodejsVersion)
+    val buildFeatures = project.serviceOf<BuildFeatures>()
+    if (!buildFeatures.isolatedProjects.active.get()) {
+        with(nodeJsKotlinBuild) {
+            setupNodeJs(nodejsVersion)
+        }
     }
 
     dependsOn(npmInstall)
@@ -124,8 +124,11 @@ fun Test.setUpJsBoxTests() {
 
     forwardProperties()
 
-    @OptIn(TemporaryTestFederationApi::class)
-    smokeTestConfig = SmokeTestConfig.Enabled(autoSmokeTestPercentage = 1)
+    testFederation {
+        smokeTests {
+            includeAutoSamples(percentage = 1)
+        }
+    }
 }
 
 fun Test.forwardProperties() {
@@ -151,11 +154,19 @@ projectTests {
         setUpJsBoxTests()
     }
 
-    jsTestTask(taskName = "jsTest", tag = "!es6", skipInLocalBuild = true) {
+    jsTestTask(taskName = "jsTest", tag = "!es6 & !jsNightlyOnly", skipInLocalBuild = true) {
         setUpJsBoxTests()
     }
 
-    jsTestTask(taskName = "jsES6Test", tag = "es6", skipInLocalBuild = true) {
+    jsTestTask(taskName = "jsES6Test", tag = "es6 & !jsNightlyOnly", skipInLocalBuild = true) {
+        setUpJsBoxTests()
+    }
+
+    jsTestTask(taskName = "jsES5InlineAnonymousFunctionsTest", tag = "!es6 & jsInlineAnonymousFunctions", skipInLocalBuild = true) {
+        setUpJsBoxTests()
+    }
+
+    jsTestTask(taskName = "jsES6InlineAnonymousFunctionsTest", tag = "es6 & jsInlineAnonymousFunctions", skipInLocalBuild = true) {
         setUpJsBoxTests()
     }
 
@@ -198,7 +209,6 @@ projectTests {
     withWasmRuntime()
 }
 
-testsJar {}
 
 val testJsFile = testDataDir.resolve("test.js")
 val packageJsonFile = testDataDir.resolve("package.json")

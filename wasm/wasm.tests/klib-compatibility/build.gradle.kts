@@ -1,6 +1,7 @@
+import org.gradle.kotlin.dsl.support.serviceOf
+
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     alias(libs.plugins.gradle.node)
@@ -8,7 +9,6 @@ plugins {
     id("d8-configuration")
     id("binaryen-configuration")
     id("nodejs-configuration")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -72,8 +72,11 @@ fun Project.customCompilerTest(
         with(binaryenKotlinBuild) {
             setupBinaryen()
         }
-        with(wasmNodeJsKotlinBuild) {
-            setupNodeJs(nodejsVersion)
+        val buildFeatures = project.serviceOf<BuildFeatures>()
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            with(wasmNodeJsKotlinBuild) {
+                setupNodeJs(nodejsVersion)
+            }
         }
         body()
     }
@@ -85,7 +88,8 @@ fun Project.customFirstStageTest(rawVersion: String): TaskProvider<out Task> {
     return customCompilerTest(
         version = version,
         taskName = "testCustomFirstStage_$version",
-        tag = "custom-first-stage"
+        tag = "custom-first-stage",
+        enableGroupingTestEngine = true,
     )
 }
 
@@ -107,6 +111,7 @@ fun Project.customStagesAggregateTest(rawVersion: String): TaskProvider<out Task
         version = version,
         taskName = "testMinimalInAggregate",
         tag = "aggregate",
+        enableGroupingTestEngine = true,
     )
 }
 

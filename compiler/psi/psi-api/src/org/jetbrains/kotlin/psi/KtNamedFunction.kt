@@ -2,6 +2,8 @@
  * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtIdeApi::class, KtImplementationDetail::class)
+
 package org.jetbrains.kotlin.psi
 
 import com.intellij.lang.ASTNode
@@ -11,6 +13,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.psiUtil.containingScript
 import org.jetbrains.kotlin.psi.psiUtil.isContractPresentPsiCheck
 import org.jetbrains.kotlin.psi.psiUtil.isKtFile
 import org.jetbrains.kotlin.psi.psiUtil.isLegacyContractPresentPsiCheck
@@ -32,6 +35,7 @@ import org.jetbrains.kotlin.psi.typeRefHelpers.getTypeReference
  *
  * Note: this class is not intended to be extended and is marked `open` solely for backward compatibility.
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 open class KtNamedFunction : KtTypeParameterListOwnerStub<KotlinFunctionStub>, KtFunction, KtDeclarationWithInitializer {
     @KtImplementationDetail
     constructor(node: ASTNode) : super(node)
@@ -160,8 +164,8 @@ open class KtNamedFunction : KtTypeParameterListOwnerStub<KotlinFunctionStub>, K
     @Deprecated(
         message = "Use setFunctionTypeReference(typeRef) instead",
         replaceWith = ReplaceWith("this.setFunctionTypeReference(typeRef)", "org.jetbrains.kotlin.idea.base.psi.setFunctionTypeReference"),
+        level = DeprecationLevel.ERROR,
     )
-    @OptIn(KtNonPublicApi::class)
     override fun setTypeReference(typeRef: KtTypeReference?): KtTypeReference? =
         KtPsiMutationService.getInstance().setFunctionTypeReference(this, typeRef)
 
@@ -169,6 +173,10 @@ open class KtNamedFunction : KtTypeParameterListOwnerStub<KotlinFunctionStub>, K
         findChildByType(KtTokens.COLON)
 
     override fun isLocal(): Boolean {
+        // Checked before `parent` since it forces AST loading for script declarations
+        @OptIn(KtExperimentalApi::class)
+        if (containingScript != null) return false
+
         val parent = parent
         return when {
             parent == null -> {
@@ -177,7 +185,6 @@ open class KtNamedFunction : KtTypeParameterListOwnerStub<KotlinFunctionStub>, K
             }
             isKtFile(parent) -> false
             parent is KtClassBody -> false
-            parent.parent is KtScript -> false
             else -> true
         }
     }

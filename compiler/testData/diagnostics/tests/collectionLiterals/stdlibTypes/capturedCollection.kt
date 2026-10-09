@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +CollectionLiterals
+// RUN_PIPELINE_TILL: CODEGEN
 
 fun MutableList<in List<Int>>.addCL() {
     add([])

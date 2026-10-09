@@ -140,10 +140,6 @@ fun BuildResult.extractProjectsAndTheirDiagnosticsInBlocks(): List<String> {
                 // Environment-dependent and expected to differ between local and CI setups.
             }
 
-            KotlinToolingDiagnostics.DeprecatedGradleVersionWarning.id in firstDiagnosticLine -> {
-                // Generic diagnostic that has a dedicated test.
-            }
-
             KotlinToolingDiagnostics.InternalKotlinGradlePluginPropertiesUsed.id in firstDiagnosticLine -> {
                 val cleanedDiagnostic = filterKgpUtilityPropertiesFromDiagnostic(currentDiagnostic)
                 if (cleanedDiagnostic.isNotEmpty()) blocks += cleanedDiagnostic.joinToString(separator = "\n", postfix = "\n")
@@ -159,7 +155,7 @@ fun BuildResult.extractProjectsAndTheirDiagnosticsInBlocks(): List<String> {
     }
 
 
-    for ([index, line] in output.lines().withIndex()) {
+    for ((index, line) in output.lines().withIndex()) {
         when {
             line.trim() == VERBOSE_DIAGNOSTIC_SEPARATOR -> endDiagnostic(line, index)
 
@@ -244,7 +240,7 @@ private fun extractRenderedDiagnostics(
 
     return generateSequence {
         extractNextDiagnosticAndIndex(diagnostic, fromText, startIndex = parsedPrefix, expectedSeverity = expectedSeverity)
-            ?.also { [_, newPrefix] -> parsedPrefix = newPrefix }
+            ?.also { (_, newPrefix) -> parsedPrefix = newPrefix }
             ?.first
     }.toList()
 }

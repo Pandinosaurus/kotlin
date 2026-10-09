@@ -2,6 +2,8 @@
  * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
+
 package org.jetbrains.kotlin.psi
 
 import com.intellij.lang.ASTNode
@@ -25,6 +27,7 @@ import org.jetbrains.kotlin.psi.stubs.KotlinPropertyAccessorStub
  *
  * Note: this class is not intended to be extended and is marked `open` solely for backward compatibility.
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 open class KtPropertyAccessor : KtDeclarationStub<KotlinPropertyAccessorStub>, KtDeclarationWithBody, KtModifierListOwner,
     KtDeclarationWithInitializer, KtDeclarationWithReturnType {
     @KtImplementationDetail
@@ -153,6 +156,7 @@ open class KtPropertyAccessor : KtDeclarationStub<KotlinPropertyAccessorStub>, K
     @Deprecated(
         message = "Use typeReference instead",
         replaceWith = ReplaceWith("typeReference"),
+        level = DeprecationLevel.ERROR,
     )
     open val returnTypeReference: KtTypeReference?
         get() = typeReference
@@ -161,6 +165,7 @@ open class KtPropertyAccessor : KtDeclarationStub<KotlinPropertyAccessorStub>, K
     @Deprecated(
         message = "use `parameterList?.leftParenthesis`",
         replaceWith = ReplaceWith("parameterList?.leftParenthesis"),
+        level = DeprecationLevel.ERROR,
     )
     open val leftParenthesis: PsiElement?
         get() = parameterList?.leftParenthesis
@@ -169,6 +174,7 @@ open class KtPropertyAccessor : KtDeclarationStub<KotlinPropertyAccessorStub>, K
     @Deprecated(
         message = "use `parameterList?.rightParenthesis`",
         replaceWith = ReplaceWith("parameterList?.rightParenthesis"),
+        level = DeprecationLevel.ERROR,
     )
     open val rightParenthesis: PsiElement?
         get() = parameterList?.rightParenthesis

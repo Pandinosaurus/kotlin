@@ -5,24 +5,30 @@
 
 package org.jetbrains.kotlin.konan.test.klib
 
+import org.jetbrains.kotlin.backend.konan.library.InternalKlibDAGApi
+import org.jetbrains.kotlin.backend.konan.library.KlibDAG
 import org.jetbrains.kotlin.backend.konan.library.KlibDAGBuilder
 import org.jetbrains.kotlin.konan.library.KlibNativeDistributionLibraryProvider
 import org.jetbrains.kotlin.konan.test.blackbox.AbstractNativeSimpleTest
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.KotlinNativeHome
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.KotlinNativeTargets
+import org.jetbrains.kotlin.library.KotlinLibrary
+import org.jetbrains.kotlin.library.isNativeStdlib
 import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.library.loader.reportLoadingProblemsIfAny
+import org.jetbrains.kotlin.library.uniqueName
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Tag
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInfo
 import org.junit.jupiter.api.fail
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.junit.jupiter.api.parallel.Isolated
-import java.nio.file.Path
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import kotlin.io.path.pathString
 import kotlin.time.Duration
 import kotlin.time.measureTime
@@ -33,56 +39,203 @@ import kotlin.time.measureTime
 @Execution(ExecutionMode.SAME_THREAD)
 class KlibDAGBuilderBenchmarkTest : AbstractNativeSimpleTest() {
 
+    private lateinit var testInfo: TestInfo
+
+    @BeforeEach
+    fun setUp(testInfo: TestInfo) {
+        this.testInfo = testInfo
+    }
+
     /**
      * Benchmarking results (Apple M2 Max):
+     * - roots: []
      * - target: macos_arm64
      * - number of libraries: 177 (stdlib + platform libs)
-     * - average duration is 2.97s
-     * - median duration is 2.97s
+     * - resulting DAG size: 1
+     * - median duration: < 1ms (any mode)
      */
-    @Test
-    fun `stdlib and platform libraries only`(testInfo: TestInfo) {
+    @ParameterizedTest
+    @EnumSource
+    fun `stdlib and platform libraries only (no roots)`(mode: KlibDAGBuildingMode) {
         benchmark(
             testName = testInfo.testMethod.get().name,
-            extraLibraryPaths = emptyList(),
+            extraLibraryPaths = emptySet(),
+            isRoot = { false },
+            expectedRootsNumber = 0,
+            mode,
         )
     }
 
     /**
      * Benchmarking results (Apple M2 Max):
+     * - roots: [stdlib, Foundation]
+     * - target: macos_arm64
+     * - number of libraries: 177 (stdlib + platform libs)
+     * - resulting DAG size: 10
+     * - median duration:
+     *   - no indices: 665 ms
+     *   - with indices: 4 ms
+     */
+    @ParameterizedTest
+    @EnumSource
+    fun `stdlib and platform libraries only (roots = stdlib + Foundation)`(mode: KlibDAGBuildingMode) {
+        benchmark(
+            testName = testInfo.testMethod.get().name,
+            extraLibraryPaths = emptySet(),
+            isRoot = { it.isNativeStdlib || it.uniqueName.endsWith(".Foundation") },
+            expectedRootsNumber = 2,
+            mode,
+        )
+    }
+
+    /**
+     * Benchmarking results (Apple M2 Max):
+     * - roots: 20 regular user libs
      * - target: macos_arm64
      * - number of libraries: 197 (stdlib + platform libs + 20 user libs)
-     * - average duration is 3.17s
-     * - median duration is 3.17s
+     * - resulting DAG size: 21
+     * - median duration:
+     *   - no indices: 10 ms
+     *   - with indices: 5 ms
      */
-    @Test
-    fun `stdlib and platform libraries with 20 user libraries`(testInfo: TestInfo) {
+    @ParameterizedTest
+    @EnumSource
+    fun `stdlib and platform libraries (roots = 20 + 0 user libs)`(mode: KlibDAGBuildingMode) {
+        val userLibraryPaths = generateUserLibraries(regularLibsNumber = 20, cInteropLibsNumber = 0)
+
         benchmark(
             testName = testInfo.testMethod.get().name,
-            extraLibraryPaths = generateUserLibraries(regularLibsNumber = 15, cInteropLibsNumber = 5),
+            extraLibraryPaths = userLibraryPaths,
+            isRoot = { it.canonicalPath.pathString in userLibraryPaths },
+            expectedRootsNumber = 20,
+            mode,
         )
     }
 
     /**
      * Benchmarking results (Apple M2 Max):
+     * - roots: 15 regular + 5 C-interop user libs
      * - target: macos_arm64
-     * - number of libraries: 277 (stdlib + platform libs + 100 user libs)
-     * - average duration is 6.48s
-     * - median duration is 6.49s
+     * - number of libraries: 197 (stdlib + platform libs + 20 user libs)
+     * - resulting DAG size: 21
+     * - median duration:
+     *   - no indices: 74 ms
+     *   - with indices: 6 ms
      */
-    @Test
-    fun `stdlib and platform libraries with 100 user libraries`(testInfo: TestInfo) {
+    @ParameterizedTest
+    @EnumSource
+    fun `stdlib and platform libraries (roots = 15 + 5 user libs)`(mode: KlibDAGBuildingMode) {
+        val userLibraryPaths = generateUserLibraries(regularLibsNumber = 15, cInteropLibsNumber = 5)
+
         benchmark(
             testName = testInfo.testMethod.get().name,
-            extraLibraryPaths = generateUserLibraries(regularLibsNumber = 75, cInteropLibsNumber = 25),
+            extraLibraryPaths = userLibraryPaths,
+            isRoot = { it.canonicalPath.pathString in userLibraryPaths },
+            expectedRootsNumber = 20,
+            mode,
         )
     }
 
-    private fun generateUserLibraries(regularLibsNumber: Int, cInteropLibsNumber: Int): List<Path> {
-        require(regularLibsNumber > 0)
-        require(cInteropLibsNumber > 0)
+    /**
+     * Benchmarking results (Apple M2 Max):
+     * - roots: 10 regular + 10 C-interop user libs
+     * - target: macos_arm64
+     * - number of libraries: 197 (stdlib + platform libs + 20 user libs)
+     * - resulting DAG size: 21
+     * - median duration:
+     *   - no indices: 155 ms
+     *   - with indices: 9 ms
+     */
+    @ParameterizedTest
+    @EnumSource
+    fun `stdlib and platform libraries (roots = 10 + 10 user libs)`(mode: KlibDAGBuildingMode) {
+        val userLibraryPaths = generateUserLibraries(regularLibsNumber = 10, cInteropLibsNumber = 10)
 
-        val generatedLibraries = mutableListOf<Path>()
+        benchmark(
+            testName = testInfo.testMethod.get().name,
+            extraLibraryPaths = userLibraryPaths,
+            isRoot = { it.canonicalPath.pathString in userLibraryPaths },
+            expectedRootsNumber = 20,
+            mode,
+        )
+    }
+
+    /**
+     * Benchmarking results (Apple M2 Max):
+     * - roots: 100 regular user libs
+     * - target: macos_arm64
+     * - number of libraries: 277 (stdlib + platform libs + 100 user libs)
+     * - resulting DAG size: 101
+     * - median duration:
+     *   - no indices: 54 ms
+     *   - with indices: 25 ms
+     */
+    @ParameterizedTest
+    @EnumSource
+    fun `stdlib and platform libraries (roots = 100 + 0 user libs)`(mode: KlibDAGBuildingMode) {
+        val userLibraryPaths = generateUserLibraries(regularLibsNumber = 100, cInteropLibsNumber = 0)
+
+        benchmark(
+            testName = testInfo.testMethod.get().name,
+            extraLibraryPaths = userLibraryPaths,
+            isRoot = { it.canonicalPath.pathString in userLibraryPaths },
+            expectedRootsNumber = 100,
+            mode,
+        )
+    }
+
+    /**
+     * Benchmarking results (Apple M2 Max):
+     * - roots: 75 regular and 25 C-interop user libs
+     * - target: macos_arm64
+     * - number of libraries: 277 (stdlib + platform libs + 100 user libs)
+     * - resulting DAG size: 101
+     * - median duration:
+     *   - no indices: 1.15 s
+     *   - with indices: 35 ms
+     */
+    @ParameterizedTest
+    @EnumSource
+    fun `stdlib and platform libraries (roots = 75 + 25 user libs)`(mode: KlibDAGBuildingMode) {
+        val userLibraryPaths = generateUserLibraries(regularLibsNumber = 75, cInteropLibsNumber = 25)
+
+        benchmark(
+            testName = testInfo.testMethod.get().name,
+            extraLibraryPaths = userLibraryPaths,
+            isRoot = { it.canonicalPath.pathString in userLibraryPaths },
+            expectedRootsNumber = 100,
+            mode,
+        )
+    }
+
+    /**
+     * Benchmarking results (Apple M2 Max):
+     * - roots: 50 regular and 50 C-interop user libs
+     * - target: macos_arm64
+     * - number of libraries: 277 (stdlib + platform libs + 100 user libs)
+     * - resulting DAG size: 101
+     * - median duration:
+     *   - no indices: 5.19 s
+     *   - with indices: 66 ms
+     */
+    @ParameterizedTest
+    @EnumSource
+    fun `stdlib and platform libraries (roots = 50 + 50 user libs)`(mode: KlibDAGBuildingMode) {
+        val userLibraryPaths = generateUserLibraries(regularLibsNumber = 50, cInteropLibsNumber = 50)
+
+        benchmark(
+            testName = testInfo.testMethod.get().name,
+            extraLibraryPaths = userLibraryPaths,
+            isRoot = { it.canonicalPath.pathString in userLibraryPaths },
+            expectedRootsNumber = 100,
+            mode,
+        )
+    }
+
+    private fun generateUserLibraries(regularLibsNumber: Int, cInteropLibsNumber: Int): Set<String> {
+        require(regularLibsNumber + cInteropLibsNumber > 0)
+
+        val generatedLibraries = hashSetOf<String>()
 
         /*
          * Build `regularLibsNumber` regular modules and `cInteropLibsNumber` C-interop modules in the following way:
@@ -138,14 +291,25 @@ class KlibDAGBuilderBenchmarkTest : AbstractNativeSimpleTest() {
 
                 regularModuleNames += thisModuleName
             }
-        }.compileToKlibsViaCli { _, successKlib -> generatedLibraries.add(successKlib.resultingArtifact.klibFile.toPath()) }
+        }.compileToKlibsViaCli { _, successKlib -> generatedLibraries.add(successKlib.resultingArtifact.klibFile.canonicalPath) }
 
         assertEquals(regularLibsNumber + cInteropLibsNumber, generatedLibraries.size)
 
         return generatedLibraries
     }
 
-    private fun benchmark(testName: String, extraLibraryPaths: List<Path>) {
+    private fun benchmark(
+        testName: String,
+        extraLibraryPaths: Set<String>,
+        isRoot: (KotlinLibrary) -> Boolean,
+        expectedRootsNumber: Int, // Sanity check.
+        mode: KlibDAGBuildingMode,
+    ) {
+        repeat(2) {
+            System.gc()
+            Thread.sleep(100)
+        }
+
         // Load libraries.
         val target = testRunSettings.get<KotlinNativeTargets>().testTarget
 
@@ -156,23 +320,32 @@ class KlibDAGBuilderBenchmarkTest : AbstractNativeSimpleTest() {
                     withPlatformLibs(target)
                 }
             )
-            libraryPaths(extraLibraryPaths.map { it.pathString })
+            libraryPaths(extraLibraryPaths.toList())
         }.load()
 
         loadingResult.reportLoadingProblemsIfAny { _, message -> fail { message } }
         assertFalse(loadingResult.hasProblems)
 
-        val libraries = loadingResult.librariesStdlibFirst
+        val allLibraries = loadingResult.librariesStdlibFirst
+        val roots = allLibraries.filter { isRoot(it) }.toSet()
+
+        // Sanity check.
+        assertEquals(expectedRootsNumber, roots.size)
+
+        var latestDag: KlibDAG? = null
 
         // Run the benchmark.
         runBenchWithWarmup(
-            name = "$testName ($target, ${libraries.size} libraries)",
+            name = "$testName ($target, ${allLibraries.size} libraries)",
             warmupRounds = 10,
-            benchmarkRounds = 5,
+            benchmarkRounds = 20,
             pre = System::gc,
-            post = {},
+            post = {
+                println("The computed DAG size is: ${latestDag!!.librariesReverseTopoSorted.size}")
+            },
         ) {
-            KlibDAGBuilder.build(libraries)
+            @OptIn(InternalKlibDAGApi::class)
+            latestDag = KlibDAGBuilder(allLibraries, useSignatureIndices = mode.useSignatureIndices) { it in roots }.build()
         }
     }
 

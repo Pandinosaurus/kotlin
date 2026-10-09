@@ -1,10 +1,8 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("gradle-plugin-compiler-dependency-configuration")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -25,7 +23,7 @@ dependencies {
     implementation(project(":compiler:backend"))
     implementation(project(":compiler:backend.jvm.entrypoint"))
     implementation(project(":compiler:plugin-api"))
-    implementation(project(":compiler:fir:semantics"))
+    implementation(project(":compiler:fir:semantics.api"))
     implementation(project(":compiler:fir:fir-jvm"))
     implementation(project(":compiler:fir:entrypoint"))
     implementation(project(":compiler:fir:fir2ir"))

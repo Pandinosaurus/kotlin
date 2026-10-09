@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.backend.js.JsCommonBackendContext
 import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
 import org.jetbrains.kotlin.ir.backend.js.utils.realOverrideTarget
+import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
 import org.jetbrains.kotlin.ir.declarations.IrFunction
@@ -25,6 +26,7 @@ import org.jetbrains.kotlin.ir.symbols.IrReturnTargetSymbol
 import org.jetbrains.kotlin.ir.symbols.IrReturnableBlockSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.isPrimitiveArray
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
@@ -118,7 +120,7 @@ abstract class AbstractValueUsageLowering(
     }
 }
 
-class AutoboxingTransformer(context: JsCommonBackendContext, replaceTypesInsideInlinedFunctionBlock: Boolean = false) :
+open class AutoboxingTransformer(context: JsCommonBackendContext, replaceTypesInsideInlinedFunctionBlock: Boolean = false) :
     AbstractValueUsageLowering(context, replaceTypesInsideInlinedFunctionBlock) {
     private var processingReturnStack = mutableListOf<IrReturn>()
 
@@ -225,6 +227,18 @@ class AutoboxingTransformer(context: JsCommonBackendContext, replaceTypesInsideI
                 )
             )
         }
+    }
+
+    // Backing fields of inline classes are accessed directly on the unboxed value (see codegen),
+    // so the receiver must be unboxed if it is represented as a boxed instance (e.g. `Any?` after an implicit cast removal).
+    override fun visitFieldAccess(expression: IrFieldAccessExpression): IrExpression {
+        val fieldParent = expression.symbol.owner.parent as? IrClass ?
+
+        if (fieldParent != null && icUtils.isClassInlineLike(fieldParent)) {
+            expression.receiver = expression.receiver?.useAs(fieldParent.defaultType)
+        }
+
+        return super.visitFieldAccess(expression)
     }
 
     override fun visitCall(expression: IrCall): IrExpression {

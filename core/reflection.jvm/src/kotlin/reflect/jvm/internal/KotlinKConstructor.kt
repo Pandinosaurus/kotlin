@@ -9,7 +9,10 @@ import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.jvm.internal.CallableReference
 import kotlin.metadata.*
 import kotlin.metadata.jvm.JvmMethodSignature
+import kotlin.metadata.jvm.hasAnnotationsInBytecode
 import kotlin.metadata.jvm.signature
+import kotlin.reflect.ExperimentalCompanionExtensions
+import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.createDefaultType
@@ -19,7 +22,7 @@ internal class KotlinKConstructor(
     signature: String,
     rawBoundReceiver: Any?,
     private val kmConstructor: KmConstructor,
-) : KotlinKFunction(container, signature, rawBoundReceiver, KCallableOverriddenStorage.EMPTY) {
+) : KotlinKFunction(container, signature, rawBoundReceiver, rawBoundContextArguments = emptyList(), KCallableOverriddenStorage.EMPTY) {
     override val contextParameters: List<KmValueParameter> get() = emptyList()
     override val extensionReceiverType: KmType? get() = null
     override val valueParameters: List<KmValueParameter> get() = kmConstructor.valueParameters
@@ -27,6 +30,7 @@ internal class KotlinKConstructor(
     override val jvmSignature: JvmMethodSignature
         get() = kmConstructor.signature ?: throw KotlinReflectionInternalError("No signature for constructor: $this")
     override val metadataAnnotations: List<KmAnnotation> get() = kmConstructor.annotations
+    override val hasAnnotationsInBytecode: Boolean get() = kmConstructor.hasAnnotationsInBytecode
 
     override val name: String
         get() = "<init>"
@@ -49,12 +53,17 @@ internal class KotlinKConstructor(
 
     override val isCompanionBlockMember: Boolean get() = false
 
+    @ExperimentalCompanionExtensions
+    override val companionExtensionClass: KClass<*>? get() = null
+
     override fun shallowCopy(container: KDeclarationContainerImpl, overriddenStorage: KCallableOverriddenStorage): ReflectKCallable<Any?> {
         require(overriddenStorage == KCallableOverriddenStorage.EMPTY) { "Constructors cannot have fake overrides: $this" }
         return KotlinKConstructor(container, signature, CallableReference.NO_RECEIVER, kmConstructor)
     }
 
-    override fun rebind(boundReceiver: Any?): ReflectKCallable<Any?> =
-        if (this.rawBoundReceiver === boundReceiver) this
-        else KotlinKConstructor(container, signature, boundReceiver, kmConstructor)
+    override fun bindToLowerArity(boundReceiver: Any?, boundContextArguments: List<Any?>): ReflectKCallable<Any?> {
+        require(boundContextArguments.isEmpty()) { "Constructors cannot have bound context arguments: $this" }
+        return KotlinKConstructor(container, signature, boundReceiver, kmConstructor)
+    }
+
 }

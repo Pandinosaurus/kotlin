@@ -39,7 +39,6 @@ interop support or [cms GC](src/gc/cms) with Concurrent Mark&Sweep GC implementa
 
 The main module contains:
 * C++ parts of the [Native stdlib](#stdlib)
-  * [dtoa](src/main/cpp/dtoa): vendored part of Apache Harmony for float <-> string
   * scattered around the code
 * Core runtime code
   * [mm](src/main/cpp/mm): mostly memory management, the name comes from legacy MM / new MM split which doesn't make much sense anymore
@@ -58,7 +57,7 @@ The main module contains:
   * [Default](src/alloc/custom)
   * [Legacy](src/alloc/legacy)
 * Calls Checker: sanitizer-like instrumentation to help catch external function calls in the wrong thread state
-  (usually indicates a bug in the runtime or the code generator)
+  (usually indicates a bug in the runtime or the code generator); [docs](src/externalCallsChecker)
   * [API](src/main/cpp/CallsChecker.hpp)
   * [No-op](src/externalCallsChecker/noop)
   * [Implementation](src/externalCallsChecker/impl): runtime for the Calls Checker instrumentation; the instrumentation lives in [libllvmext](../libllvmext)

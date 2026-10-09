@@ -1,6 +1,5 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
@@ -18,9 +17,8 @@ dependencies {
     implementation(project(":compiler:compiler.version"))
     implementation(project(":compiler:config"))
     implementation(project(":compiler:fir:fir2ir"))
-    implementation(project(":compiler:fir:providers"))
     implementation(project(":compiler:fir:resolve"))
-    implementation(project(":compiler:fir:semantics"))
+    implementation(project(":compiler:fir:semantics.api"))
     implementation(project(":compiler:fir:tree"))
     implementation(project(":compiler:frontend.common"))
     implementation(project(":compiler:ir.tree"))

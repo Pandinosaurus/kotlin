@@ -16,10 +16,10 @@ import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 /**
  * Represents a qualified expression, which accesses a member or extension
- * on a receiver using the `.` or `?.` operator.
+ * on a receiver using the `.`, `?.`, or `|.` operator.
  *
  * [receiverExpression] is the left-hand side, [selectorExpression] is the right-hand side,
- * and [operationSign] is the operator token (`.` or `?.`).
+ * and [operationSign] is the operator token (`.`, `?.`, or `|.`).
  *
  * ### Examples:
  *
@@ -33,9 +33,15 @@ import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
  * //        ^_________^
  * ```
  *
+ * ```kotlin
+ * val len = str|.length
+ * //        ^_________^
+ * ```
+ *
  * @see KtDotQualifiedExpression
  * @see KtSafeQualifiedExpression
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 interface KtQualifiedExpression : KtExpression, KtResolvableCall {
     /**
      * The receiver on the left-hand side of the `.` or `?.` operator. Throws if the receiver is missing; use [receiverExpressionOrNull]
@@ -64,7 +70,7 @@ interface KtQualifiedExpression : KtExpression, KtResolvableCall {
         get() = getExpression(true)
 
     /**
-     * The AST node of the qualification operator (`.` or `?.`). Throws if it is missing.
+     * The AST node of the qualification operator (`.`, `?.`, or `|.`). Throws if it is missing.
      */
     val operationTokenNode: ASTNode
         get() = operationTokenNodeOrNull ?: error(
@@ -75,7 +81,7 @@ interface KtQualifiedExpression : KtExpression, KtResolvableCall {
         get() = node.findChildByType(KtTokens.OPERATIONS)
 
     /**
-     * The qualification operator token: [KtTokens.DOT] for `.` or [KtTokens.SAFE_ACCESS] for `?.`.
+     * The qualification operator token: [KtTokens.DOT] for `.`, [KtTokens.SAFE_ACCESS] for `?.`, or [KtTokens.ERROR_SAFE_ACCESS] for `|.`.
      */
     val operationSign: KtSingleValueToken
         get() = operationTokenNode.elementType as KtSingleValueToken

@@ -8,7 +8,7 @@ kotlin {
 
     // Create target for the host platform.
     val hostTarget = when {
-        hostOs == "Mac OS X" -> macosX64("csvParser")
+        hostOs == "Mac OS X" -> macosArm64("csvParser")
         hostOs == "Linux" -> linuxX64("csvParser")
         hostOs.startsWith("Windows") -> mingwX64("csvParser")
         else -> throw GradleException("Host OS '$hostOs' is not supported in Kotlin/Native $project.")
@@ -17,7 +17,7 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.5")
+                implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.6")
             }
         }
     }

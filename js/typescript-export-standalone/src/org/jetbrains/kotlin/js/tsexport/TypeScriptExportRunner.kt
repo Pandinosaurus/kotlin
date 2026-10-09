@@ -33,6 +33,7 @@ public data class TypeScriptExportConfig(
     public val exportableSuspendLambdas: Boolean,
     public val dataClassCopyRespectsConstructorVisibility: Boolean,
     public val useUnknownInsteadAny: Boolean,
+    public val additionalExportedDeclarationNames: Set<FqName> = emptySet(),
 )
 
 public typealias InputModule = KlibInputModule<TypeScriptModuleConfig>
@@ -57,6 +58,8 @@ public fun runTypeScriptExport(klibs: List<KlibInputModule<TypeScriptModuleConfi
             generator.generateExport(kaModules)
         }
     }
+
+    if (exportModel.isEmpty()) return emptyList()
 
     val artifacts = TsArtifactProducer.generateArtifacts(exportModel, config.artifactConfiguration.granularity)
     config.artifactConfiguration.outputDirectory.normalizedAbsoluteFile.mkdirs()

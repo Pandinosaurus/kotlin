@@ -25,8 +25,10 @@ import org.jetbrains.kotlin.sir.providers.utils.deprecatedAnnotation
 import org.jetbrains.kotlin.sir.providers.utils.hasNonPublicOptIns
 import org.jetbrains.kotlin.sir.providers.utils.isAbstract
 import org.jetbrains.kotlin.sir.providers.utils.isFromTemporarilyIgnoredPackage
+import org.jetbrains.kotlin.sir.providers.utils.resolveUpperBound
 import org.jetbrains.kotlin.sir.providers.withSessions
 import org.jetbrains.kotlin.sir.util.SirPlatformModule
+import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.findIsInstanceAnd
 import org.jetbrains.kotlin.utils.zipIfSizesAreEqual
@@ -83,11 +85,20 @@ public class SirVisibilityCheckerImpl(
         if (ktSymbol is KaCallableSymbol && hasUnsupportedInputTypeParameters(ktSymbol)) {
             return@withSessions SirAvailability.Unavailable("Callables with parameters unbound generic types are not supported yet")
         }
+        if (ktSymbol is KaCallableSymbol && ktSymbol.typeParameters.hasUnsupportedFBoundedTypeParameters()) {
+            return@withSessions SirAvailability.Unavailable("Callables with F-bounded generics are not supported yet")
+        }
         if (containsHidesFromObjCAnnotation(ktSymbol)) {
             return@withSessions SirAvailability.Unavailable("Declaration is @HiddenFromObjC")
         }
-        if ((ktSymbol.containingSymbol as? KaDeclarationSymbol?)?.sirAvailability() is SirAvailability.Unavailable) {
-            return@withSessions SirAvailability.Unavailable("Declaration's lexical parent is unavailable")
+        if (ktSymbol is KaNamedFunctionSymbol && ktSymbol.overridesKotlinAnyMember()) {
+            // `toString`, `hashCode` and `equals` pre provided as `description`, `hash`, and `isEqual` by KotlinBase.
+            return@withSessions SirAvailability.Unavailable("kotlin.Any members are exposed as through KotlinBase")
+        }
+        when (val parentAvailability = (ktSymbol.containingSymbol as? KaDeclarationSymbol?)?.sirAvailability()) {
+            is SirAvailability.Unavailable -> return@withSessions SirAvailability.Unavailable("Declaration's lexical parent is unavailable")
+            is SirAvailability.Available -> visibility.value = parentAvailability.visibility
+            is SirAvailability.Hidden, null -> {}
         }
         if (ktSymbol.hasNonPublicOptIns) {
             return@withSessions SirAvailability.Unavailable("Declarations with non-public OptIn requirements are unsupported")
@@ -169,6 +180,10 @@ public class SirVisibilityCheckerImpl(
         return@withSessions true
     }
 
+    private fun KaNamedFunctionSymbol.overridesKotlinAnyMember(): Boolean = sirSession.withSessions {
+        allOverriddenSymbols.any { (it.containingDeclaration as? KaClassSymbol)?.classId == KaStandardTypeClassIds.ANY }
+    }
+
     private fun KaNamedClassSymbol.isExported(): SirAvailability = sirSession.withSessions {
 
         if (hasHiddenAncestors()) {
@@ -193,6 +208,10 @@ public class SirVisibilityCheckerImpl(
         }
         if (classKind == KaClassKind.ANNOTATION_CLASS || classKind == KaClassKind.ANONYMOUS_OBJECT) {
             return@withSessions SirAvailability.Unavailable("Annotation or Anonymous")
+        }
+        if (isKotlinObjCClass()) {
+            unsupportedDeclarationReporter.report(this@isExported, "Kotlin subclasses of Objective-C classes are not supported.")
+            return@withSessions SirAvailability.Unavailable("Kotlin subclass of an Objective-C class")
         }
         if (classKind == KaClassKind.ENUM_CLASS) {
             if (superTypes.any { it.symbol?.classId?.asSingleFqName() == FqName("kotlinx.cinterop.CEnum") }) {
@@ -245,6 +264,19 @@ public class SirVisibilityCheckerImpl(
         }
     }
 
+    private fun KaNamedClassSymbol.isKotlinObjCClass(): Boolean = sirSession.withSessions {
+        val externalObjCClassClassId = ClassId.fromString("kotlinx/cinterop/ExternalObjCClass")
+        val objCObjectClassId = ClassId.fromString("kotlinx/cinterop/ObjCObject")
+
+        if (origin == KaSymbolOrigin.NATIVE_FORWARD_DECLARATION) return@withSessions false
+        if (classId?.packageFqName == objCObjectClassId.packageFqName) return@withSessions false
+
+        val isImportedFromObjC = generateSequence<KaClassSymbol>(this@isKotlinObjCClass) { it.containingSymbol as? KaClassSymbol }
+            .any { externalObjCClassClassId in it.annotations }
+
+        !isImportedFromObjC && defaultType.allSupertypes.any { it.symbol?.classId == objCObjectClassId }
+    }
+
     private fun KaNamedClassSymbol.isAllContainingSymbolsExported(): Boolean = sirSession.withSessions {
         if (containingSymbol !is KaNamedClassSymbol) return@withSessions true
         return@withSessions (containingSymbol as? KaNamedClassSymbol)?.isExported() is SirAvailability.Available
@@ -279,7 +311,7 @@ context(ka: KaSession, sirSession: SirSession)
 private fun hasUnboundInputTypeParameters(
     type: KaType,
     isReturnType: Boolean
-): Boolean = (type.fullyExpandedType as? KaClassType)?.let { classType ->
+): Boolean = (type.resolveUpperBound()?.fullyExpandedType as? KaClassType)?.let { classType ->
     if (sirSession.isTypeSupported(classType)) return@let false
     if (classType.classId in SirTypeProviderImpl.FLOW_CLASS_IDS) return@let false
     if (classType is KaFunctionType) {
@@ -293,20 +325,13 @@ private fun hasUnboundInputTypeParameters(
     } else if (isReturnType) {
         return@let false
     }
-    fun getUpperBound(typeParam: KaTypeParameterSymbol): KaType? {
-        val upperBounds = typeParam.upperBounds
-        if (upperBounds.isEmpty()) return ka.builtinTypes.nullableAny // no upperbound indicates Any?
-        return upperBounds.singleOrNull() // null indicates multiple bounds
-    }
-
-    val typeParamUpperBounds = classType.symbol.typeParameters.map(::getUpperBound)
-    if (typeParamUpperBounds.isEmpty()) return@let false
-    classType.typeArguments.zipIfSizesAreEqual(typeParamUpperBounds)?.any { [argument, bound] ->
-        var type = argument.type
-        if (type is KaTypeParameterType) {
-            type = getUpperBound(type.symbol)
-        }
-        type?.let { it != bound } ?: false // .type == null indicates star projection
+    val typeParameters = classType.symbol.typeParameters
+    if (typeParameters.isEmpty()) return@let false
+    typeParameters.zipIfSizesAreEqual(classType.typeArguments)?.any { [param, arg] ->
+        if (param.variance == Variance.IN_VARIANCE) return@any false
+        val upperBound = param.resolveUpperBound() ?: ka.builtinTypes.nullableAny
+        val type = arg.type?.let { it.resolveUpperBound() ?: ka.builtinTypes.nullableAny }
+        type?.let { it != upperBound } ?: false // .type == null indicates star projection
     } ?: false
 } ?: false
 
@@ -321,3 +346,23 @@ private val KaCallableSymbol.allParameters: List<KaParameterSymbol>
 
 context(ka: KaSession)
 private fun isClone(symbol: KaNamedFunctionSymbol): Boolean = with(ka) { isClone(symbol) }
+
+context(ka: KaSession)
+private fun List<KaTypeParameterSymbol>.hasUnsupportedFBoundedTypeParameters(): Boolean = any {
+    it.resolveUpperBound().isUnsupportedFBoundedTypeParameter(it)
+}
+
+context(ka: KaSession)
+private fun KaType?.isUnsupportedFBoundedTypeParameter(typeParameterSymbol: KaTypeParameterSymbol): Boolean {
+    return when (this) {
+        null -> false
+        is KaTypeParameterType -> symbol == typeParameterSymbol
+        is KaClassType -> symbol.typeParameters.zip(typeArguments).any { [param, arg] ->
+            if (!arg.type.isUnsupportedFBoundedTypeParameter(typeParameterSymbol)) return@any false
+            // Fallback to the upper bound if this is an in variance parameter
+            if (param.variance != Variance.IN_VARIANCE) return@any true
+            param.resolveUpperBound().isUnsupportedFBoundedTypeParameter(typeParameterSymbol)
+        }
+        else -> false
+    }
+}

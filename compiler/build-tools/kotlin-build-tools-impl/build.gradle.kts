@@ -3,14 +3,15 @@ import com.github.jengelman.gradle.plugins.shadow.transformers.DontIncludeResour
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     kotlin("jvm")
     id("generated-sources")
     id("test-inputs-check")
+    id("project-tests-convention")
 }
 
 dependencies {
     api(project(":compiler:build-tools:kotlin-build-tools-api"))
+    compileOnly(project(":compiler:build-tools:kotlin-build-tools-api-jps"))
     implementation(kotlinStdlib())
     compileOnly(libs.guava)
     compileOnly(project(":compiler:cli"))
@@ -24,13 +25,16 @@ dependencies {
     compileOnly(project(":kotlin-compiler-runner-unshaded"))
     implementation(project(":compiler:build-tools:kotlin-build-tools-cri-impl"))
     compileOnly(intellijCore())
-    compileOnly(project(":js:typescript-export-standalone"))
     compileOnly(project(":kotlin-scripting-compiler"))
     compileOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
     implementation(project(":kotlin-tooling-core"))
 
     runtimeOnly(project(":kotlin-compiler-embeddable"))
     runtimeOnly(project(":kotlin-compiler-runner"))
+
+    compileOnly(project(":js:typescript-export-standalone"))
+    runtimeOnly(project(":js:typescript-export-standalone-embeddable"))
+
     embedded(libs.guava)
     embedded(project(":kotlin-scripting-compiler-embeddable")) { isTransitive = false }
     embedded(project(":kotlin-scripting-compiler-impl-embeddable")) { isTransitive = false }
@@ -49,6 +53,8 @@ dependencies {
     testCompileOnly(intellijPlatformUtil())
     testImplementation(project(":compiler:incremental-compilation-impl"))
     testImplementation(project(":native:kotlin-native-utils"))
+    testImplementation(project(":daemon-common"))
+    testImplementation(project(":kotlin-daemon-client"))
     testImplementation(kotlinTest("junit5"))
 }
 
@@ -67,6 +73,12 @@ tasks.named<ShadowJar>(EMBEDDABLE_COMPILER_TASK_NAME) {
     }
     transform(DontIncludeResourceTransformer::class.java) {
         resource = "META-INF/services/org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar"
+    }
+}
+
+projectTests {
+    testTask {
+        useJUnitPlatform()
     }
 }
 

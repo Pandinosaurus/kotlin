@@ -1,14 +1,11 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-data-manager")
     id("test-inputs-check")
 }
@@ -27,7 +24,7 @@ dependencies {
     implementation(libs.caffeine)
 
     testFixturesImplementation(project(":analysis:decompiled:light-classes-for-decompiled"))
-    testFixturesApi(project(":analysis:decompiled:decompiler-to-file-stubs"))
+    testFixturesApi(project(":analysis:decompiled:decompiler"))
     testFixturesApi(testFixtures(project(":analysis:analysis-test-framework")))
     testFixturesApi(testFixtures(project(":analysis:analysis-api-impl-base")))
     testFixturesApi(testFixtures(project(":analysis:analysis-api-fir")))
@@ -50,7 +47,11 @@ projectTests {
     testTask(
         defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_17_0)
     ) {
-        smokeTestConfig = SmokeTestConfig.Enabled(autoSmokeTestPercentage = 1)
+        testFederation {
+            smokeTests {
+                includeAutoSamples(percentage = 1)
+            }
+        }
     }
 
     testGenerator("org.jetbrains.kotlin.light.classes.symbol.TestGeneratorKt")
@@ -61,8 +62,8 @@ projectTests {
     withTestJar()
     withMockJdkAnnotationsJar()
     withMockJdkRuntime()
-    withScriptRuntime()
     withPluginSandboxAnnotations()
+    withPluginSandboxJar()
 
     @OptIn(KotlinCompilerDistUsage::class)
     withDist()
@@ -79,4 +80,3 @@ tasks.withType<KotlinJvmCompile>().configureEach {
     )
 }
 
-testsJar()

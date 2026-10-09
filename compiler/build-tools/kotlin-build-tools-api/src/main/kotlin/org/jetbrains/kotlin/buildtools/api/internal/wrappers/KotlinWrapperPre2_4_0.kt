@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.buildtools.api.arguments.enums.*
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.DiscoverScriptExtensionsOperation
+import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmClasspathSnapshottingOperation
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation
 import java.io.File
 import java.nio.file.Path
@@ -30,8 +31,10 @@ import kotlin.io.path.Path
  */
 @Suppress("ClassName")
 internal class KotlinWrapperPre2_4_0(
-    private val base: KotlinToolchains,
-) : KotlinToolchains by base {
+    override val base: KotlinToolchains,
+) : KotlinToolchains by base, KotlinToolchainsWrapper {
+
+    override val implClassloader: ClassLoader by lazy { getImplClassloader() }
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : KotlinToolchains.Toolchain> getToolchain(type: Class<T>): T = when (type) {
@@ -59,6 +62,11 @@ internal class KotlinWrapperPre2_4_0(
     private abstract class BuildOperationWrapper<R>(val baseOperation: BuildOperation<R>) : BuildOperation<R>
 
     private class JvmPlatformToolchainWrapper(private val base: JvmPlatformToolchain) : JvmPlatformToolchain by base {
+        override fun classpathSnapshottingOperationBuilder(classpathEntry: Path): JvmClasspathSnapshottingOperation.Builder =
+            base.classpathSnapshottingOperationBuilder(classpathEntry).apply {
+                set(JvmClasspathSnapshottingOperation.PARSE_INLINED_LOCAL_CLASSES, true)
+            }
+
         override fun jvmCompilationOperationBuilder(
             sources: List<Path>,
             destinationDirectory: Path,
@@ -261,7 +269,7 @@ internal class KotlinWrapperPre2_4_0(
                 CommonCompilerArguments.X_PHASES_TO_VALIDATE_AFTER,
                 CommonCompilerArguments.X_DISABLE_PHASES,
                 CommonCompilerArguments.X_VERBOSE_PHASES,
-                @OptIn(DeprecatedCompilerArgument::class)
+                @OptIn(RemovedCompilerArgument::class)
                 CommonCompilerArguments.X_SUPPRESS_WARNING,
                 CommonCompilerArguments.OPT_IN,
                     -> {
@@ -340,7 +348,7 @@ internal class KotlinWrapperPre2_4_0(
                 CommonCompilerArguments.X_PHASES_TO_VALIDATE_AFTER,
                 CommonCompilerArguments.X_DISABLE_PHASES,
                 CommonCompilerArguments.X_VERBOSE_PHASES,
-                @OptIn(DeprecatedCompilerArgument::class)
+                @OptIn(RemovedCompilerArgument::class)
                 CommonCompilerArguments.X_SUPPRESS_WARNING,
                 CommonCompilerArguments.OPT_IN,
                     -> {

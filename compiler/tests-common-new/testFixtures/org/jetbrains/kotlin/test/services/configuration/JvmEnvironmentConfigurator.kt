@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.cli.common.modules.ModuleBuilder
 import org.jetbrains.kotlin.cli.common.modules.ModuleChunk
 import org.jetbrains.kotlin.cli.jvm.addModularRootIfNotNull
 import org.jetbrains.kotlin.cli.jvm.config.*
-import org.jetbrains.kotlin.cli.pipeline.jvm.JvmBackendPipelinePhase
+import org.jetbrains.kotlin.cli.pipeline.jvm.JvmLoweringsPipelinePhase
 import org.jetbrains.kotlin.codegen.ClassBuilderFactories
 import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.config.*
@@ -96,7 +96,7 @@ open class JvmEnvironmentConfigurator(testServices: TestServices) : EnvironmentC
             }
         }
 
-        fun extractJdkKind(registeredDirectives: RegisteredDirectives): TestJdkKind {
+        fun extractJdkKind(registeredDirectives: RegisteredDirectives, default: TestJdkKind = TestJdkKind.MOCK_JDK): TestJdkKind {
             val fullJdkEnabled = JvmEnvironmentConfigurationDirectives.FULL_JDK in registeredDirectives
             val jdkKinds = registeredDirectives[JDK_KIND]
 
@@ -108,7 +108,7 @@ open class JvmEnvironmentConfigurator(testServices: TestServices) : EnvironmentC
             }
 
             return when (jdkKinds.size) {
-                0 -> TestJdkKind.MOCK_JDK
+                0 -> default
                 1 -> jdkKinds.single()
                 else -> error("Too many jdk kinds passed: ${jdkKinds.joinToArrayString()}")
             }
@@ -125,7 +125,7 @@ open class JvmEnvironmentConfigurator(testServices: TestServices) : EnvironmentC
                 files.add(provider.kotlinTestJarForTests())
             } else if (configurationKind.withMockRuntime) {
                 files.add(provider.minimalRuntimeJarForTests())
-                files.add(provider.scriptRuntimeJarForTests())
+                provider.scriptingCommonJarForTests()?.let(files::add)
             }
             if (configurationKind.withReflection) {
                 files.add(provider.reflectJarForTests())
@@ -242,12 +242,13 @@ open class JvmEnvironmentConfigurator(testServices: TestServices) : EnvironmentC
                 val provider = testServices.standardLibrariesPathProvider
                 val isJava9Module = module.isJava9Module
                 configuration.addModularRootIfNotNull(isJava9Module, "kotlin.stdlib", provider.runtimeJarForTests())
-                configuration.addModularRootIfNotNull(isJava9Module, "kotlin.script.runtime", provider.scriptRuntimeJarForTests())
+                configuration.addModularRootIfNotNull(isJava9Module, "kotlin.scripting.common", provider.scriptingCommonJarForTests())
             } else {
                 configuration.configureStandardLibs(
                     testServices.standardLibrariesPathProvider,
                     K2JVMCompilerArguments().also { it.noReflect = true }
                 )
+                testServices.standardLibrariesPathProvider.scriptingCommonJarForTests()?.let { configuration.addJvmClasspathRoot(it) }
             }
         }
         configuration.addJvmClasspathRoots(getLibraryFilesExceptRealRuntime(testServices, configurationKind, module.directives))
@@ -325,7 +326,7 @@ open class JvmEnvironmentConfigurator(testServices: TestServices) : EnvironmentC
             )
         )
         configuration.outputDirectory = outputDir
-        configuration.put(JvmBackendPipelinePhase.customClassBuilderFactory, ClassBuilderFactories.TEST)
+        configuration.put(JvmLoweringsPipelinePhase.customClassBuilderFactory, ClassBuilderFactories.TEST)
 
         configuration.addSourcesForDependsOnClosure(module, testServices)
     }

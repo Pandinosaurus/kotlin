@@ -10,7 +10,6 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.LowMemoryWatcher
 import com.intellij.openapi.util.registry.Registry
@@ -41,6 +40,7 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.structure.LLSess
 import org.jetbrains.kotlin.analysis.low.level.api.fir.statistics.LLStatisticsService
 import org.jetbrains.kotlin.analysis.low.level.api.fir.statistics.domains.LLAnalysisSessionStatistics
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.rethrowIntellijPlatformExceptionIfNeeded
 import java.nio.file.Files
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -98,14 +98,38 @@ internal class KaFirSessionProvider(project: Project) : KaBaseSessionProvider(pr
     }
 
     override fun getAnalysisSession(useSiteElement: PsiElement): KaSession {
+        checkUseSiteElement(useSiteElement)
+
         val module = KotlinProjectStructureProvider.getModule(project, useSiteElement, useSiteModule = null)
-        return getAnalysisSession(module)
+        return acquireSessionWithListeners(module, useSiteElement)
     }
 
     override fun getAnalysisSession(useSiteModule: KaModule): KaSession {
-        checkUseSiteModule(useSiteModule)
+        return acquireSessionWithListeners(useSiteModule, null)
+    }
 
-        ProgressManager.checkCanceled()
+    private fun acquireSessionWithListeners(
+        useSiteModule: KaModule,
+        useSiteElement: PsiElement?,
+    ): KaSession {
+        forEachListenerSafe { it.beforeAcquiringSession(useSiteModule, useSiteElement) }
+
+        return try {
+            acquireAnalysisSession(useSiteModule)
+        } catch (t: Throwable) {
+            rethrowIntellijPlatformExceptionIfNeeded(t)
+            forEachListenerSafe { it.onSessionAcquisitionException(useSiteModule, useSiteElement, t) }
+            throw t
+        } finally {
+            forEachListenerSafe { it.afterAcquiringSession(useSiteModule, useSiteElement) }
+        }
+    }
+
+    private fun acquireAnalysisSession(useSiteModule: KaModule): KaSession {
+        // The checks must happen before the session is acquired, so that we don't create and cache a session for a rejected analysis.
+        // They must also happen before `cacheCleaner.enterAnalysis()`, since an exception here doesn't call `cacheCleaner.exitAnalysis()`.
+        checkAnalysisAllowed()
+        checkUseSiteModule(useSiteModule)
 
         // The cache cleaner must be called before we get a session.
         // Otherwise, the acquired session might become invalid after the session cleanup.

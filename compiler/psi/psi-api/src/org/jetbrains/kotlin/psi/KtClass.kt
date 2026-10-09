@@ -3,6 +3,8 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:OptIn(KtIdeApi::class)
+
 package org.jetbrains.kotlin.psi
 
 import com.intellij.lang.ASTNode
@@ -26,6 +28,7 @@ import org.jetbrains.kotlin.psi.stubs.KotlinClassStub
  * // The entire class
  * ```
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 open class KtClass : KtClassOrObject {
     private val classInterfaceTokenSet = TokenSet.create(KtTokens.CLASS_KEYWORD, KtTokens.INTERFACE_KEYWORD)
 
@@ -106,8 +109,8 @@ open class KtClass : KtClassOrObject {
         "this.getOrCreatePrimaryConstructor()",
         "org.jetbrains.kotlin.idea.base.psi.getOrCreatePrimaryConstructor",
     ),
+    level = DeprecationLevel.ERROR,
 )
-@OptIn(KtNonPublicApi::class)
 fun KtClass.createPrimaryConstructorIfAbsent(): KtPrimaryConstructor =
     KtPsiMutationService.getInstance().getOrCreatePrimaryConstructor(this)
 
@@ -117,7 +120,7 @@ fun KtClass.createPrimaryConstructorIfAbsent(): KtPrimaryConstructor =
         "this.getOrCreatePrimaryConstructorParameterList()",
         "org.jetbrains.kotlin.idea.base.psi.getOrCreatePrimaryConstructorParameterList",
     ),
+    level = DeprecationLevel.ERROR,
 )
-@OptIn(KtNonPublicApi::class)
 fun KtClass.createPrimaryConstructorParameterListIfAbsent(): KtParameterList =
     KtPsiMutationService.getInstance().getOrCreatePrimaryConstructorParameterList(this)

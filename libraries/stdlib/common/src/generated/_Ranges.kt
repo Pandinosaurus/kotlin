@@ -21,6 +21,8 @@ import kotlin.random.*
  * Returns the first element.
  * 
  * @throws NoSuchElementException if the progression is empty.
+ * 
+ * @sample samples.collections.Collections.Elements.first
  */
 @SinceKotlin("1.7")
 public fun IntProgression.first(): Int {
@@ -33,6 +35,8 @@ public fun IntProgression.first(): Int {
  * Returns the first element.
  * 
  * @throws NoSuchElementException if the progression is empty.
+ * 
+ * @sample samples.collections.Collections.Elements.first
  */
 @SinceKotlin("1.7")
 public fun LongProgression.first(): Long {
@@ -45,6 +49,8 @@ public fun LongProgression.first(): Long {
  * Returns the first element.
  * 
  * @throws NoSuchElementException if the progression is empty.
+ * 
+ * @sample samples.collections.Collections.Elements.first
  */
 @SinceKotlin("1.7")
 public fun CharProgression.first(): Char {
@@ -152,7 +158,7 @@ public fun CharProgression.lastOrNull(): Char? {
 /**
  * Returns a random element from this range.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.3")
 @kotlin.internal.InlineOnly
@@ -163,7 +169,7 @@ public inline fun IntRange.random(): Int {
 /**
  * Returns a random element from this range.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.3")
 @kotlin.internal.InlineOnly
@@ -174,7 +180,7 @@ public inline fun LongRange.random(): Long {
 /**
  * Returns a random element from this range.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.3")
 @kotlin.internal.InlineOnly
@@ -185,7 +191,7 @@ public inline fun CharRange.random(): Char {
 /**
  * Returns a random element from this range using the specified source of randomness.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.3")
 public fun IntRange.random(random: Random): Int {
@@ -199,7 +205,7 @@ public fun IntRange.random(random: Random): Int {
 /**
  * Returns a random element from this range using the specified source of randomness.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.3")
 public fun LongRange.random(random: Random): Long {
@@ -213,7 +219,7 @@ public fun LongRange.random(random: Random): Long {
 /**
  * Returns a random element from this range using the specified source of randomness.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.3")
 public fun CharRange.random(random: Random): Char {

@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.cli.reportLog
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.nativeBinaryOptions.*
+import org.jetbrains.kotlin.config.phaseConfig
 import org.jetbrains.kotlin.konan.config.*
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.util.visibleName
@@ -260,6 +261,10 @@ private fun String.absoluteNormalizedFile() = java.io.File(this).absoluteFile.no
 internal fun CompilerConfiguration.setupCommonOptionsForCaches(config: NativeSecondStageCompilationConfig) = with(NativeConfigurationKeys) {
     konanTarget = config.target.toString()
     put(DEBUG, config.debug)
+    put(OPTIMIZATION, config.optimizationsEnabled)
+    put(ENABLE_ASSERTIONS, config.assertsEnabled)
+    put(BinaryOptions.enableReleaseBinaryCache, config.enableReleaseBinaryCache)
+    config.configuration.phaseConfig?.let { phaseConfig = it }
     setupPartialLinkageConfig(config.partialLinkageConfig)
     putIfNotNull(EXTERNAL_DEPENDENCIES, config.externalDependenciesFile?.absolutePathString())
     put(PROPERTY_LAZY_INITIALIZATION, config.propertyLazyInitialization)
@@ -275,6 +280,15 @@ internal fun CompilerConfiguration.setupCommonOptionsForCaches(config: NativeSec
     putIfNotNull(BinaryOptions.minidumpLocation, config.minidumpLocation)
     putIfNotNull(BinaryOptions.macabi, config.macabi)
     putIfNotNull(BinaryOptions.cCallMode, config.cCallMode)
+    put(BinaryOptions.latin1Strings, config.latin1Strings)
+    put(BinaryOptions.stackProtector, config.stackProtectorMode)
+    putIfNotNull(BinaryOptions.sanitizer, config.sanitizer)
+    put(BinaryOptions.disableMmap, config.disableMmap)
+    put(BinaryOptions.gcMarkSingleThreaded, config.gcMarkSingleThreaded)
+    put(BinaryOptions.fixedBlockPageSize, config.fixedBlockPageSize)
+    put(BinaryOptions.pagedAllocator, config.pagedAllocator)
+    put(BinaryOptions.concurrentWeakSweep, config.concurrentWeakSweep)
+    put(BinaryOptions.checkStateAtExternalCalls, config.checkStateAtExternalCalls)
     putIfNotNull(RUNTIME_LOGS, config.configuration.runtimeLogs)
 }
 

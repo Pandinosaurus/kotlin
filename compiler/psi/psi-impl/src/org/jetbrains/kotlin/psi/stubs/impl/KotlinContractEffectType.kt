@@ -8,9 +8,11 @@ package org.jetbrains.kotlin.psi.stubs.impl
 import com.intellij.psi.stubs.StubInputStream
 import com.intellij.psi.stubs.StubOutputStream
 import org.jetbrains.kotlin.contracts.description.*
+import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.stubs.elements.deserializeTypeBean
 import org.jetbrains.kotlin.psi.stubs.elements.serializeTypeBean
 
+@KtImplementationDetail
 enum class KotlinContractEffectType {
     CALLS {
         override fun deserialize(dataStream: StubInputStream): KtCallsEffectDeclaration<KotlinTypeBean, Nothing?> {
@@ -127,7 +129,7 @@ enum class KotlinContractEffectType {
     }
 }
 
-class KotlinContractSerializationVisitor(val dataStream: StubOutputStream) :
+internal class KotlinContractSerializationVisitor(val dataStream: StubOutputStream) :
     KtContractDescriptionVisitor<Unit, Nothing?, KotlinTypeBean, Nothing?>() {
     override fun visitConditionalEffectDeclaration(
         conditionalEffect: KtConditionalEffectDeclaration<KotlinTypeBean, Nothing?>,
@@ -234,6 +236,7 @@ class KotlinContractSerializationVisitor(val dataStream: StubOutputStream) :
     }
 }
 
+@KtImplementationDetail
 object KotlinContractConstantValues {
     val NULL = KtConstantReference<KotlinTypeBean, Nothing?>("NULL")
     val WILDCARD = KtConstantReference<KotlinTypeBean, Nothing?>("WILDCARD")

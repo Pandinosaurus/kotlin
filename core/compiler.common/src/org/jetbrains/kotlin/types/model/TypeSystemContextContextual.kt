@@ -5,6 +5,8 @@
 
 package org.jetbrains.kotlin.types.model
 
+import org.jetbrains.kotlin.name.ClassId
+
 context(c: TypeSystemContext)
 fun KotlinTypeMarker.asRigidType(): RigidTypeMarker? = with(c) { asRigidType() }
 
@@ -185,6 +187,15 @@ context(c: TypeSystemContext)
 fun TypeConstructorMarker.isIntersection(): Boolean = with(c) { isIntersection() }
 
 context(c: TypeSystemContext)
+fun TypeConstructorMarker.isUnion(): Boolean = with(c) { isUnion() }
+
+context(c: TypeSystemContext)
+fun TypeConstructorMarker.getPrimaryTypeOfUnion(): KotlinTypeMarker? = with(c) { getPrimaryTypeOfUnion() }
+
+context(c: TypeSystemContext)
+fun TypeConstructorMarker.getRichErrorsOfUnion(): List<KotlinTypeMarker> = with(c) { getRichErrorsOfUnion() }
+
+context(c: TypeSystemContext)
 fun TypeConstructorMarker.isClassTypeConstructor(): Boolean = with(c) { isClassTypeConstructor() }
 
 context(c: TypeSystemContext)
@@ -322,13 +333,25 @@ context(c: TypeSystemContext)
 operator fun TypeArgumentListMarker.iterator() = with(c) { iterator() }
 
 context(c: TypeSystemContext)
+fun TypeConstructorMarker.isClassWithId(classId: ClassId): Boolean = with(c) { isClassWithId(classId) }
+
+context(c: TypeSystemContext)
 fun TypeConstructorMarker.isAnyConstructor(): Boolean = with(c) { isAnyConstructor() }
+
+context(c: TypeSystemContext)
+fun TypeConstructorMarker.isNonErrorConstructor(): Boolean = with(c) { isNonErrorConstructor() }
+
+context(c: TypeSystemContext)
+fun TypeConstructorMarker.isRichErrorConstructor(): Boolean = with(c) { isRichErrorConstructor() }
 
 context(c: TypeSystemContext)
 fun TypeConstructorMarker.isNothingConstructor(): Boolean = with(c) { isNothingConstructor() }
 
 context(c: TypeSystemContext)
 fun TypeConstructorMarker.isArrayConstructor(): Boolean = with(c) { isArrayConstructor() }
+
+context(c: TypeSystemContext)
+fun TypeConstructorMarker.isRichErrorClass(): Boolean = with(c) { isRichErrorClass() }
 
 context(c: TypeSystemContext)
 fun KotlinTypeMarker.withNewTypeSince(languageFeature: Any, newType: KotlinTypeMarker): KotlinTypeMarker =

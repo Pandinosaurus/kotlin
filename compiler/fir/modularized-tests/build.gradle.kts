@@ -5,10 +5,8 @@
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("java-test-fixtures")
 }
 
@@ -24,8 +22,7 @@ dependencies {
 
     testFixturesApi(testFixtures(project(":compiler:fir:analysis-tests:legacy-fir-tests")))
     testFixturesApi(project(":compiler:fir:resolve"))
-    testFixturesApi(project(":compiler:fir:providers"))
-    testFixturesApi(project(":compiler:fir:semantics"))
+    testFixturesApi(project(":compiler:fir:semantics.api"))
     testFixturesApi(platform(libs.junit.bom))
     testFixturesApi(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -58,7 +55,6 @@ projectTests {
         minHeapSize = testMaxHeapSizeHuge,
         maxHeapSize = testMaxHeapSizeHuge,
         reservedCodeCacheSize = 512.MiB,
-        javaLauncher = JdkMajorVersion.JDK_1_8,
         garbageCollector = null // explicitly not selecting any GC as the 'fir.modularized.jvm.args' is expected to provide such settings
     ) {
         dependsOn(":dist", ":plugins:compose-compiler-plugin:compiler-hosted:jar")
@@ -87,4 +83,3 @@ projectTests {
     }
 }
 
-testsJar()

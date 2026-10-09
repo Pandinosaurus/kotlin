@@ -839,7 +839,6 @@ private class LLFirBodyTargetResolver(target: LLFirResolveTarget) : LLFirAbstrac
             is FirAnonymousInitializer -> resolve(target, BodyStateKeepers.ANONYMOUS_INITIALIZER)
             is FirDanglingModifierList,
             is FirTypeAlias,
-            is FirReplSnippet,
                 -> {
                 // No bodies here
             }
@@ -1132,5 +1131,4 @@ private val FirDeclaration.isUsedInScriptControlFlowGraphBuilder: Boolean
     get() = this is FirControlFlowGraphOwner && isUsedInControlFlowGraphBuilderForScript
 
 private val FirDeclaration.isUsedInClassControlFlowGraphBuilder: Boolean
-    get() = this is FirControlFlowGraphOwner &&
-            (isUsedInControlFlowGraphBuilderForClass || isUsedInControlFlowGraphBuilderForStatic)
+    get() = this is FirControlFlowGraphOwner && isUsedInControlFlowGraphBuilderForClassOrStatic

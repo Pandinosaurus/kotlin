@@ -72,6 +72,12 @@ public class OutOfContentRootLazyTypeAnnotationsTestGenerated extends AbstractOu
     }
 
     @Test
+    @TestMetadata("fullValueClassParameterTypeCollisionAndAnnotations.kt")
+    public void testFullValueClassParameterTypeCollisionAndAnnotations() {
+      run("fullValueClassParameterTypeCollisionAndAnnotations.kt");
+    }
+
+    @Test
     @TestMetadata("nestedClassAsAnnotationArgument.kt")
     public void testNestedClassAsAnnotationArgument() {
       run("nestedClassAsAnnotationArgument.kt");
@@ -589,6 +595,12 @@ public class OutOfContentRootLazyTypeAnnotationsTestGenerated extends AbstractOu
     @TestMetadata("typePropagationFromPropertyWithInaccessibleAnnotationArgument.kt")
     public void testTypePropagationFromPropertyWithInaccessibleAnnotationArgument() {
       run("typePropagationFromPropertyWithInaccessibleAnnotationArgument.kt");
+    }
+
+    @Test
+    @TestMetadata("unresolvedAnnotations.kt")
+    public void testUnresolvedAnnotations() {
+      run("unresolvedAnnotations.kt");
     }
   }
 

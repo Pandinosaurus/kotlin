@@ -1,4 +1,8 @@
+// DUMP_KT_IR
+
 import lombok.ToString
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @ToString
 class Simple(val name: String, val age: Int)
@@ -114,6 +118,8 @@ open class CallSuperBase(val baseProp: Int)
 @ToString(callSuper = true)
 class CallSuperDerived(val ownProp: String) : CallSuperBase(10)
 
+// An explicit `callSuper` is never gated on there being a superclass worth chaining to - only the
+// `lombok.toString.callSuper` config is, see `callSuperConfig.kt`.
 @ToString(callSuper = true)
 class CallSuperWithOnlyAnyParent(val x: Int)
 
@@ -126,6 +132,15 @@ class WithArrays {
     val charArray = charArrayOf('x', 'y')
     val nullArray: Array<String>? = null
 }
+
+// A `$`-prefixed name is generated or internal by convention, so Lombok leaves such a property out unless it is
+// explicitly opted in with `@ToString.Include`, KT-88636.
+@ToString
+class WithDollarPrefixedProperties(
+    val regular: String,
+    val `$excludedByDefault`: String,
+    @ToString.Include val `$explicitlyIncluded`: String,
+)
 
 fun box(): String {
     assertEquals("Simple(name=Alice, age=30)", Simple("Alice", 30).toString())
@@ -163,11 +178,21 @@ fun box(): String {
 
     assertEquals("CallSuperBase(baseProp=10)", CallSuperBase(10).toString())
     assertEquals("CallSuperDerived(super=CallSuperBase(baseProp=10), ownProp=hello)", CallSuperDerived("hello").toString())
-    assertEquals("CallSuperWithOnlyAnyParent(x=5)", CallSuperWithOnlyAnyParent(5).toString())
+    // An explicit `callSuper = true` is honored even against `Any`, whose `toString` is the bare identity hash
+    // `Object.toString` renders - "pretty much meaningless", as `@ToString`'s own javadoc puts it, but asked
+    // for, and Lombok has no error for it the way `@EqualsAndHashCode` does. The hash rules out `assertEquals`.
+    val onlyAnyParent = CallSuperWithOnlyAnyParent(5).toString()
+    assertTrue(onlyAnyParent.startsWith("CallSuperWithOnlyAnyParent(super=CallSuperWithOnlyAnyParent@"), onlyAnyParent)
+    assertTrue(onlyAnyParent.endsWith(", x=5)"), onlyAnyParent)
 
     assertEquals(
         "WithArrays(objectArray=[a, b], nestedArray=[[a], [b]], intArray=[1, 2], charArray=[x, y], nullArray=null)",
         WithArrays().toString()
+    )
+
+    assertEquals(
+        "WithDollarPrefixedProperties(regular=r, ${'$'}explicitlyIncluded=i)",
+        WithDollarPrefixedProperties("r", "e", "i").toString()
     )
 
     return "OK"

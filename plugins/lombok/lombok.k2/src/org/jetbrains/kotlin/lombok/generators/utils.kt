@@ -6,33 +6,44 @@
 package org.jetbrains.kotlin.lombok.generators
 
 import org.jetbrains.kotlin.GeneratedDeclarationKey
+import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.builtins.PrimitiveType
+import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.containingClassForStaticMemberAttr
-import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
-import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
+import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
-import org.jetbrains.kotlin.fir.declarations.utils.isExtension
+import org.jetbrains.kotlin.fir.declarations.utils.*
 import org.jetbrains.kotlin.fir.extensions.FirExtension
 import org.jetbrains.kotlin.fir.java.declarations.FirJavaMethod
 import org.jetbrains.kotlin.fir.java.declarations.buildJavaMethod
 import org.jetbrains.kotlin.fir.java.declarations.buildJavaValueParameter
 import org.jetbrains.kotlin.fir.plugin.createMemberFunction
 import org.jetbrains.kotlin.fir.resolve.defaultType
+import org.jetbrains.kotlin.fir.resolve.getSuperClassSymbolOrAny
+import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
+import org.jetbrains.kotlin.fir.resolve.typeParameterSymbol
+import org.jetbrains.kotlin.fir.scopes.impl.toConeType
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.hasContextParameters
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
+import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.toEffectiveVisibility
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.jvm.FirJavaTypeRef
+import org.jetbrains.kotlin.load.java.structure.JavaClass
+import org.jetbrains.kotlin.load.java.structure.JavaClassifierType
 import org.jetbrains.kotlin.load.java.structure.JavaPrimitiveType
 import org.jetbrains.kotlin.lombok.AccessorNames
+import org.jetbrains.kotlin.lombok.LombokNames
+import org.jetbrains.kotlin.lombok.config.CallSuperMode
+import org.jetbrains.kotlin.lombok.config.ConeLombokAnnotations
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.StandardClassIds
+import org.jetbrains.kotlin.utils.addToStdlib.forEachZipped
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -84,6 +95,7 @@ fun createJavaOrKotlinMemberFunction(
     symbol: FirNamedFunctionSymbol? = null,
     typeParameters: Collection<FirTypeParameter> = emptyList(),
     isOverride: Boolean = false,
+    source: KtSourceElement? = null,
 ): FirNamedFunctionSymbol {
     return if (owner.hasJavaOrigin) {
         owner.createJavaMethod(
@@ -96,6 +108,7 @@ fun createJavaOrKotlinMemberFunction(
             methodSymbol = symbol,
             methodTypeParameters = typeParameters,
             isOverride = isOverride,
+            source = source,
         ).symbol
     } else {
         extension.createMemberFunction(
@@ -114,6 +127,12 @@ fun createJavaOrKotlinMemberFunction(
             status {
                 this@status.isOverride = isOverride
             }
+
+            // `DeclarationBuildingContext.source` falls back to a fake element over the owner's source only while it
+            // stays uninitialized, so assigning `null` would strip the source rather than keep that fallback.
+            if (source != null) {
+                this.source = source
+            }
         }.symbol
     }
 }
@@ -129,6 +148,7 @@ fun FirClassSymbol<*>.createJavaMethod(
     methodSymbol: FirNamedFunctionSymbol? = null,
     methodTypeParameters: Collection<FirTypeParameter> = emptyList(),
     isOverride: Boolean = false,
+    source: KtSourceElement? = null,
 ): FirJavaMethod {
     return buildJavaMethod {
         containingClassSymbol = this@createJavaMethod
@@ -143,6 +163,7 @@ fun FirClassSymbol<*>.createJavaMethod(
         }
         isFromSource = true
         typeParameters += methodTypeParameters
+        this.source = source
 
         for (valueParameter in valueParameters) {
             this.valueParameters += buildJavaValueParameter {
@@ -166,6 +187,61 @@ class ConeLombokValueParameter(val name: Name, val typeRef: FirTypeRef)
 val FirBasedSymbol<*>.hasJavaOrigin get() = origin is FirDeclarationOrigin.Java
 
 /**
+ * Whether Lombok generates anything at all into [this] class. An interface and an annotation class are the kinds
+ * Lombok's own model has no counterpart for: an interface holds no state to generate from and no constructor to
+ * generate, and an annotation class can hold no member at all - the platform reports `ANNOTATION_CLASS_MEMBER`
+ * for one.
+ *
+ * Both are reported as `ANNOTATION_HAS_NO_EFFECT` already, so generating anyway makes the checker contradict the
+ * generators, and the output is not merely useless: a constructor in an interface is rejected outright by the
+ * backend, and a builder for an interface has no constructor to call (KT-87871).
+ */
+val FirClassSymbol<*>.isSupportedLombokTarget: Boolean
+    get() = !isInterface && !isAnnotationClass
+
+/**
+ * Whether a constructor can be generated into [this] class at all.
+ *
+ * A Kotlin inner class cannot have one. A property initializer referencing a primary constructor parameter is
+ * inlined by fir2ir into every constructor that carries a delegating call, and in the generated one that
+ * parameter is unbound, so the JVM backend fails with "No mapping for symbol" (KT-88659). The only way out is
+ * to leave the delegating call off and build the body after fir2ir, which an inner class cannot do:
+ * `InnerClassesLowering` takes a super-delegating constructor without an `IrInstanceInitializerCall` for a
+ * `this(...)` delegation and passes the outer instance to a call with no receiver slot. Neither shape works.
+ *
+ * A local class follows it: `ANNOTATION_HAS_NO_EFFECT` has always been reported for one,
+ * `KotlinTarget.LOCAL_CLASS` never having been an allowed target, while the generator generated into it anyway.
+ * The noarg plugin supports neither kind either, and for the very same lowering.
+ *
+ * A Java class is unaffected: nothing is generated into its bytecode here - `javac` and Lombok itself do that -
+ * and the constructor built in FIR exists only so that Kotlin code can resolve the one Lombok really writes.
+ */
+val FirClassSymbol<*>.supportsGeneratedConstructor: Boolean
+    get() = hasJavaOrigin || (!isInner && !isLocal)
+
+/**
+ * Whether [this] is a plain class, that is, neither an interface, nor an annotation class, nor an enum class, nor
+ * an object. It is the only kind `@Builder` and `@EqualsAndHashCode` generate anything into, and it mirrors
+ * `isClass` in Lombok's own `JavacHandlerUtil`, which both of its handlers consult before generating - unlike
+ * `@Log` and `@ToString`, which accept an enum class and an object as well.
+ *
+ * Neither annotation has anything to generate for the other kinds, and generating anyway used to produce code
+ * that doesn't even run:
+ *  - an enum constructor takes the synthetic name and ordinal parameters, so a generated `build()` calls a
+ *    signature that doesn't exist and fails with `NoSuchMethodError` (KT-87871);
+ *  - `equals` and `hashCode` are final in `java.lang.Enum`, so generated ones make the whole class fail
+ *    verification with "class Color overrides final method java.lang.Enum.equals" (KT-88507);
+ *  - an object is a single instance compared by identity and has no constructor to build it with, so both
+ *    annotations only ever generated members that repeat what the object already does (KT-88507).
+ *
+ * A local class is a plain class: `@EqualsAndHashCode` supports one, and `@Builder` is stopped for it in
+ * `extractBuilderWithDeclarations` instead, a local class holding neither the companion object a `builder()`
+ * needs nor the builder class itself (KT-88848).
+ */
+val FirClassSymbol<*>.isPlainClass: Boolean
+    get() = classKind == ClassKind.CLASS
+
+/**
  * Whether [this] has an extension receiver or context parameters.
  *
  * Lombok models Java, which has neither, so such a declaration falls outside everything the plugin generates.
@@ -180,4 +256,152 @@ val FirBasedSymbol<*>.hasJavaOrigin get() = origin is FirDeclarationOrigin.Java
 val FirCallableSymbol<*>.hasReceiverOrContextParameters: Boolean
     get() = isExtension || hasContextParameters
 
+/**
+ * Whether [this] has the JVM signature of the `canEqual` that `@EqualsAndHashCode` generates,
+ * `canEqual(Ljava/lang/Object;)Z`. Overloads with another parameter type, an extension receiver or context
+ * parameters merely share the name.
+ */
+val FirNamedFunctionSymbol.hasCanEqualJvmSignature: Boolean
+    get() = name == LombokNames.CAN_EQUAL &&
+            !hasReceiverOrContextParameters &&
+            valueParameterSymbols.singleOrNull()?.erasesToJavaObject == true
+
+/**
+ * The `canEqual` a generated one would override or clash with: the closest one with [hasCanEqualJvmSignature]
+ * declared by a superclass of [this]. Private ones are skipped, as they are not inherited.
+ *
+ * Members are requested only up to TYPES: this runs within the STATUS phase of [this], and a phase can only request a
+ * lazy resolve into a strictly earlier one. Matching parameter types needs nothing later.
+ */
+@OptIn(SymbolInternals::class)
+fun FirClassSymbol<*>.findSuperclassCanEqual(session: FirSession): FirNamedFunctionSymbol? {
+    var superClassSymbol = getSuperClassSymbolOrAny(session)
+    while (superClassSymbol != null && superClassSymbol.classId != StandardClassIds.Any) {
+        var canEqual: FirNamedFunctionSymbol? = null
+        superClassSymbol.processAllDeclaredCallables(session, memberRequiredPhase = FirResolvePhase.TYPES) {
+            if (canEqual == null && it is FirNamedFunctionSymbol && it.hasCanEqualJvmSignature &&
+                it.fir.status.visibility != Visibilities.Private
+            ) {
+                canEqual = it
+            }
+        }
+        canEqual?.let { return it }
+        superClassSymbol = superClassSymbol.getSuperClassSymbolOrAny(session)
+    }
+    return null
+}
+
+/**
+ * Whether [this] parameter's type is `Any?`, or `java.lang.Object` for a Java declaration: the exact parameter type
+ * of the `equals` and `canEqual` that `@EqualsAndHashCode` generates, so the only one they can override.
+ *
+ * A Java parameter's type is still a [FirJavaTypeRef] when the declaring class is a supertype only "peeked into" -
+ * signature enhancement has not run for it - so `resolvedReturnTypeRef` would throw and the type has to be matched
+ * structurally instead.
+ */
+val FirValueParameterSymbol.isAnyOrJavaObjectType: Boolean
+    get() = matchesJavaObjectType { it.upperBoundIfFlexible().isNullableAny }
+
+/**
+ * Whether [this] parameter's type erases to `java.lang.Object`: besides [isAnyOrJavaObjectType], also `Any` or a
+ * type parameter bounded by nothing else. A member taking one has the same JVM signature as one taking `Any?`.
+ */
+val FirValueParameterSymbol.erasesToJavaObject: Boolean
+    get() = matchesJavaObjectType { it.erasesToJavaObject }
+
+@OptIn(SymbolInternals::class)
+private inline fun FirValueParameterSymbol.matchesJavaObjectType(matchesResolvedType: (ConeKotlinType) -> Boolean): Boolean =
+    when (val typeRef = fir.returnTypeRef) {
+        is FirResolvedTypeRef -> matchesResolvedType(typeRef.coneType)
+        is FirJavaTypeRef -> ((typeRef.type as? JavaClassifierType)?.classifier as? JavaClass)?.fqName ==
+                LombokNames.JAVA_OBJECT_ID.asSingleFqName()
+        else -> false
+    }
+
+/**
+ * Whether [this] erases to `java.lang.Object`. A type parameter erases to its first bound; requiring all of them to
+ * erase to `Object` is simpler and only under-matches a multi-bounded one.
+ *
+ * The bounds are read as they are rather than via `resolvedBounds`: this runs from `getCallableNamesForClass`,
+ * which is too early to request a lazy resolve. A bound that is not resolved yet does not match.
+ */
+@OptIn(SymbolInternals::class)
+private val ConeKotlinType.erasesToJavaObject: Boolean
+    get() {
+        val type = lowerBoundIfFlexible()
+        return if (type is ConeTypeParameterType) {
+            type.lookupTag.typeParameterSymbol.fir.bounds.all { it is FirResolvedTypeRef && it.coneType.erasesToJavaObject }
+        } else {
+            type.isAnyOrNullableAny
+        }
+    }
+
+/**
+ * Whether `@ToString` and `@EqualsAndHashCode` leave [this] property out of what they generate unless it is
+ * explicitly opted in with their `@Include`.
+ *
+ * A `$` prefix marks a name as generated or internal by convention - Lombok's own generated fields use it - so
+ * such a field is never part of a class's rendering or identity by default. See the "small print" of both
+ * features: "any variables that start with a $ symbol are excluded automatically. You can only include them by
+ * using the @Include annotation." An `@Exclude` on one is therefore redundant, which both checkers report.
+ */
+val FirPropertySymbol.isExcludedByDollarPrefix: Boolean
+    get() = name.asString().startsWith('$')
+
+/**
+ * Whether [this] extends a class other than [Any] - Lombok's `isDirectDescendantOfObject`, inverted.
+ *
+ * It decides whether chaining a generated `toString`/`equals`/`hashCode` to `super` carries any information at
+ * all: `Any` renders as a bare identity hash, compares by identity and hashes by it, so nothing it returns
+ * belongs in a member that is supposed to speak about a class's own state.
+ */
+fun FirClassSymbol<*>.hasNonTrivialSuperclass(session: FirSession): Boolean =
+    getSuperClassSymbolOrAny(session).let { it != null && it.classId != StandardClassIds.Any }
+
+/**
+ * Whether the member `@ToString`/`@EqualsAndHashCode` generates for [classSymbol] chains to the superclass one.
+ *
+ * This is the whole of that decision: the IR body builders chain whenever it says so, [Any] included.
+ *
+ * The annotation's own `callSuper` argument decides whenever it is there, and is never second-guessed. Lombok
+ * honors an explicit `callSuper = true` on a class extending nothing but [Any] as well, even though [Any]
+ * renders as a bare identity hash and compares by identity - `@ToString` only calls that "pretty much
+ * meaningless" in its javadoc, while `@EqualsAndHashCode` refuses to generate at all, which
+ * `CALL_SUPER_TO_ANY_IS_POINTLESS` reports.
+ *
+ * Otherwise [configCallSuperMode] - the `lombok.<feature>.callSuper` setting - decides, and only its `call`
+ * chains, and only for a class that has a superclass worth chaining to: a project-wide setting cannot know that
+ * this particular class extends nothing but [Any], so Lombok gates it on that and so does this (KT-88771).
+ */
+fun ConeLombokAnnotations.CallSuper.shouldCallSuper(
+    configCallSuperMode: CallSuperMode,
+    classSymbol: FirClassSymbol<*>,
+    session: FirSession,
+): Boolean = when (val explicitMode = callSuper) {
+    null -> configCallSuperMode == CallSuperMode.Call && classSymbol.hasNonTrivialSuperclass(session)
+    else -> explicitMode == CallSuperMode.Call
+}
+
 abstract class LombokDeclarationKey : GeneratedDeclarationKey()
+
+/**
+ * Rewrites the bounds of [newTypeParameters], copied from [originalTypeParameters] (matched by index), so that they
+ * refer to the copies instead of the originals.
+ */
+fun remapTypeParameterBounds(
+    newTypeParameters: Collection<FirTypeParameter>,
+    originalTypeParameters: Collection<FirTypeParameterRef>,
+    session: FirSession
+) {
+    val substitution = buildMap {
+        originalTypeParameters.forEachZipped(newTypeParameters) { original, copy -> this[original.symbol] = copy.symbol.toConeType() }
+    }
+    val substitutor = substitutorByMap(substitution, session)
+
+    for (typeParameter in newTypeParameters) {
+        val remappedBounds = typeParameter.bounds.map { bound ->
+            bound.withReplacedConeType(substitutor.substituteOrNull(bound.coneType))
+        }
+        typeParameter.replaceBounds(remappedBounds)
+    }
+}

@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LATEST_LV_DIFFERENCE
 // IGNORE_DEXING
 // MODULE: common
@@ -23,9 +23,9 @@ class Test2(val a: Base1<Any?>, val b: Base2<Any?>): Base1<Any?> by a, Base2<Any
     }
 }
 
-<!CONFLICTING_INHERITED_JVM_DECLARATIONS!>class Test3(val a: Base1<Int>, val b: Base2<Number>): Base1<Int> by a, Base2<Number> by b<!>
+class <!CONFLICTING_INHERITED_JVM_DECLARATIONS!>Test3(val a: Base1<Int>, val b: Base2<Number>)<!>: Base1<Int> by a, Base2<Number> by b
 
-<!ACCIDENTAL_OVERRIDE!>class Test4(val a: Base1<Int>, val b: Base2<Any>): Base1<Int> by a, Base2<Any> by b<!>
+class <!ACCIDENTAL_OVERRIDE!>Test4(val a: Base1<Int>, val b: Base2<Any>)<!>: Base1<Int> by a, Base2<Any> by b
 
 // MODULE: platform()()(common)
 // FILE: Base1Java.java

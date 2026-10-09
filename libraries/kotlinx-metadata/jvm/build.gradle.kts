@@ -1,16 +1,15 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 description = "Kotlin JVM metadata manipulation library"
 group = "org.jetbrains.kotlin"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
     id("org.jetbrains.dokka")
-    id("project-tests-convention")
 }
 
 
@@ -48,6 +47,10 @@ kotlin {
     explicitApi()
     compilerOptions {
         freeCompilerArgs.add("-Xallow-kotlin-package")
+    }
+
+    tasks.named<KotlinCompile>("compileTestKotlin").configure {
+        compilerOptions.freeCompilerArgs.addAll("-Xcompanion-blocks", "-Xcompanion-blocks-and-extensions")
     }
 }
 
@@ -140,7 +143,14 @@ dokka {
     dokkaSourceSets.configureEach {
         includes.from(project.file("dokka/moduledoc.md").path)
 
-        sourceRoots.from(project(":kotlin-metadata").getSources())
+        val kotlinMetadataSources = configurations.detachedConfiguration(dependencies.project(":kotlin-metadata")).apply {
+            attributes {
+                attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named(Category.VERIFICATION))
+                attribute(VerificationType.VERIFICATION_TYPE_ATTRIBUTE, project.objects.named(VerificationType.MAIN_SOURCES))
+            }
+            isTransitive = false
+        }
+        sourceRoots.from(kotlinMetadataSources)
 
         skipDeprecated.set(true)
         reportUndocumented.set(true)

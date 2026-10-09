@@ -17,6 +17,7 @@ import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.tree.IElementType
 import com.intellij.util.diff.FlyweightCapableTreeStructure
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.util.ArrayLiteralResolution
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.utils.getElementTextWithContext
 import java.util.Objects
@@ -408,6 +409,11 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     sealed class DesugaredIncrementOrDecrement(val generatedElementKind: GeneratedElementKind) : KtFakeSourceElementKind() {
         enum class GeneratedElementKind {
             /**
+             * The primary receiver expression.
+             */
+            PrimaryReceiver,
+
+            /**
              * The desugared block, assignment, operator call, or other main expressions.
              */
             DesugaredExpression,
@@ -465,6 +471,12 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
          */
         val isSecondGetReference: Boolean
             get() = generatedElementKind == GeneratedElementKind.SecondGetReference
+
+        /**
+         * @see GeneratedElementKind.PrimaryReceiver
+         */
+        val forPrimaryReceiver: DesugaredIncrementOrDecrement
+            get() = withGeneratedElementKind(GeneratedElementKind.PrimaryReceiver)
 
         /**
          * @see GeneratedElementKind.ReceiverVariable
@@ -738,6 +750,13 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     object FromUseSiteTarget : KtFakeSourceElementKind()
 
     /**
+     * for annotation on constructor property when the use site target allows both the parameter and the property,
+     * in that case the annotation on the parameter keeps the real source kind and the copy on the property
+     * gets this fake kind.
+     */
+    object AnnotationCopyFromConstructorParameter : KtFakeSourceElementKind()
+
+    /**
      * for `@ParameterName` annotation call added to function types with names in the notation
      * with a fake source that refers to the value parameter in the function type notation
      * e.g., `(x: Int) -> Unit` becomes `Function1<@ParameterName("x") Int, Unit>`
@@ -861,6 +880,12 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     object SamConversion : KtFakeSourceElementKind()
 
     /**
+     * When an object of a builtin numeric type is implicitly converted to or from a custom numeric expect class marked with
+     * [org.jetbrains.kotlin.name.StandardClassIds.Annotations.NumericClass].
+     */
+    object NumericClassConversion : KtFakeSourceElementKind()
+
+    /**
      * When a value of one function type is converted to another function type, the expression is wrapped in an extra node
      */
     object FunctionTypeConversion : KtFakeSourceElementKind()
@@ -920,6 +945,7 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
      * To store diagnostic for erroneously resolved `arrayOf` which is being transformed to array literal.
      * Note that this may happen both with original `arrayOf` and with synthetic `arrayOf` itself created to resolve array literal.
      */
+    @ArrayLiteralResolution
     object ErrorExpressionForTransformedArrayOf : KtFakeSourceElementKind()
 
     /**
@@ -985,6 +1011,13 @@ class KtOffsetsOnlySourceElement(
     override val startOffset: Int,
     override val endOffset: Int,
 ) : AbstractKtSourceElement()
+
+object KtMissingSourceElement : AbstractKtSourceElement() {
+    override val startOffset: Int
+        get() = -1
+    override val endOffset: Int
+        get() = -1
+}
 
 /**
  * [KtSourceElement] represents the AST element associated with a specific location in the source code. It allows the compiler to map back

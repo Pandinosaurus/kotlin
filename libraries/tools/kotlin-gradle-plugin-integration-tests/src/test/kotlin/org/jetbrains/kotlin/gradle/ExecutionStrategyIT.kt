@@ -341,10 +341,6 @@ class NoActiveThreadsAfterCompilerInvocationIT : KGPDaemonsBaseTest() {
     @GradleTest
     fun testBta(gradleVersion: GradleVersion) = test(gradleVersion, buildOptions = defaultBuildOptions.copy(runViaBuildToolsApi = true))
 
-    @DisplayName("KT-84152: In-process compilation should not leave active threads")
-    @GradleTest
-    fun testNonBta(gradleVersion: GradleVersion) = test(gradleVersion, buildOptions = defaultBuildOptions.copy(runViaBuildToolsApi = false))
-
     private fun test(
         gradleVersion: GradleVersion,
         buildOptions: BuildOptions
@@ -373,7 +369,7 @@ class NoActiveThreadsAfterCompilerInvocationIT : KGPDaemonsBaseTest() {
                 fun makeThreadsSnapshot(): Set<String> = Thread
                     .getAllStackTraces()
                     .keys.groupBy { it.javaClass.name + ":" + it.name }
-                    .map { [name, threads] -> "$name (total ${threads.size})" }.toSet()
+                    .map { (name, threads) -> "$name (total ${threads.size})" }.toSet()
 
                 project.tasks.named("compileKotlin").configure {
                     it.doFirst {

@@ -1,0 +1,47 @@
+FILE[kind=Facade[packageFqName=<root>, facadeFqName=AccessorOnNonLocalDestructuringKt]]
+  facadeFqName: AccessorOnNonLocalDestructuringKt
+  partSimpleName: "AccessorOnNonLocalDestructuringKt"
+  PACKAGE_DIRECTIVE
+  IMPORT_LIST
+  DESTRUCTURING_DECLARATION[hasInitializer=true, isVar=false]
+    BINARY_EXPRESSION
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+      OPERATION_REFERENCE[operationToken=IDENTIFIER, referencedName=to]
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=2]
+  DESTRUCTURING_DECLARATION[hasInitializer=true, isVar=false]
+    BINARY_EXPRESSION
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+      OPERATION_REFERENCE[operationToken=IDENTIFIER, referencedName=to]
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=2]
+  MODIFIER_LIST[value]
+  FUNCTION[fqName=<no name provided>, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=null]
+  DESTRUCTURING_DECLARATION[hasInitializer=true, isVar=false]
+    BINARY_EXPRESSION
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+      OPERATION_REFERENCE[operationToken=IDENTIFIER, referencedName=to]
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=2]
+  DESTRUCTURING_DECLARATION[hasInitializer=true, isVar=false]
+    BINARY_EXPRESSION
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+      OPERATION_REFERENCE[operationToken=IDENTIFIER, referencedName=to]
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=2]
+  DESTRUCTURING_DECLARATION[hasInitializer=true, isVar=false]
+    BINARY_EXPRESSION
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+      OPERATION_REFERENCE[operationToken=IDENTIFIER, referencedName=to]
+      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=2]
+  PROPERTY[fqName=k, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=false, isExtension=false, isTopLevel=true, isVar=false, name=k]
+    INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=A, superNames=[]]
+    CLASS_BODY
+      DESTRUCTURING_DECLARATION[hasInitializer=true, isVar=false]
+        BINARY_EXPRESSION
+          INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+          OPERATION_REFERENCE[operationToken=IDENTIFIER, referencedName=to]
+          INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=2]
+      DESTRUCTURING_DECLARATION[hasInitializer=true, isVar=true]
+        BINARY_EXPRESSION
+          INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+          OPERATION_REFERENCE[operationToken=IDENTIFIER, referencedName=to]
+          INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=2]
+      MODIFIER_LIST[private]

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinCompositeDe
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProvider
 import org.jetbrains.kotlin.analysis.api.platform.packages.KotlinCompositePackageProvider
 import org.jetbrains.kotlin.analysis.api.platform.packages.createPackageProvider
-import org.jetbrains.kotlin.analysis.api.projectStructure.analysisContextModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
 import org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirModuleResolveComponents
 import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.llFirModuleData
 import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.extensions.LLFirResolveExtensionTool
@@ -37,11 +37,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
-import org.jetbrains.kotlin.name.CallableId
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.ClassIdBasedLocality
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.utils.exceptions.ExceptionAttachmentBuilder
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
@@ -69,7 +65,6 @@ import org.jetbrains.kotlin.utils.exceptions.withVirtualFileEntry
  * to duplicate symbols because FIR files (from which the symbols are taken) are unique in the session, but we would still cache a symbol in
  * the wrong symbol provider.
  */
-@OptIn(KtExperimentalApi::class)
 internal class LLKotlinSourceSymbolProvider private constructor(
     session: LLFirSession,
     private val moduleComponents: LLFirModuleResolveComponents,
@@ -162,13 +157,11 @@ internal class LLKotlinSourceSymbolProvider private constructor(
             val virtualFile = context?.containingFile?.virtualFile
             withVirtualFileEntry("contextVirtualFile", virtualFile)
 
+            withKaModuleEntry("contextModule", context?.containingKtFile?.contextModule)
+
             if (virtualFile != null) {
                 val isInContentScope = searchScope.contains(virtualFile)
                 withEntry("isContextInScope", isInContentScope.toString())
-
-                @Suppress("DEPRECATION")
-                val analysisContextModule = virtualFile.analysisContextModule
-                withKaModuleEntry("analysisContextModule", analysisContextModule)
             }
         }
 
@@ -186,17 +179,10 @@ internal class LLKotlinSourceSymbolProvider private constructor(
 
     private fun computeClassLikeSymbolByClassId(classId: ClassId, context: KtClassLikeDeclaration?): FirClassLikeSymbol<*>? {
         require(context == null || context.isPhysical)
-        val ktClass = context ?: declarationProvider.getClassLikeDeclarationByClassId(classId)
-        if (ktClass != null && ktClass.getClassId() == null) return null
-        val declaration = ktClass ?: run {
-            if (!classId.isNestedClass) {
-                declarationProvider.findFilesForScript(classId.asSingleFqName()).find(KtScript::isReplSnippet)
-            } else {
-                null
-            }
-        } ?: return null
+        val ktClass = context ?: declarationProvider.getClassLikeDeclarationByClassId(classId) ?: return null
+        if (ktClass.getClassId() == null) return null
 
-        return findClassLikeSymbol(classId, declaration) { FirElementFinder.findClassifierWithClassId(it, classId) }
+        return findClassLikeSymbol(classId, ktClass) { FirElementFinder.findClassifierWithClassId(it, classId) }
     }
 
     private fun computeClassLikeSymbolByPsi(declaration: KtClassLikeDeclaration): FirClassLikeSymbol<*>? {

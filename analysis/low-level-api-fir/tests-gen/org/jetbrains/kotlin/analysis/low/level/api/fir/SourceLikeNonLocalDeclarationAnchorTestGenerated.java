@@ -70,12 +70,6 @@ public class SourceLikeNonLocalDeclarationAnchorTestGenerated extends AbstractSo
   }
 
   @Test
-  @TestMetadata("destructuringDeclarationsRepl.repl.kts")
-  public void testDestructuringDeclarationsRepl_repl() {
-    run("destructuringDeclarationsRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("destructuringDeclarationsScript.kts")
   public void testDestructuringDeclarationsScript() {
     run("destructuringDeclarationsScript.kts");
@@ -85,6 +79,24 @@ public class SourceLikeNonLocalDeclarationAnchorTestGenerated extends AbstractSo
   @TestMetadata("enumEntries.kt")
   public void testEnumEntries() {
     run("enumEntries.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitBackingField.kt")
+  public void testExplicitBackingField() {
+    run("explicitBackingField.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitBackingFieldScript.kts")
+  public void testExplicitBackingFieldScript() {
+    run("explicitBackingFieldScript.kts");
+  }
+
+  @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
   }
 
   @Test
@@ -121,12 +133,6 @@ public class SourceLikeNonLocalDeclarationAnchorTestGenerated extends AbstractSo
   @TestMetadata("localFunctionInsideSuperEntryCall.kt")
   public void testLocalFunctionInsideSuperEntryCall() {
     run("localFunctionInsideSuperEntryCall.kt");
-  }
-
-  @Test
-  @TestMetadata("replSnippet.repl.kts")
-  public void testReplSnippet_repl() {
-    run("replSnippet.repl.kts");
   }
 
   @Test

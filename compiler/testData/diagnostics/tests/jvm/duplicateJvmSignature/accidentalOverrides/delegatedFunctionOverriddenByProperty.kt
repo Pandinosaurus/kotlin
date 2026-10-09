@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 interface B {
     fun getX() = 1
 }
@@ -7,7 +7,7 @@ interface D {
     val x: Int
 }
 
-<!ACCIDENTAL_OVERRIDE!>class C(d: D) : D by d, B<!>
+class <!ACCIDENTAL_OVERRIDE!>C(d: D)<!> : D by d, B
 
 /* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, inheritanceDelegation, integerLiteral,
 interfaceDeclaration, primaryConstructor, propertyDeclaration */

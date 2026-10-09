@@ -47,7 +47,7 @@ class KotlinSpecificDependenciesIT : KGPBaseTest() {
                 //language=groovy
                 """
                 |
-                |kotlin.coreLibrariesVersion = "1.9.0"
+                |kotlin.coreKotlinLibrariesVersion.set("1.9.0")
                 """.trimMargin()
             )
 
@@ -606,7 +606,7 @@ class KotlinSpecificDependenciesIT : KGPBaseTest() {
             buildGradle.appendText(
                 """
                 
-                kotlin.coreLibrariesVersion = "$customVersion"
+                kotlin.coreKotlinLibrariesVersion.set("$customVersion")
                 dependencies {
                     testImplementation("org.jetbrains.kotlin:kotlin-reflect")
                     testImplementation("org.jetbrains.kotlin:kotlin-test")
@@ -675,8 +675,8 @@ class KotlinSpecificDependenciesIT : KGPBaseTest() {
                 "\ndependencies { \"$configuration\"(\"$kotlinTestMultiplatformDependency\") }"
             }
         )
-        classpathElementsExpectedByTask.forEach { [task, expected] ->
-            val [notInClasspath, inClasspath] = expected.partition { it.startsWith("!") }
+        classpathElementsExpectedByTask.forEach { (task, expected) ->
+            val (notInClasspath, inClasspath) = expected.partition { it.startsWith("!") }
             checkTaskCompileClasspath(
                 task,
                 inClasspath,
@@ -684,8 +684,8 @@ class KotlinSpecificDependenciesIT : KGPBaseTest() {
                 isBuildGradleKts = isBuildGradleKts
             )
         }
-        filesExpectedByConfiguration.forEach { [configuration, expected] ->
-            val [notInItems, inItems] = expected.partition { it.startsWith("!") }
+        filesExpectedByConfiguration.forEach { (configuration, expected) ->
+            val (notInItems, inItems) = expected.partition { it.startsWith("!") }
             checkConfigurationContent(
                 configuration,
                 inItems,

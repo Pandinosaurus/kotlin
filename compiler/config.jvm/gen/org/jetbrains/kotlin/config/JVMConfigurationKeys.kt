@@ -102,10 +102,6 @@ object JVMConfigurationKeys {
     @JvmField
     val ABI_STABILITY = CompilerConfigurationKey.create<JvmAbiStability>("ABI_STABILITY")
 
-    // When using K1, do not clear BindingContext between psi2ir and lowerings.
-    @JvmField
-    val DO_NOT_CLEAR_BINDING_CONTEXT = CompilerConfigurationKey.create<Boolean>("DO_NOT_CLEAR_BINDING_CONTEXT")
-
     @JvmField
     val NO_RESET_JAR_TIMESTAMPS = CompilerConfigurationKey.create<Boolean>("NO_RESET_JAR_TIMESTAMPS")
 
@@ -127,6 +123,10 @@ object JVMConfigurationKeys {
     // Don't automatically include kotlin-reflect.jar into the output if the output is a jar.
     @JvmField
     val NO_REFLECT = CompilerConfigurationKey.create<Boolean>("NO_REFLECT")
+
+    // Don't automatically include the Kotlin/JVM stdlib and kotlin-reflect into the classpath.
+    @JvmField
+    val NO_STDLIB = CompilerConfigurationKey.create<Boolean>("NO_STDLIB")
 
     @JvmField
     val VALIDATE_BYTECODE = CompilerConfigurationKey.create<Boolean>("VALIDATE_BYTECODE")
@@ -280,10 +280,6 @@ var CompilerConfiguration.abiStability: JvmAbiStability?
     get() = get(JVMConfigurationKeys.ABI_STABILITY)
     set(value) { put(JVMConfigurationKeys.ABI_STABILITY, requireNotNull(value) { "nullable values are not allowed" }) }
 
-var CompilerConfiguration.doNotClearBindingContext: Boolean
-    get() = getBoolean(JVMConfigurationKeys.DO_NOT_CLEAR_BINDING_CONTEXT)
-    set(value) { put(JVMConfigurationKeys.DO_NOT_CLEAR_BINDING_CONTEXT, value) }
-
 var CompilerConfiguration.noResetJarTimestamps: Boolean
     get() = getBoolean(JVMConfigurationKeys.NO_RESET_JAR_TIMESTAMPS)
     set(value) { put(JVMConfigurationKeys.NO_RESET_JAR_TIMESTAMPS, value) }
@@ -307,6 +303,10 @@ var CompilerConfiguration.enableJvmPreview: Boolean
 var CompilerConfiguration.noReflect: Boolean
     get() = getBoolean(JVMConfigurationKeys.NO_REFLECT)
     set(value) { put(JVMConfigurationKeys.NO_REFLECT, value) }
+
+var CompilerConfiguration.noStdlib: Boolean
+    get() = getBoolean(JVMConfigurationKeys.NO_STDLIB)
+    set(value) { put(JVMConfigurationKeys.NO_STDLIB, value) }
 
 var CompilerConfiguration.validateBytecode: Boolean
     get() = getBoolean(JVMConfigurationKeys.VALIDATE_BYTECODE)

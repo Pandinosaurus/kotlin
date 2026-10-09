@@ -3,11 +3,9 @@ description = "Annotation Processor for Kotlin"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
 }
 
 dependencies {
@@ -63,14 +61,10 @@ optInToUnsafeDuringIrConstructionAPI()
 
 sourceSets {
     "main" { projectDefault() }
-    "test" {
-        projectDefault()
-        generatedTestDir()
-    }
+    "test" { projectDefault() }
     "testFixtures" { projectDefault() }
 }
 
-testsJar {}
 
 projectTests {
     fun kaptTestTask(name: String, javaLauncher: JdkMajorVersion) {
@@ -92,11 +86,10 @@ projectTests {
     kaptTestTask("testJdk17", JdkMajorVersion.JDK_17_0)
     kaptTestTask("testJdk21", JdkMajorVersion.JDK_21_0)
 
-    testGenerator("org.jetbrains.kotlin.kapt.test.TestGeneratorKt")
+    testGenerator("org.jetbrains.kotlin.kapt.test.TestGeneratorKt", generateTestsInBuildDirectory = true)
 
     testData(isolated, "testData")
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withTestJar()
     withMockJdkAnnotationsJar()
     withMockJdkRuntime()

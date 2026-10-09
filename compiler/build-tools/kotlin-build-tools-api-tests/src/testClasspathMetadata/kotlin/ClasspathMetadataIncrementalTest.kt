@@ -10,7 +10,9 @@ import org.jetbrains.kotlin.buildtools.api.arguments.ExperimentalCompilerArgumen
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation
 import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
+import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompiledSources
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertNoCompiledSources
+import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.expectFailWithError
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.BtaV2StrategyAgnosticCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.Scenario
 import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.jvmScenario
@@ -119,6 +121,118 @@ internal class ClasspathMetadataIncrementalTest : BaseCompilationTest() {
             module.compile(setOf("commonMain/com/example/one/bar.kt"))
         }
     }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    @DisplayName("KT-88997: incremental compilation of a common source using an expect fake override with an intermediate fragment")
+    @TestMetadata("expect-fake-override-metadata")
+    fun testExpectFakeOverrideWithIntermediateFragment(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jvmScenario(strategyConfig) {
+            val module = expectFakeOverrideModule()
+            module.execute("JvmKt", "fakeOverrideResult=initial")
+
+            module.replaceFileWithVersion("commonMain/fakeOverrideResult.kt", "change")
+
+            module.compile(setOf("commonMain/fakeOverrideResult.kt"))
+            module.execute("JvmKt", "fakeOverrideResult=common")
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    @DisplayName("KT-89300: incremental compilation of a common source using interface delegation over an expect interface")
+    @TestMetadata("interface-delegation-metadata")
+    fun testInterfaceDelegationOverExpectInterface(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jvmScenario(strategyConfig) {
+            val module = interfaceDelegationModule()
+            module.execute("JvmKt", "delegationResult=initial")
+
+            module.replaceFileWithVersion("commonMain/delegationResult.kt", "change")
+
+            module.compile(setOf("commonMain/delegationResult.kt"))
+            module.execute("JvmKt", "delegationResult=common")
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    @DisplayName("KT-89044: adding an overload to an expect class with an actual typealias recompiles common call sites")
+    @TestMetadata("expect-typealias-overload-metadata")
+    fun testExpectClassOverloadAddedViaActualTypealias(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jvmScenario(strategyConfig) {
+            val module = expectTypealiasOverloadModule()
+            module.execute("MainKt", "KMP output: Any")
+
+            module.replaceFileWithVersion("commonMain/base.kt", "addOverload")
+            module.replaceFileWithVersion("jvmMain/b1.kt", "addOverload")
+
+            // `result.kt` resolved `A1().foo(42)` against the expect class, so its lookup is `foo` in scope `A1`,
+            // not `B1`. Only a diff of the cached common metadata for `base.kt` produces that symbol.
+            module.compile(setOf("commonMain/base.kt", "jvmMain/b1.kt", "jvmMain/actual.kt", "commonMain/result.kt"))
+            module.execute("MainKt", "KMP output: Int")
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    @DisplayName("KT-89044: removing an overload from an expect class with an actual typealias recompiles common call sites")
+    @TestMetadata("expect-typealias-overload-metadata")
+    fun testExpectClassOverloadRemovedViaActualTypealias(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jvmScenario(strategyConfig) {
+            val module = expectTypealiasOverloadModule()
+
+            module.replaceFileWithVersion("commonMain/base.kt", "addOverload")
+            module.replaceFileWithVersion("jvmMain/b1.kt", "addOverload")
+            module.compile(setOf("commonMain/base.kt", "jvmMain/b1.kt", "jvmMain/actual.kt", "commonMain/result.kt"))
+            module.execute("MainKt", "KMP output: Int")
+
+            module.replaceFileWithVersion("commonMain/base.kt", "removeOverload")
+            module.replaceFileWithVersion("jvmMain/b1.kt", "removeOverload")
+            // The diff of the cached expect-class metadata reports `foo` as changed, so `result.kt` re-resolves to `foo(Any)`.
+            module.compile(setOf("commonMain/base.kt", "jvmMain/b1.kt", "jvmMain/actual.kt", "commonMain/result.kt"))
+            module.execute("MainKt", "KMP output: Any")
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    @DisplayName("KT-89044: deleting a common file with an expect class drops its cached metadata without breaking later builds")
+    @TestMetadata("expect-typealias-overload-metadata")
+    fun testDeletedExpectClassSourceIsRemovedFromMetadataCache(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jvmScenario(strategyConfig) {
+            val module = expectTypealiasOverloadModule()
+            module.execute("MainKt", "KMP output: Any")
+
+            module.deleteFile("commonMain/base.kt")
+            module.deleteFile("jvmMain/actual.kt")
+            module.deleteFile("jvmMain/b1.kt")
+            module.replaceFileWithVersion("commonMain/result.kt", "noA1")
+            // Deleted files are never "compiled"; only the rewritten call site is.
+            module.compile(setOf("commonMain/result.kt"))
+            module.execute("MainKt", "KMP output: none")
+
+            // A follow-up incremental build must not trip over stale pending/removed metadata of `base.kt`.
+            module.replaceFileWithVersion("commonMain/result.kt", "noA1")
+            module.compile(setOf("commonMain/result.kt"))
+            module.execute("MainKt", "KMP output: none")
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    @DisplayName("KT-89044: deleting an expect class alone recompiles its unmodified common call site")
+    @TestMetadata("expect-typealias-overload-metadata")
+    fun testDeletedExpectClassDirtiesUnmodifiedDependent(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jvmScenario(strategyConfig) {
+            val module = expectTypealiasOverloadModule()
+            module.execute("MainKt", "KMP output: Any")
+
+            module.deleteFile("commonMain/base.kt")
+            module.deleteFile("jvmMain/actual.kt")
+            module.deleteFile("jvmMain/b1.kt")
+
+            // `result.kt` is untouched, so the only way it can stop compiling is by being recompiled: the removal of the cached
+            // metadata of `base.kt` must mark its call site of `A1` dirty instead of leaving a stale `ResultKt.class` behind.
+            module.compile {
+                expectFailWithError(".*commonMain/result\\.kt:6:25 Unresolved reference 'A1'.*".toRegex())
+                assertCompiledSources("commonMain/result.kt")
+            }
+        }
+    }
 }
 
 private typealias JvmScenario = Scenario<JvmCompilationOperation.Builder, JvmSnapshotBasedIncrementalCompilationConfiguration.Builder>
@@ -159,6 +273,42 @@ private fun JvmScenario.twoCommonModulesModule() = module(
     },
 )
 
+@OptIn(ExperimentalCompilerArgument::class)
+private fun JvmScenario.expectFakeOverrideModule() = module(
+    "expect-fake-override-metadata",
+    compilationConfigAction = configureKmpJvmFragments(enableClasspathMetadata = true),
+    icOptionsConfigAction = {
+        it[UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM] = true
+    },
+)
+
+@OptIn(ExperimentalCompilerArgument::class)
+private fun JvmScenario.expectFakeOverrideModuleNoIntermediate() = module(
+    "expect-fake-override-metadata-no-intermediate",
+    compilationConfigAction = configureKmpJvmFragments(enableClasspathMetadata = true),
+    icOptionsConfigAction = {
+        it[UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM] = true
+    },
+)
+
+@OptIn(ExperimentalCompilerArgument::class)
+private fun JvmScenario.interfaceDelegationModule() = module(
+    "interface-delegation-metadata",
+    compilationConfigAction = configureKmpJvmFragments(enableClasspathMetadata = true),
+    icOptionsConfigAction = {
+        it[UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM] = true
+    },
+)
+
+@OptIn(ExperimentalCompilerArgument::class)
+private fun JvmScenario.expectTypealiasOverloadModule() = module(
+    "expect-typealias-overload-metadata",
+    compilationConfigAction = configureKmpJvmFragments(enableClasspathMetadata = true),
+    icOptionsConfigAction = {
+        it[UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM] = true
+    },
+)
+
 private fun configureKmpJvmFragments(enableClasspathMetadata: Boolean): (JvmCompilationOperation.Builder) -> Unit = { builder ->
     val fragmentHierarchy = listOf("commonMain", "intermediateMain", "jvmMain")
     fun fragmentOf(path: Path): String? = fragmentHierarchy.firstOrNull { fragment -> path.any { it.toString() == fragment } }
@@ -183,5 +333,5 @@ private fun configureKmpJvmFragments(enableClasspathMetadata: Boolean): (JvmComp
         add("-Xuse-metadata-on-incremental-classpath=$enableClasspathMetadata")
     }
 
-    builder.compilerArguments.applyArgumentStrings(args)
+    builder.compilerArguments.applyCommandLineArguments(args)
 }

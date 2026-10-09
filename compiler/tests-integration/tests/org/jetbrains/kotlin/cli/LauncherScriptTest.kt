@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.cli
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
+import org.jetbrains.kotlin.cli.metadata.KotlinMetadataCompiler
 import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.test.CompilerTestUtil
@@ -31,10 +32,10 @@ import com.intellij.openapi.util.SystemInfo
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
+import kotlin.collections.mapOf
 
 class LauncherScriptTest : TestCaseWithTmpdir() {
     private fun runProcess(
@@ -44,7 +45,7 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         checkStderr: (String) -> Unit,
         expectedExitCode: Int,
         workDirectory: File? = null,
-        environment: Map<String, String> = mapOf("JAVA_HOME" to KtTestUtil.getJdk8Home().absolutePath),
+        environment: Map<String, String> = mapOf("JAVA_HOME" to KtTestUtil.getJdk17Home().absolutePath),
         launcherFile: File? = null,
     ) {
         CliProcessUtils.runProcess(
@@ -68,28 +69,54 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         expectedStderr: String = "",
         expectedExitCode: Int = 0,
         workDirectory: File? = null,
-        environment: Map<String, String> = mapOf("JAVA_HOME" to KtTestUtil.getJdk8Home().absolutePath),
+        environment: Map<String, String> = mapOf("JAVA_HOME" to KtTestUtil.getJdk17Home().absolutePath),
         launcherFile: File? = null,
-    ) {
-        CliProcessUtils.runProcess(
-            executableName,
-            *args,
-            expectedStdout = expectedStdout,
-            expectedStderr = expectedStderr,
-            expectedExitCode = expectedExitCode,
-            workDirectory = workDirectory,
-            environment = environment,
-            testDataDirectory = testDataDirectory,
-            tmpdir = tmpdir,
-            launcherFile = launcherFile,
-        )
-    }
+    ): Unit = runProcess(
+        executableName,
+        *args,
+        expectedStdout = expectedStdout,
+        expectedStderr = CliProcessUtils.ExpectedText.ExactMatch(expectedStderr),
+        expectedExitCode = expectedExitCode,
+        workDirectory = workDirectory,
+        environment = environment,
+        launcherFile = launcherFile,
+    )
+
+    private fun runProcess(
+        executableName: String,
+        vararg args: String,
+        expectedStdout: String = "",
+        expectedStderr: CliProcessUtils.ExpectedText,
+        expectedExitCode: Int = 0,
+        workDirectory: File? = null,
+        environment: Map<String, String> = mapOf("JAVA_HOME" to KtTestUtil.getJdk17Home().absolutePath),
+        launcherFile: File? = null,
+    ): Unit = CliProcessUtils.runProcess(
+        executableName,
+        *args,
+        expectedStdout = expectedStdout,
+        expectedStderr = expectedStderr,
+        expectedExitCode = expectedExitCode,
+        workDirectory = workDirectory,
+        environment = environment,
+        testDataDirectory = testDataDirectory,
+        tmpdir = tmpdir,
+        launcherFile = launcherFile,
+    )
+
+    private fun String.toPattern(): CliProcessUtils.ExpectedText.Pattern =
+        CliProcessUtils.ExpectedText.Pattern(trimMargin().toRegex())
 
     private val testDataDirectory: String
         get() = ForTestCompileRuntime.transformTestDataPath("compiler/tests-integration/testData/launcher").absolutePath
 
     private fun kotlincInProcess(vararg args: String) {
         val [output, exitCode] = AbstractCliTest.executeCompilerGrabOutput(K2JVMCompiler(), args.toList())
+        if (exitCode != ExitCode.OK) error("Failed to compile: ${args.joinToString(" ")}\nOutput:\n$output")
+    }
+
+    private fun metadataCompilerInProcess(vararg args: String) {
+        val [output, exitCode] = AbstractCliTest.executeCompilerGrabOutput(KotlinMetadataCompiler(), args.toList())
         if (exitCode != ExitCode.OK) error("Failed to compile: ${args.joinToString(" ")}\nOutput:\n$output")
     }
 
@@ -142,7 +169,7 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
             tmpdir.path,
             K2JSCompilerArguments::moduleName.cliArgument,
             "out",
-            environment = mapOf("JAVA_HOME" to KtTestUtil.getJdk8Home().absolutePath)
+            environment = mapOf("JAVA_HOME" to KtTestUtil.getJdk17Home().absolutePath)
         )
     }
 
@@ -156,7 +183,7 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
             KotlinWasmCompilerArguments::nopack.cliArgument,
             KotlinWasmCompilerArguments::outputDir.cliArgument(tmpdir.path),
             KotlinWasmCompilerArguments::moduleName.cliArgument("out"),
-            environment = mapOf("JAVA_HOME" to KtTestUtil.getJdk8Home().absolutePath)
+            environment = mapOf("JAVA_HOME" to KtTestUtil.getJdk17Home().absolutePath)
         )
     }
 
@@ -228,7 +255,7 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         runProcess(
             "kotlinr", "-howtorun", "jar", "test.HelloWorldKt", workDirectory = tmpdir,
             expectedExitCode = 1,
-            expectedStderr = "error: could not read manifest from test.HelloWorldKt: test.HelloWorldKt (No such file or directory)\n"
+            expectedStderr = "error: could not read manifest from test.HelloWorldKt: test.HelloWorldKt\n"
         )
         runProcess("kotlinr", "-howtorun", "classfile", "test.HelloWorldKt", expectedStdout = "Hello!\n", workDirectory = tmpdir)
     }
@@ -268,10 +295,9 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         runProcess(
             "kotlinr", "test.DefaultPackageKt", workDirectory = tmpdir, expectedExitCode = 1,
             expectedStderr = """
-            error: could not find or load main class test.DefaultPackageKt
-            Caused by: java.lang.NoClassDefFoundError: test/DefaultPackageKt (wrong name: DefaultPackageKt)
-
-        """.trimIndent()
+            |error: could not find or load main class test\.DefaultPackageKt
+            |Caused by: java\.lang\.NoClassDefFoundError: .*DefaultPackageKt \(wrong name: .*DefaultPackageKt\)
+        """.toPattern()
         )
     }
 
@@ -285,10 +311,9 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         runProcess(
             "kotlinr", "HelloWorldKt", workDirectory = testDir, expectedExitCode = 1,
             expectedStderr = """
-            error: could not find or load main class HelloWorldKt
-            Caused by: java.lang.NoClassDefFoundError: HelloWorldKt (wrong name: test/HelloWorldKt)
-
-        """.trimIndent()
+            |error: could not find or load main class HelloWorldKt
+            |Caused by: java\.lang\.NoClassDefFoundError: .*HelloWorldKt \(wrong name: .*HelloWorldKt\)
+        """.toPattern()
         )
     }
 
@@ -306,10 +331,9 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         runProcess(
             "kotlinr", "test/DefaultPackageKt.class", workDirectory = tmpdir, expectedExitCode = 1,
             expectedStderr = """
-            error: could not find or load main class test.DefaultPackageKt
-            Caused by: java.lang.NoClassDefFoundError: test/DefaultPackageKt (wrong name: DefaultPackageKt)
-            
-        """.trimIndent()
+            |error: could not find or load main class test\.DefaultPackageKt
+            |Caused by: java\.lang\.NoClassDefFoundError: .*DefaultPackageKt \(wrong name: .*DefaultPackageKt\)
+        """.toPattern()
         )
 
         runProcess("kotlinr", "DefaultPackageKt.class", expectedStdout = "ok", workDirectory = testDir)
@@ -342,18 +366,16 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         runProcess(
             "kotlinr", "./HelloWorldKt.class", workDirectory = testDir, expectedExitCode = 1,
             expectedStderr = """
-            error: could not find or load main class HelloWorldKt
-            Caused by: java.lang.NoClassDefFoundError: HelloWorldKt (wrong name: test/HelloWorldKt)
-            
-        """.trimIndent()
+            |error: could not find or load main class HelloWorldKt
+            |Caused by: java\.lang\.NoClassDefFoundError: .*HelloWorldKt \(wrong name: .*HelloWorldKt\)
+        """.toPattern()
         )
         runProcess(
             "kotlinr", "HelloWorldKt.class", workDirectory = testDir, expectedExitCode = 1,
             expectedStderr = """
-            error: could not find or load main class HelloWorldKt
-            Caused by: java.lang.NoClassDefFoundError: HelloWorldKt (wrong name: test/HelloWorldKt)
-            
-        """.trimIndent()
+            |error: could not find or load main class HelloWorldKt
+            |Caused by: java\.lang\.NoClassDefFoundError: .*HelloWorldKt \(wrong name: .*HelloWorldKt\)
+        """.toPattern()
         )
         runProcess(
             "kotlinr", "../HelloWorldKt.class", expectedExitCode = 1,
@@ -364,30 +386,30 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
 
     @Test
     fun testKotlinUseJdkModuleFromMainClass() {
-        val jdk11 = mapOf("JAVA_HOME" to KtTestUtil.getJdk11Home().absolutePath)
+        val jdk17 = mapOf("JAVA_HOME" to KtTestUtil.getJdk17Home().absolutePath)
         runProcess(
             "kotlinc", "$testDataDirectory/jdkModuleUsage.kt", K2JVMCompilerArguments::destination.cliArgument, tmpdir.path,
-            environment = jdk11,
+            environment = jdk17,
         )
         runProcess(
             "kotlinr", K2JVMCompilerArguments::classpath.cliArgument, tmpdir.path, "test.JdkModuleUsageKt",
             expectedStdout = "interface java.sql.Driver\n",
-            environment = jdk11,
+            environment = jdk17,
         )
     }
 
     @Test
     fun testKotlinUseJdkModuleFromJar() {
-        val jdk11 = mapOf("JAVA_HOME" to KtTestUtil.getJdk11Home().absolutePath)
+        val jdk17 = mapOf("JAVA_HOME" to KtTestUtil.getJdk17Home().absolutePath)
         val output = tmpdir.resolve("out.jar")
         runProcess(
             "kotlinc", "$testDataDirectory/jdkModuleUsage.kt", K2JVMCompilerArguments::destination.cliArgument, output.path,
-            environment = jdk11,
+            environment = jdk17,
         )
         runProcess(
             "kotlinr", output.path,
             expectedStdout = "interface java.sql.Driver\n",
-            environment = jdk11,
+            environment = jdk17,
         )
     }
 
@@ -413,13 +435,37 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         val testKt = tmpdir.resolve("test.kt").apply {
             writeText("fun main() {}")
         }
-        val jdk11 = mapOf("JAVA_HOME" to KtTestUtil.getJdk11Home().absolutePath)
+        val jdk17 = mapOf("JAVA_HOME" to KtTestUtil.getJdk17Home().absolutePath)
         runProcess(
             "kotlinc", moduleInfo.absolutePath, testKt.absolutePath, K2JVMCompilerArguments::destination.cliArgument, tmpdir.path,
-            environment = jdk11,
+            environment = jdk17,
             expectedExitCode = 0,
             expectedStdout = "",
             expectedStderr = ""
+        )
+    }
+
+    @Test
+    fun testPre17RuntimeJdk() {
+        runProcess(
+            "kotlinc",
+            "$testDataDirectory/helloWorld.kt",
+            K2JVMCompilerArguments::destination.cliArgument, tmpdir.path,
+            environment = mapOf("JAVA_HOME" to KtTestUtil.getJdk11Home().absolutePath),
+            expectedStderr = "error: running Kotlin compiler using JDK 11 will not be supported in future versions of Kotlin. Consider upgrading to at least JDK 17 or supplying '-Xallow-pre-17-runtime-jdk' (which will only work until Kotlin 2.5.20-Beta1). See https://jb.gg/kotlin-compiler-jdk-17-migration for more details.",
+            expectedExitCode = 1,
+        )
+    }
+
+    @Test
+    fun testPre17RuntimeJdkTemporarilyPreserved() {
+        runProcess(
+            "kotlinc",
+            "-Xallow-pre-17-runtime-jdk", "$testDataDirectory/helloWorld.kt",
+            K2JVMCompilerArguments::destination.cliArgument, tmpdir.path,
+            environment = mapOf("JAVA_HOME" to KtTestUtil.getJdk11Home().absolutePath),
+            expectedStderr = "",
+            expectedExitCode = 0,
         )
     }
 
@@ -620,5 +666,88 @@ Caused by: java.lang.AssertionError: assert
             K2JVMCompilerArguments::destination.cliArgument, tmpdir.path,
             launcherFile = symlink,
         )
+    }
+
+    @Test
+    fun testSeparateCompilationWithMismatchedDependencies() {
+        val libCommonSource = tmpdir.resolve("libCommon.kt").apply {
+            writeText(
+                """
+                    expect class Some {
+                        fun foo(x: Any)
+                    }
+                """.trimIndent()
+            )
+        }
+        val libCommonKlib = tmpdir.resolve("libCommon.klib")
+        metadataCompilerInProcess(
+            libCommonSource.path,
+            CommonCompilerArguments::multiPlatform.cliArgument,
+            K2MetadataCompilerArguments::classpath.cliArgument, ForTestCompileRuntime.stdlibCommonForTests().path,
+            K2MetadataCompilerArguments::destination.cliArgument, libCommonKlib.path,
+        )
+
+        val libCommonForPlatformSource = tmpdir.resolve("libCommonForPlatform.kt").apply {
+            writeText(
+                """
+                    expect class Some {
+                        fun foo(x: String)
+                    }
+                """.trimIndent()
+            )
+        }
+        val libPlatformSource = tmpdir.resolve("libPlatform.kt").apply {
+            writeText(
+                """
+                    actual class Some {
+                        actual fun foo(x: String) {}
+                    }
+                """.trimIndent()
+            )
+        }
+        val libPlatformJar = tmpdir.resolve("libPlatform.jar")
+        kotlincInProcess(
+            libCommonForPlatformSource.path,
+            libPlatformSource.path,
+            CommonCompilerArguments::multiPlatform.cliArgument,
+            CommonCompilerArguments::commonSources.cliArgument(libCommonForPlatformSource.path),
+            K2JVMCompilerArguments::destination.cliArgument, libPlatformJar.path,
+        )
+
+        val commonSource = tmpdir.resolve("common.kt").apply {
+            writeText(
+                """
+                    fun test(s: Some) {
+                        s.foo("hello")
+                    }
+                """.trimIndent()
+            )
+        }
+
+        val [output, exitCode] = AbstractCliTest.executeCompilerGrabOutput(
+            K2JVMCompiler(),
+            listOf(
+                commonSource.path,
+                CommonCompilerArguments::multiPlatform.cliArgument,
+                CommonCompilerArguments::separateKmpCompilationScheme.cliArgument,
+                CommonCompilerArguments::fragments.cliArgument("common"),
+                CommonCompilerArguments::fragments.cliArgument("platform"),
+                CommonCompilerArguments::fragmentSources.cliArgument("common:${commonSource.path}"),
+                CommonCompilerArguments::fragmentRefines.cliArgument("platform:common"),
+                CommonCompilerArguments::fragmentDependencies.cliArgument("common:${libCommonKlib.path}"),
+                CommonCompilerArguments::fragmentDependencies.cliArgument("common:${ForTestCompileRuntime.stdlibCommonForTests().path}"),
+                K2JVMCompilerArguments::classpath.cliArgument, libPlatformJar.path,
+                K2JVMCompilerArguments::destination.cliArgument, File(tmpdir, "out").path,
+            )
+        )
+
+        assertTrue(exitCode != ExitCode.OK) {
+            "Expected compilation to fail due to mismatched common/platform dependencies, but it succeeded.\nOutput:\n$output"
+        }
+
+        val exceptionMessage = "exception: java.lang.IllegalStateException: Actualization of common dependencies failed on"
+        assertFalse(exceptionMessage in output) { "Output:\n$output" }
+        val errorMessage = "error: the binary declaration 'Some.foo' from '<regular dependencies of <common>>' doesn't match the binary declaration 'Some.foo' from '<regular dependencies of main>' because parameter types are different."
+        assertTrue(errorMessage in output) { "Output:\n$output" }
     }
 }

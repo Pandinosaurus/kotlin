@@ -1,5 +1,5 @@
-// LANGUAGE: +CollectionLiterals +CompanionBlocks +CompanionExtensions
-// RUN_PIPELINE_TILL: BACKEND
+// LANGUAGE: +CompanionBlocks +CompanionExtensions
+// RUN_PIPELINE_TILL: CODEGEN
 
 class E<T>(val t: T) {
     companion {

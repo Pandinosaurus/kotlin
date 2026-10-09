@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LANGUAGE: +ContextParameters
 // IGNORE_ERRORS
 // FILE: JavaBase.java
@@ -10,8 +10,8 @@ public interface JavaBase {
 import JavaBase
 
 interface KotlinInterface : JavaBase {
-    context(a: String)
-    <!ACCIDENTAL_OVERRIDE!>fun foo(b: String): String<!>
+    <!ACCIDENTAL_OVERRIDE!>context(a: String)
+    fun foo(b: String): String<!>
 }
 
 /* GENERATED_FIR_TAGS: functionDeclaration, functionDeclarationWithContext, interfaceDeclaration, javaType */

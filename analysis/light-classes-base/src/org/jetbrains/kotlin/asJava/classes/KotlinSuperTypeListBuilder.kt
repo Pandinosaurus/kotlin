@@ -9,7 +9,7 @@ import com.intellij.lang.Language
 import com.intellij.psi.*
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.psi.KtNonPublicApi
+import org.jetbrains.kotlin.psi.KtIdeApi
 import org.jetbrains.kotlin.psi.KtPsiMutationService
 import org.jetbrains.kotlin.psi.KtSuperTypeList
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
@@ -27,6 +27,7 @@ class KotlinSuperTypeListBuilder(
     role,
 ) {
     override fun getParent(): PsiElement = parent
+    override fun getContainingFile(): PsiFile? = parent.containingFile
 
     private val myKotlinOrigin: KtSuperTypeList? = kotlinOrigin
 
@@ -38,7 +39,7 @@ class KotlinSuperTypeListBuilder(
             element.nameFromSource?.let { this@KotlinSuperTypeListBuilder.myKotlinOrigin?.findEntry(it) }
         }
 
-        @OptIn(KtNonPublicApi::class)
+        @OptIn(KtIdeApi::class)
         override fun delete() {
             val superTypeList = this@KotlinSuperTypeListBuilder.myKotlinOrigin ?: return
             val entry = kotlinOrigin ?: return

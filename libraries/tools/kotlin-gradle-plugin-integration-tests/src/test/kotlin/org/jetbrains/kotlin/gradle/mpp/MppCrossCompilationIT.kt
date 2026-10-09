@@ -52,7 +52,7 @@ class MppCrossCompilationIT : KGPBaseTest() {
                 with(project) {
                     applyMultiplatform {
                         macosArm64()
-                        @Suppress("DEPRECATION")
+                        @Suppress("DEPRECATION_ERROR") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
                         macosX64()
                         mingwX64()
                         linuxX64()
@@ -82,7 +82,7 @@ class MppCrossCompilationIT : KGPBaseTest() {
                         }
 
                         it.doLast {
-                            checks.forEach { [targetName, provider] ->
+                            checks.forEach { (targetName, provider) ->
                                 println("Property check [$targetName]: ${provider.get()}")
                             }
                         }
@@ -146,7 +146,7 @@ class MppCrossCompilationIT : KGPBaseTest() {
                 val defFile: (String) -> File = { file("src/nativeInterop/cinterop/$it") }
                 applyMultiplatform {
                     macosArm64()
-                    @Suppress("DEPRECATION")
+                    @Suppress("DEPRECATION_ERROR") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
                     macosX64()
                     mingwX64()
                     linuxX64()

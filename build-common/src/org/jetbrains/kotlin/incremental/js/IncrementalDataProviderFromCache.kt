@@ -9,15 +9,12 @@ import org.jetbrains.kotlin.incremental.IncrementalJsCache
 import java.io.File
 
 class IncrementalDataProviderFromCache(private val cache: IncrementalJsCache) : IncrementalDataProvider {
-    override val headerMetadata: ByteArray
-        get() = cache.header
-
     override val compiledPackageParts: Map<File, TranslationResultValue>
         get() = cache.nonDirtyPackageParts()
 
-    override val packageMetadata: Map<String, ByteArray>
-        get() = cache.packageMetadata()
-
     override val serializedIrFiles: Map<File, IrTranslationResultValue>
         get() = cache.nonDirtyIrParts()
+
+    override val serializedIrInlineFiles: Map<File, IrTranslationResultValue>
+        get() = cache.nonDirtyIrInlineParts()
 }

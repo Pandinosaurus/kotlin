@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.builder.buildOuterClassTypeParameterRef
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirReplSnippetSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirScriptSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
@@ -26,8 +25,11 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.util.PrivateForInline
 import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
-class Context<T> {
+open class Context<Node> {
     lateinit var packageFqName: FqName
     var className: FqName = FqName.ROOT
     var inLocalContext: Boolean = false
@@ -56,7 +58,7 @@ class Context<T> {
     var firLabelUserNode: Any? = null
     val firLoopTargets: MutableList<FirLoopTarget> = mutableListOf()
     val capturedTypeParameters: MutableList<StatusFirTypeParameterSymbolList> = mutableListOf()
-    val arraySetArgument: MutableMap<T, FirExpression> = mutableMapOf()
+    val arraySetArgument: MutableMap<Node, FirExpression> = mutableMapOf()
 
     val dispatchReceiverTypesStack: MutableList<ConeClassLikeType> = mutableListOf()
     var containerIsExpect: Boolean = false
@@ -67,6 +69,97 @@ class Context<T> {
     var containingReplSymbol: FirReplSnippetSymbol? = null
 
     var currentCompanionBlockOwnerOrNull: FirBasedSymbol<*>? = null
+
+    /**
+     * @param isLocal if true [symbol] will be ignored
+     *
+     * @see Context.containerSymbol
+     * @see Context.pushContainerSymbol
+     * @see Context.popContainerSymbol
+     */
+    @OptIn(ExperimentalContracts::class)
+    inline fun <T> withContainerSymbol(
+        symbol: FirBasedSymbol<*>,
+        isLocal: Boolean = false,
+        block: () -> T,
+    ): T {
+        contract {
+            callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        }
+
+        if (!isLocal) {
+            pushContainerSymbol(symbol)
+        }
+
+        return try {
+            block()
+        } finally {
+            if (!isLocal) {
+                popContainerSymbol(symbol)
+            }
+        }
+    }
+
+    inline fun <R> withForcedLocalContext(forceKeepingTheBodyInHeaderMode: Boolean = false, block: () -> R): R {
+        val oldForceKeepingTheBodyInHeaderMode = this.forceKeepingTheBodyInHeaderMode
+        this.forceKeepingTheBodyInHeaderMode = oldForceKeepingTheBodyInHeaderMode || forceKeepingTheBodyInHeaderMode
+        val oldForcedLocalContext = inLocalContext
+        inLocalContext = true
+        val oldClassNameBeforeLocalContext = classNameBeforeLocalContext
+        if (!oldForcedLocalContext) {
+            classNameBeforeLocalContext = className
+        }
+        val oldClassName = className
+        className = FqName.ROOT
+        return try {
+            block()
+        } finally {
+            classNameBeforeLocalContext = oldClassNameBeforeLocalContext
+            inLocalContext = oldForcedLocalContext
+            className = oldClassName
+            this.forceKeepingTheBodyInHeaderMode = oldForceKeepingTheBodyInHeaderMode
+        }
+    }
+
+    /**** Class name utils ****/
+    inline fun <T> withChildClassName(
+        name: Name,
+        isExpect: Boolean,
+        forceLocalContext: Boolean = false,
+        l: () -> T,
+    ): T = when {
+        forceLocalContext -> withForcedLocalContext {
+            withChildClassNameRegardlessLocalContext(name, isExpect, l)
+        }
+        else -> {
+            withChildClassNameRegardlessLocalContext(name, isExpect, l)
+        }
+    }
+
+    inline fun <T> withChildClassNameRegardlessLocalContext(
+        name: Name,
+        isExpect: Boolean,
+        l: () -> T,
+    ): T {
+        className = className.child(name)
+        val previousIsExpect = containerIsExpect
+        containerIsExpect = previousIsExpect || isExpect
+        val dispatchReceiversNumber = dispatchReceiverTypesStack.size
+        return try {
+            l()
+        } finally {
+            require(dispatchReceiverTypesStack.size <= dispatchReceiversNumber + 1) {
+                "Wrong number of ${dispatchReceiverTypesStack.size}"
+            }
+
+            if (dispatchReceiverTypesStack.size > dispatchReceiversNumber) {
+                dispatchReceiverTypesStack.removeAt(dispatchReceiverTypesStack.lastIndex)
+            }
+
+            className = className.parent()
+            containerIsExpect = previousIsExpect
+        }
+    }
 
     fun pushFirTypeParameters(isInnerOrLocal: Boolean, parameters: List<FirTypeParameterRef>) {
         capturedTypeParameters.add(StatusFirTypeParameterSymbolList(isInnerOrLocal, parameters.map { it.symbol }))
@@ -90,6 +183,53 @@ class Context<T> {
             if (!element.isInnerOrLocal) {
                 break
             }
+        }
+    }
+
+    inline fun <T> withCapturedTypeParameters(
+        status: Boolean,
+        declarationSource: KtSourceElement? = null,
+        currentFirTypeParameters: List<FirTypeParameterRef>,
+        block: () -> T,
+    ): T {
+        addCapturedTypeParameters(status, declarationSource, currentFirTypeParameters)
+        return try {
+            block()
+        } finally {
+            popFirTypeParameters()
+        }
+    }
+
+    open fun addCapturedTypeParameters(
+        status: Boolean,
+        declarationSource: KtSourceElement?,
+        currentFirTypeParameters: List<FirTypeParameterRef>,
+    ) {
+        pushFirTypeParameters(status, currentFirTypeParameters)
+    }
+
+    inline fun withCompanionBlock(block: () -> Unit) {
+        val oldValue = currentCompanionBlockOwnerOrNull
+        currentCompanionBlockOwnerOrNull = containerSymbolIfAny
+        try {
+            block()
+        } finally {
+            currentCompanionBlockOwnerOrNull = oldValue
+        }
+    }
+
+    inline fun <T> withContainerScriptSymbol(
+        symbol: FirScriptSymbol,
+        block: () -> T,
+    ): T {
+        require(containingScriptSymbol == null) { "Nested scripts are not supported" }
+        containingScriptSymbol = symbol
+        pushContainerSymbol(symbol)
+        return try {
+            block()
+        } finally {
+            popContainerSymbol(symbol)
+            containingScriptSymbol = null
         }
     }
 

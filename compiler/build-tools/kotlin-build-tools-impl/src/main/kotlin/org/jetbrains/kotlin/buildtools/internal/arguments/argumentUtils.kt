@@ -10,6 +10,7 @@ package org.jetbrains.kotlin.buildtools.internal.arguments
 import org.jetbrains.kotlin.buildtools.api.CompilerArgumentsParseException
 import org.jetbrains.kotlin.buildtools.api.KotlinLogger
 import org.jetbrains.kotlin.cli.common.arguments.Argument
+import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.ArgumentLifecycleStatus
 import org.jetbrains.kotlin.cli.common.arguments.CommonToolArguments
 import org.jetbrains.kotlin.cli.common.arguments.getArgumentsInfo
@@ -19,7 +20,6 @@ import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.reportArgumentParseProblems
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import java.nio.file.Path
-import kotlin.enums.enumEntries
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.declaredMemberProperties
@@ -85,14 +85,14 @@ internal fun <T> CommonToolArguments.getUsingReflection(propertyName: String): T
 internal fun Path.absolutePathStringOrThrow(): String = toFile().absolutePath
 
 internal inline fun <reified T : Enum<T>> Enum<*>.toApiEnum(): T =
-    enumEntries<T>().firstOrNull { it.name == name }
+    enumValues<T>().firstOrNull { it.name == name }
         ?: throw CompilerArgumentsParseException(
             "Value '$name' of ${T::class.simpleName} is not available in the loaded kotlin-build-tools-api; " +
                     "it exists in kotlin-build-tools-impl ${KotlinCompilerVersion.VERSION}."
         )
 
 internal inline fun <reified T : Enum<T>> Enum<*>.toImplEnum(): T =
-    enumEntries<T>().firstOrNull { it.name == name }
+    enumValues<T>().firstOrNull { it.name == name }
         ?: throw CompilerArgumentsParseException(
             "Value '$name' of ${T::class.simpleName} is not supported by " +
                     "kotlin-build-tools-impl ${KotlinCompilerVersion.VERSION}."
@@ -121,7 +121,7 @@ internal fun checkCaseMatches(
     restrictedArgViolations: MutableList<RestrictedArgViolation>,
     argument: KProperty<*>,
     stringValue: String,
-    passedValue: String
+    passedValue: String,
 ) {
     if (stringValue == passedValue) return
     else {
@@ -148,5 +148,16 @@ internal fun populateExplicitArguments(arguments: CommonToolArguments) {
                 this[argumentField] = listOf(actualValue)
             }
         }
+    }
+}
+
+internal fun handleCustomPluginArguments(btaArguments: CommonCompilerArgumentsImpl, compilerArgs: CommonCompilerArguments) {
+    val explicitArgumentNames = compilerArgs.explicitArguments.keys.map { it.argument.value }
+    if (setOf("-Xplugin", "-P", "-Xcompiler-plugin-order").any { it in explicitArgumentNames }) {
+        btaArguments[CommonCompilerArgumentsImpl.COMPILER_PLUGINS] = emptyList()
+    } else {
+        compilerArgs.pluginClasspaths = emptyArray()
+        compilerArgs.pluginOptions = emptyArray()
+        compilerArgs.pluginOrderConstraints = emptyArray()
     }
 }

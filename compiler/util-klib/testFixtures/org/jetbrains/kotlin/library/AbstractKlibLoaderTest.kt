@@ -9,11 +9,14 @@ import org.jetbrains.kotlin.io.canonicalPathString
 import org.jetbrains.kotlin.io.readProperties
 import org.jetbrains.kotlin.io.writeProperties
 import org.jetbrains.kotlin.io.zipDirAs
+import org.jetbrains.kotlin.library.KotlinAbiVersion.Companion.FIRST_SUPPORTED_COMPILER_VERSION
 import org.jetbrains.kotlin.library.loader.DefaultKlibLibraryProvider
 import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.library.loader.KlibLoaderResult
 import org.jetbrains.kotlin.library.loader.KlibLoaderResult.ProblemCase
+import org.jetbrains.kotlin.library.loader.KlibLoadingCancellationChecker
 import org.jetbrains.kotlin.library.loader.KlibPlatformChecker
+import org.jetbrains.kotlin.library.loader.reportLoadingProblemsIfAny
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -21,6 +24,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInfo
+import org.junit.jupiter.api.assertThrows
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -431,6 +435,43 @@ abstract class AbstractKlibLoaderTest {
     }
 
     @Test
+    fun testMinPermittedAbiVersion() {
+        // This list of ABI versions only starts from the current version.
+        // Thus, it contains 4 more versions that are definitely not supported by the current compiler.
+        val abiVersionsStartingFromCurrent: List<KotlinAbiVersion> =
+            generateSequence(KotlinAbiVersion.CURRENT) { it.prev() }.take(5).toList()
+
+        val abiVersionsToLibraryPaths: List<Pair<KotlinAbiVersion, String>> = abiVersionsStartingFromCurrent.map { abiVersion ->
+            val library = generateNewKlib(asFile = false, fileExtension = "", abiVersion = abiVersion)
+            abiVersion to library
+        }
+
+        val libraryPaths: List<String> = abiVersionsToLibraryPaths.map { (_, libraryPath) -> libraryPath }
+
+        // Load without ABI version check.
+        KlibLoader {
+            libraryPaths(libraryPaths)
+        }.load()
+            .assertLoadedLibraries(libraryPaths) // All libraries are loaded.
+            .assertNoProblematicLibraries()
+            .run {
+                // Check that the requested ABI versions are indeed written to KLIBs.
+                (abiVersionsStartingFromCurrent zip librariesStdlibFirst).forEach { (abiVersion, library) ->
+                    assertEquals(abiVersion, library.versions.abiVersion)
+                }
+            }
+
+        for (i in abiVersionsStartingFromCurrent.indices) {
+            KlibLoader {
+                libraryPaths(libraryPaths)
+                minPermittedAbiVersion(abiVersionsStartingFromCurrent[i], null)
+            }.load()
+                .assertLoadedLibraries(libraryPaths.take(i + 1))
+                .assertProblematicLibraries(incompatibleAbiVersionPaths = libraryPaths.drop(i + 1))
+        }
+    }
+
+    @Test
     fun testMaxPermittedAbiVersion() {
         // This list of ABI versions only starts from the current version.
         // Thus, it contains 4 more versions that are definitely not supported by the current compiler.
@@ -465,6 +506,169 @@ abstract class AbstractKlibLoaderTest {
                 .assertLoadedLibraries(libraryPaths.take(i + 1))
                 .assertProblematicLibraries(incompatibleAbiVersionPaths = libraryPaths.drop(i + 1))
         }
+    }
+
+    @Test
+    fun testAllKnownAbiVersionsAreTreatedAsExpected() {
+        for (abiVersion in findAllKnownUnsupportedAbiVersions()) {
+            val libraryPath = generateNewKlib(asFile = false, fileExtension = "", abiVersion = abiVersion)
+
+            // First, try it without restrictions on the ABI version.
+            KlibLoader {
+                libraryPaths(libraryPath)
+            }.load()
+                .assertLoadedLibraries(listOf(libraryPath))
+                .assertNoProblematicLibraries()
+
+            // ... and now with.
+            KlibLoader {
+                libraryPaths(libraryPath)
+                minPermittedAbiVersion(KotlinAbiVersion.FIRST_SUPPORTED, FIRST_SUPPORTED_COMPILER_VERSION)
+                maxPermittedAbiVersion(KotlinAbiVersion.CURRENT)
+            }.load()
+                .assertNoLoadedLibraries()
+                .assertProblematicLibraries(incompatibleAbiVersionPaths = listOf(libraryPath))
+        }
+
+        for (abiVersion in findAllKnownSupportedAbiVersions()) {
+            val libraryPath = generateNewKlib(asFile = false, fileExtension = "", abiVersion = abiVersion)
+
+            KlibLoader {
+                libraryPaths(libraryPath)
+                minPermittedAbiVersion(KotlinAbiVersion.FIRST_SUPPORTED, FIRST_SUPPORTED_COMPILER_VERSION)
+                maxPermittedAbiVersion(KotlinAbiVersion.CURRENT)
+            }.load()
+                .assertLoadedLibraries(listOf(libraryPath))
+                .assertNoProblematicLibraries()
+        }
+    }
+
+    @Test
+    fun testCompilerVersionHintsForObsoleteAbiVersions() {
+        val obsoleteAbiVersion = KotlinAbiVersion.FIRST_SUPPORTED.prev()
+
+        val libraryPath = generateNewKlib(asFile = false, fileExtension = "", abiVersion = obsoleteAbiVersion)
+
+        fun KlibLoaderResult.assertInvalidAbiMessage(expectedMessage: String) {
+            var errorMessagesReported = 0
+            reportLoadingProblemsIfAny { _, actualMessage ->
+                errorMessagesReported++
+
+                val actualFilteredMessage = actualMessage.lineSequence()
+                    .filterNot { it.startsWith("The library was produced by ") && it.endsWith(" compiler.") } // this line might be absent in the reported message
+                    .joinToString(separator = "\n")
+
+                assertEquals(expectedMessage, actualFilteredMessage)
+            }
+
+            assertEquals(1, errorMessagesReported)
+        }
+
+        KlibLoader {
+            libraryPaths(libraryPath)
+            minPermittedAbiVersion(KotlinAbiVersion.FIRST_SUPPORTED, compilerVersion = null)
+        }.load()
+            .assertNoLoadedLibraries()
+            .assertProblematicLibraries(incompatibleAbiVersionPaths = listOf(libraryPath))
+            .assertInvalidAbiMessage(
+                """
+                    KLIB loader: Incompatible ABI version $obsoleteAbiVersion in library: $libraryPath
+                    The current Kotlin compiler can consume libraries having ABI version >= ${KotlinAbiVersion.FIRST_SUPPORTED}.
+                    Please upgrade the library to a newer version (ABI version ${KotlinAbiVersion.FIRST_SUPPORTED} or higher).
+                """.trimIndent()
+            )
+
+        KlibLoader {
+            libraryPaths(libraryPath)
+            minPermittedAbiVersion(KotlinAbiVersion.FIRST_SUPPORTED, compilerVersion = null)
+            maxPermittedAbiVersion(KotlinAbiVersion.CURRENT)
+        }.load()
+            .assertNoLoadedLibraries()
+            .assertProblematicLibraries(incompatibleAbiVersionPaths = listOf(libraryPath))
+            .assertInvalidAbiMessage(
+                """
+                    KLIB loader: Incompatible ABI version $obsoleteAbiVersion in library: $libraryPath
+                    The current Kotlin compiler can consume libraries having ABI version in the range [${KotlinAbiVersion.FIRST_SUPPORTED}, ${KotlinAbiVersion.CURRENT}].
+                    Please upgrade the library to a newer version (ABI version ${KotlinAbiVersion.FIRST_SUPPORTED} or higher).
+                """.trimIndent()
+            )
+
+        KlibLoader {
+            libraryPaths(libraryPath)
+            minPermittedAbiVersion(KotlinAbiVersion.FIRST_SUPPORTED, compilerVersion = FIRST_SUPPORTED_COMPILER_VERSION)
+        }.load()
+            .assertNoLoadedLibraries()
+            .assertProblematicLibraries(incompatibleAbiVersionPaths = listOf(libraryPath))
+            .assertInvalidAbiMessage(
+                """
+                    KLIB loader: Incompatible ABI version $obsoleteAbiVersion in library: $libraryPath
+                    The current Kotlin compiler can consume libraries produced by at least $FIRST_SUPPORTED_COMPILER_VERSION compiler.
+                    Please upgrade the library to a newer version compatible with $FIRST_SUPPORTED_COMPILER_VERSION compiler (ABI version ${KotlinAbiVersion.FIRST_SUPPORTED} or higher).
+                """.trimIndent()
+            )
+
+        KlibLoader {
+            libraryPaths(libraryPath)
+            minPermittedAbiVersion(KotlinAbiVersion.FIRST_SUPPORTED, compilerVersion = FIRST_SUPPORTED_COMPILER_VERSION)
+            maxPermittedAbiVersion(KotlinAbiVersion.CURRENT)
+        }.load()
+            .assertNoLoadedLibraries()
+            .assertProblematicLibraries(incompatibleAbiVersionPaths = listOf(libraryPath))
+            .assertInvalidAbiMessage(
+                """
+                    KLIB loader: Incompatible ABI version $obsoleteAbiVersion in library: $libraryPath
+                    The current Kotlin compiler can consume libraries produced by at least $FIRST_SUPPORTED_COMPILER_VERSION compiler.
+                    Please upgrade the library to a newer version compatible with $FIRST_SUPPORTED_COMPILER_VERSION compiler (ABI version ${KotlinAbiVersion.FIRST_SUPPORTED} or higher).
+                """.trimIndent()
+            )
+    }
+
+    private fun findAllKnownUnsupportedAbiVersions(): List<KotlinAbiVersion> {
+        val knownUnsupportedSingleDigitAbiVersions = listOf(1, 2, 5, 8, 9, 14, 17, 22).map { KotlinAbiVersion(it) }
+
+        // Sanity: Make sure that all are unique.
+        assertEquals(knownUnsupportedSingleDigitAbiVersions.size, knownUnsupportedSingleDigitAbiVersions.toSet().size)
+
+        val knownUnsupportedThreeDigitAbiVersions = listOf(
+            KotlinAbiVersion(1, 4, 0),
+            KotlinAbiVersion(1, 4, 1),
+            KotlinAbiVersion(1, 4, 2),
+            KotlinAbiVersion(1, 5, 0),
+        )
+
+        // Sanity: Make sure that all are unique.
+        assertEquals(knownUnsupportedThreeDigitAbiVersions.size, knownUnsupportedThreeDigitAbiVersions.toSet().size)
+
+        // Sanity: Make sure that they don't intersect with `knownLegacySingleDigitAbiVersions`.
+        assertEquals(emptySet<KotlinAbiVersion>(), knownUnsupportedSingleDigitAbiVersions.toSet() intersect knownUnsupportedThreeDigitAbiVersions.toSet())
+
+        // Sanity: Make sure that the next version after `knownLegacyThreeDigitAbiVersions` is exactly `KotlinAbiVersion.FIRST_SUPPORTED`.
+        assertEquals(KotlinAbiVersion.FIRST_SUPPORTED, knownUnsupportedThreeDigitAbiVersions.last().next())
+
+        return knownUnsupportedSingleDigitAbiVersions + knownUnsupportedThreeDigitAbiVersions
+    }
+
+    private fun findAllKnownSupportedAbiVersions(): List<KotlinAbiVersion> {
+        val knownSupportedAbiVersions = buildList {
+            this += KotlinAbiVersion(1, 6, 0)
+            this += KotlinAbiVersion(1, 7, 0)
+            this += KotlinAbiVersion(1, 8, 0)
+            this += KotlinAbiVersion(1, 201, 0)
+
+            generateSequence(KotlinAbiVersion(2, 2, 0)) { it.next() }
+                .takeWhile { it.isAtMost(KotlinAbiVersion.CURRENT) }
+                .mapTo(this) { it }
+        }
+
+        // Sanity: Make sure that all are unique.
+        assertEquals(knownSupportedAbiVersions.size, knownSupportedAbiVersions.toSet().size)
+
+        // Sanity: The first element in `knownSupportedAbiVersions` is exactly `KotlinAbiVersion.FIRST_SUPPORTED`,
+        // and the last element is exactly `KotlinAbiVersion.CURRENT`.
+        assertEquals(KotlinAbiVersion.FIRST_SUPPORTED, knownSupportedAbiVersions.first())
+        assertEquals(KotlinAbiVersion.CURRENT, knownSupportedAbiVersions.last())
+
+        return knownSupportedAbiVersions
     }
 
     @Test
@@ -580,6 +784,85 @@ abstract class AbstractKlibLoaderTest {
             )
     }
 
+    /**
+     * Test that [KlibLoader] regularly consults [KlibLoadingCancellationChecker], and that an exception thrown from
+     * [KlibLoadingCancellationChecker.checkCanceled] interrupts the loading process instead of being swallowed.
+     */
+    @Test
+    fun testCancellationOfLoading() {
+        val a = generateNewKlib(asFile = false, fileExtension = "")
+        val b = generateNewKlib(asFile = true, fileExtension = "klib")
+        val corrupted = corruptedLibraryPaths.first()
+        val nonExisting = nonExistingPaths.first()
+        val invalid = invalidPaths.first()
+
+        val allPaths = listOf(stdlib, a, corrupted, nonExisting, invalid, b)
+
+        // First, load the libraries with a checker that never requests the cancellation. The result must be
+        // exactly the same as without a checker at all. Along the way, count all the cancellation checkpoints.
+        //
+        // As of now, [KlibLoader] is expected to call `checkCanceled()`:
+        // - once per library provider: here, only the `DefaultKlibLibraryProvider` implicitly created by [KlibLoader],
+        // - once per deduplicated raw path: here, all the paths except for the repeated `a`,
+        // - once per attempt to read a library from the disk: here, `stdlib`, `a`, `corrupted` and `b`
+        //   (`nonExisting` and `invalid` are filtered out before any attempt to read them).
+        // The exact number of checkpoints is not asserted, though: It is enough that every library has its own.
+        val neverCancelingChecker = CountingCancellationChecker(cancelOnCall = null)
+
+        KlibLoader {
+            libraryPaths(allPaths)
+            cancellationChecker(neverCancelingChecker)
+        }.load()
+            .assertLoadedLibraries(stdlib, a, b)
+            .assertProblematicLibraries(
+                notFoundPaths = listOf(nonExisting, invalid),
+                invalidFormatPaths = listOf(corrupted),
+            )
+
+        val totalCheckpoints = neverCancelingChecker.calls
+        assertTrue(totalCheckpoints > allPaths.size) { "Too few cancellation checkpoints: $totalCheckpoints" }
+
+        // Now, request the cancellation at every single checkpoint, one by one.
+        for (cancelOnCall in 1..totalCheckpoints) {
+            val cancelingChecker = CountingCancellationChecker(cancelOnCall = cancelOnCall)
+
+            assertThrows<TestCancellationException> {
+                KlibLoader {
+                    libraryPaths(allPaths)
+                    cancellationChecker(cancelingChecker)
+                }.load()
+            }
+
+            // The exception must immediately escape `load()`, so there must be no checkpoints after the cancelled one.
+            assertEquals(cancelOnCall, cancelingChecker.calls)
+        }
+    }
+
+    /**
+     * Counts [checkCanceled] invocations.
+     *
+     * If [cancelOnCall] is not null, throws [TestCancellationException] on the [cancelOnCall]-th invocation and on
+     * every subsequent invocation: Once the cancellation has been requested, it is never revoked. This allows
+     * detecting the situation when the thrown exception is accidentally swallowed by [KlibLoader]: In such a case
+     * the number of recorded [calls] would exceed [cancelOnCall].
+     */
+    private class CountingCancellationChecker(private val cancelOnCall: Int?) : KlibLoadingCancellationChecker {
+        var calls: Int = 0
+            private set
+
+        override fun checkCanceled() {
+            calls++
+            if (cancelOnCall != null && calls >= cancelOnCall) throw TestCancellationException(calls)
+        }
+    }
+
+    /**
+     * Note: This is intentionally a [RuntimeException] and not an [Error], so that the test also makes sure that
+     * the cancellation is not swallowed by the `catch (_: Exception)` clauses inside [KlibLoader].
+     */
+    private class TestCancellationException(callNumber: Int) :
+        RuntimeException("Cancellation requested on checkCanceled() call #$callNumber")
+
     @Test
     fun testNewCompanionInitializationRead() {
         val klib = generateNewKlib(
@@ -600,6 +883,9 @@ abstract class AbstractKlibLoaderTest {
 
     protected abstract val ownPlatformCheckers: List<KlibPlatformChecker>
     protected abstract val alienPlatformCheckers: List<KlibPlatformChecker>
+
+    private fun KotlinAbiVersion.prev() =
+        if (minor > 0) KotlinAbiVersion(major, minor - 1, patch) else KotlinAbiVersion(major - 1, 255, 0)
 
     private fun KotlinAbiVersion.next() = KotlinAbiVersion(major, minor + 1, patch)
 

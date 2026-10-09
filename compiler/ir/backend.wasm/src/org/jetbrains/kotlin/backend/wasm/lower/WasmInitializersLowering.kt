@@ -5,13 +5,12 @@
 
 package org.jetbrains.kotlin.backend.wasm.lower
 
-import org.jetbrains.kotlin.backend.common.CommonBackendContext
-import org.jetbrains.kotlin.backend.common.lower.InitializersCleanupLowering
 import org.jetbrains.kotlin.backend.common.lower.InitializersLowering
 import org.jetbrains.kotlin.backend.common.lower.LocalDeclarationPopupLowering
 import org.jetbrains.kotlin.backend.common.phaser.PhasePrerequisites
 import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
 import org.jetbrains.kotlin.ir.backend.js.lower.PrimaryConstructorLowering
+import org.jetbrains.kotlin.ir.backend.js.lower.WebInitializersCleanupLowering
 
 @PhasePrerequisites(
     PrimaryConstructorLowering::class,
@@ -20,8 +19,4 @@ import org.jetbrains.kotlin.ir.backend.js.lower.PrimaryConstructorLowering
 internal class WasmInitializersLowering(context: WasmBackendContext) : InitializersLowering(context)
 
 @PhasePrerequisites(WasmInitializersLowering::class)
-internal class WasmInitializersCleanupLowering(context: CommonBackendContext) : InitializersCleanupLowering(
-    context,
-    // TODO: Remove this hack once https://github.com/JetBrains/kotlin/pull/6165 is merged.
-    shouldEraseFieldInitializer = { it.correspondingPropertySymbol?.owner?.isConst != true && !it.isStatic }
-)
+internal class WasmInitializersCleanupLowering(context: WasmBackendContext) : WebInitializersCleanupLowering(context)

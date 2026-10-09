@@ -76,6 +76,16 @@ public interface CommonJsAndWasmCompilerLinkingArguments : CommonJsAndWasmArgume
         CommonJsAndWasmCompilerLinkingArgument("X_CACHE_DIRECTORY", KotlinReleaseVersion(1, 8, 20))
 
     /**
+     * Enable experimental advanced optimization passes (e.g. effect analysis).
+     *
+     * WARNING: this option is EXPERIMENTAL and it may be changed in the future without notice or may be removed entirely.
+     */
+    @JvmField
+    @ExperimentalCompilerArgument
+    public val X_ENABLE_ADVANCED_OPTIMIZATIONS: CommonJsAndWasmCompilerLinkingArgument<Boolean> =
+        CommonJsAndWasmCompilerLinkingArgument("X_ENABLE_ADVANCED_OPTIMIZATIONS", KotlinReleaseVersion(2, 5, 0))
+
+    /**
      * Generate a TypeScript declaration .d.ts file alongside the JS file.
      *
      * WARNING: this option is EXPERIMENTAL and it may be changed in the future without notice or may be removed entirely.
@@ -84,16 +94,6 @@ public interface CommonJsAndWasmCompilerLinkingArguments : CommonJsAndWasmArgume
     @ExperimentalCompilerArgument
     public val X_GENERATE_DTS: CommonJsAndWasmCompilerLinkingArgument<Boolean> =
         CommonJsAndWasmCompilerLinkingArgument("X_GENERATE_DTS", KotlinReleaseVersion(1, 3, 70))
-
-    /**
-     * Path to an intermediate library that should be processed in the same manner as source files.
-     *
-     * WARNING: this option is EXPERIMENTAL and it may be changed in the future without notice or may be removed entirely.
-     */
-    @JvmField
-    @ExperimentalCompilerArgument
-    public val X_INCLUDE: CommonJsAndWasmCompilerLinkingArgument<Path?> =
-        CommonJsAndWasmCompilerLinkingArgument("X_INCLUDE", KotlinReleaseVersion(1, 4, 0))
 
     /**
      * Perform experimental dead code elimination.
@@ -125,16 +125,6 @@ public interface CommonJsAndWasmCompilerLinkingArguments : CommonJsAndWasmArgume
     public val X_IR_DCE_RUNTIME_DIAGNOSTIC:
         CommonJsAndWasmCompilerLinkingArgument<JsIrDiagnosticMode?> =
         CommonJsAndWasmCompilerLinkingArgument("X_IR_DCE_RUNTIME_DIAGNOSTIC", KotlinReleaseVersion(1, 5, 0))
-
-    /**
-     * Generate a JS file using the IR backend.
-     *
-     * WARNING: this option is EXPERIMENTAL and it may be changed in the future without notice or may be removed entirely.
-     */
-    @JvmField
-    @ExperimentalCompilerArgument
-    public val X_IR_PRODUCE_JS: CommonJsAndWasmCompilerLinkingArgument<Boolean> =
-        CommonJsAndWasmCompilerLinkingArgument("X_IR_PRODUCE_JS", KotlinReleaseVersion(1, 3, 70))
 
     /**
      * Perform lazy initialization for properties.

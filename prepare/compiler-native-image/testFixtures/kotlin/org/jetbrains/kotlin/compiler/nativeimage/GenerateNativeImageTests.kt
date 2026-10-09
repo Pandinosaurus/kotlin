@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
             testClass<AbstractNativeImageBoxTest> {
                 model("box")
             }
-            testClass<AbstractNativeImageReachabilityMetadataTest> {
+            testClass<AbstractReachabilityMetadataBoxTest> {
                 model("box")
             }
         }
@@ -26,11 +26,24 @@ fun main(args: Array<String>) {
             testClass<AbstractNativeImageLegacyPluginBoxTest> {
                 model("")
             }
-            testClass<AbstractNativeImagePluginReachabilityMetadataTest> {
+            testClass<AbstractReachabilityMetadataPluginBoxTest> {
                 model("")
             }
-            testClass<AbstractNativeImageLegacyPluginReachabilityMetadataTest> {
+            testClass<AbstractReachabilityMetadataLegacyPluginBoxTest> {
                 model("")
+            }
+        }
+        testGroup(testsRoot = args[0], testDataRoot = "prepare/compiler-native-image/testData/projects/dynamicPlugins") {
+            testClass<AbstractNativeImageDynamicPluginBoxTest> {
+                model("")
+            }
+            testClass<AbstractNativeImageDynamicLegacyPluginBoxTest> {
+                model("")
+            }
+        }
+        testGroup(testsRoot = args[0], testDataRoot = "prepare/compiler-native-image/testData/projects/scripting") {
+            testClass<AbstractNativeImageScriptingTest> {
+                model("", extension = "kts")
             }
         }
     }

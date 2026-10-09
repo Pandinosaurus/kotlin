@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.ir.backend.js.lower
 
 import org.jetbrains.kotlin.backend.common.BodyLoweringPass
 import org.jetbrains.kotlin.backend.common.compilationException
-import org.jetbrains.kotlin.backend.common.functionReferenceReflectedName
 import org.jetbrains.kotlin.backend.common.lower.LocalDeclarationsLowering
 import org.jetbrains.kotlin.backend.common.lower.LocalDelegatedPropertiesLowering
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -21,8 +20,8 @@ import org.jetbrains.kotlin.ir.backend.js.JsStatementOrigins
 import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
 import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.JsSuspendFunctionWithGeneratorsLowering
 import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.JsSuspendFunctionsLowering
-import org.jetbrains.kotlin.ir.backend.js.originalCallableReferenceClass
 import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.shouldBeCompiledAsGenerator
+import org.jetbrains.kotlin.ir.backend.js.originalCallableReferenceClass
 import org.jetbrains.kotlin.ir.backend.js.utils.compileSuspendAsJsGenerator
 import org.jetbrains.kotlin.ir.backend.js.utils.getVoid
 import org.jetbrains.kotlin.ir.backend.js.utils.isDispatchReceiver
@@ -32,15 +31,10 @@ import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.expressions.IrBlockBody
-import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.impl.*
+import org.jetbrains.kotlin.ir.functionReferenceReflectedName
 import org.jetbrains.kotlin.ir.symbols.*
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classifierOrNull
-import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.types.isUnit
-import org.jetbrains.kotlin.ir.types.typeWith
+import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.js.config.compileLambdasAsEs6ArrowFunctions
@@ -631,7 +625,7 @@ class InteropCallableReferenceLowering(val context: JsIrBackendContext) : BodyLo
         val functionReferenceReflectedName = lambdaInfo.lambdaClass.functionReferenceReflectedName
 
         val callableName = functionReferenceReflectedName
-            ?.toIrConst(context.irBuiltIns.stringType, UNDEFINED_OFFSET, UNDEFINED_OFFSET)
+            ?.let { JsIrBuilder.buildString(context.irBuiltIns.stringType, it) }
             ?: context.getVoid()
 
         val kFunctionImplCall = constructor.body?.statements
@@ -648,7 +642,7 @@ class InteropCallableReferenceLowering(val context: JsIrBackendContext) : BodyLo
 
                         // Regular arity includes $continuation parameter, so it's more precises to take the lambdaDeclaration arguments size
                         arguments[1] = if (lambdaInfo.isSuspendLambda) {
-                            lambdaDeclaration.parameters.size.toIrConst(context.irBuiltIns.intType)
+                            JsIrBuilder.buildInt(context.irBuiltIns.intType, lambdaDeclaration.parameters.size)
                         } else arity?.shallowCopy() ?: compilationException("'arity' is expected to be passed to a parent constructor", kFunctionImplCall)
 
                         arguments[2] = flags?.shallowCopy()
@@ -673,7 +667,7 @@ class InteropCallableReferenceLowering(val context: JsIrBackendContext) : BodyLo
                 JsIrBuilder.buildCall(constructCallableReferenceSymbol)
                     .apply {
                         arguments[0] = functionExpression
-                        arguments[1] = lambdaDeclaration.parameters.size.toIrConst(context.irBuiltIns.intType)
+                        arguments[1] = JsIrBuilder.buildInt(context.irBuiltIns.intType, lambdaDeclaration.parameters.size)
                         arguments[2] = context.getVoid()
                         arguments[3] = context.getVoid()
                         arguments[4] = context.getVoid()

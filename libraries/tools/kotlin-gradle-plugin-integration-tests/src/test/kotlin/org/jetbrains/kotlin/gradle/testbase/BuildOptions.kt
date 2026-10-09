@@ -61,6 +61,7 @@ data class BuildOptions(
     val useFirJvmRunner: Boolean? = null,
     val languageVersion: String? = null,
     val languageApiVersion: String? = null,
+    val suppressedGradlePluginErrors: Set<String> = setOf("DeprecatedKotlinNativeTargetsDiagnostic"),
     val freeArgs: List<String> = emptyList(),
     val statisticsForceValidation: Boolean = true,
     val enableJvmIncrementalCompilationOfCommonSources: Boolean? = null,
@@ -356,7 +357,6 @@ data class BuildOptions(
         }
 
         if (runViaBuildToolsApi != null) {
-            arguments.add("-Pkotlin.compiler.runViaBuildToolsApi=$runViaBuildToolsApi")
             arguments.add("-Pkotlin.js.runViaBuildToolsApi=$runViaBuildToolsApi")
             arguments.add("-Pkotlin.wasm.runViaBuildToolsApi=$runViaBuildToolsApi")
             arguments.add("-Pkotlin.metadata.runViaBuildToolsApi=$runViaBuildToolsApi")
@@ -393,6 +393,10 @@ data class BuildOptions(
 
         fusReportDirectory()?.let {
             arguments.add("-Pkotlin.session.logger.root.path=${it.absolutePathString()}")
+        }
+
+        if (suppressedGradlePluginErrors.isNotEmpty()) {
+            arguments.add("-Pkotlin.internal.suppressGradlePluginErrors=${suppressedGradlePluginErrors.joinToString(",")}")
         }
 
         arguments.addAll(freeArgs)
@@ -484,6 +488,9 @@ fun BuildOptions.disableKlibsCrossCompilation() = copy(
 
 fun BuildOptions.enableIsolatedProjects() = copy(isolatedProjects = IsolatedProjectsMode.ENABLED)
 fun BuildOptions.disableIsolatedProjects() = copy(isolatedProjects = IsolatedProjectsMode.DISABLED)
+
+fun BuildOptions.suppressingGradlePluginErrors(vararg diagnosticIds: String) =
+    copy(suppressedGradlePluginErrors = suppressedGradlePluginErrors + diagnosticIds)
 
 // KT-75899: Support Gradle Project Isolation in KGP JS & Wasm
 fun BuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899() = disableIsolatedProjects()

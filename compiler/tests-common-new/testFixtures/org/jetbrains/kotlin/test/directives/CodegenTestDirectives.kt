@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.test.directives
 
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.handlers.*
-import org.jetbrains.kotlin.test.backend.ir.JvmIrBackendFacade
+import org.jetbrains.kotlin.test.backend.ir.AbstractJvmIrBackendFacade
 import org.jetbrains.kotlin.test.directives.model.DirectiveApplicability.File
 import org.jetbrains.kotlin.test.directives.model.DirectiveApplicability.Global
 import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
@@ -29,11 +29,6 @@ object CodegenTestDirectives : SimpleDirectivesContainer() {
     )
 
     val IGNORE_BACKEND_MULTI_MODULE by enumDirective<TargetBackend>(
-        description = "Ignore failures of multimodule test on target backend",
-        applicability = Global
-    )
-
-    val IGNORE_BACKEND_K2_MULTI_MODULE by enumDirective<TargetBackend>(
         description = "Ignore failures of multimodule test on target backend if test uses K2 frontend",
         applicability = Global
     )
@@ -92,7 +87,7 @@ object CodegenTestDirectives : SimpleDirectivesContainer() {
 
     val IGNORE_ERRORS by directive(
         description = """
-            If this directive is enabled then ${JvmIrBackendFacade::class} won't produce any binaries for test
+            If this directive is enabled then ${AbstractJvmIrBackendFacade::class} won't produce any binaries for test
               if there are errors in it
         """.trimIndent()
     )
@@ -261,6 +256,16 @@ object CodegenTestDirectives : SimpleDirectivesContainer() {
 
     val DISABLE_IR_TYPE_PARAMETER_SCOPE_CHECKS by enumDirective<TargetBackend>(
         description = "Don't check for out-of-scope type parameter usages when validating IR on the target backend"
+    )
+
+    val RESULT_OUTPUT_EXTENSION by stringDirective(
+        description = """
+            Specify the expected result file extension.
+            
+            Setting this directive forces box test output to a dedicated file.
+            Useful when output is large and file diffs are more useful than
+            assertions in the test file.
+        """.trimIndent(),
     )
 }
 

@@ -20,13 +20,16 @@ The module defines test suites using the `jvm-test-suite` plugin.
       the overall test execution time.
 * Escapable characters: a special test suit that runs against classpath and module paths containing symbols that typically should be escaped (whitespaces, hashes, etc)
     * Use `./gradlew :compiler:build-tools:kotlin-build-tools-api-tests:testEscapableCharacters` to run them
-* Restricted arguments: verifies that arguments not supported via `applyArgumentStrings` (e.g. `-Xbuild-file`, `-d`) are properly rejected
+* Restricted arguments: verifies that arguments not supported via `applyCommandLineArguments` (e.g. `-Xbuild-file`, `-d`) are properly rejected
     * Use `./gradlew :compiler:build-tools:kotlin-build-tools-api-tests:testRestrictedArguments` to run them
 * Argument parsing warnings: verifies that warnings produced while parsing compiler arguments (duplicated arguments, unknown `-X` flags,
   deprecated and removed arguments) are reported through the `KotlinLogger`
     * Use `./gradlew :compiler:build-tools:kotlin-build-tools-api-tests:testArgumentParsingWarnings` to run them
 * Classpath metadata: verifies the experimental incremental compilation feature for KMP projects targeting the JVM
     * Use `./gradlew :compiler:build-tools:kotlin-build-tools-api-tests:testClasspathMetadata` to run them
+* JPS: verifies the JPS-managed incremental compilation configuration (`kotlin-build-tools-api-jps`): the
+  client-owned IC configuration, its trackers and its incremental cache
+    * Use `./gradlew :compiler:build-tools:kotlin-build-tools-api-tests:testJps` to run them
 * Example: provides examples of the DSL usage. Excluded from the `check` task
     * Use `./gradlew :compiler:build-tools:kotlin-build-tools-api-tests:testExample` to run them
 

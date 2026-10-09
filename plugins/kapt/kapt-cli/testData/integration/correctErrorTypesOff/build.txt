@@ -54,3 +54,4 @@ test.Test
 Return code: 1
 
 error: error: NonExistentClass type occurred
+warning: warning: Supported source version 'RELEASE_8' from annotation processor 'org.jetbrains.kotlin.kapt.base.ProcessorWrapper' less than -source '17'

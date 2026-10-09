@@ -5,11 +5,9 @@ description = "kotlin-gradle-statistics"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     `java-library`
     id("org.jetbrains.kotlin.jvm")
-    id("project-tests-convention")
     `maven-publish`
 }
 
@@ -43,3 +41,9 @@ publishing {
 }
 sourcesJar()
 javadocJar()
+
+val generatedSourcesDir = layout.projectDirectory.dir("gen")
+
+sourceSets.main {
+    kotlin.srcDir(generatedSourcesDir)
+}

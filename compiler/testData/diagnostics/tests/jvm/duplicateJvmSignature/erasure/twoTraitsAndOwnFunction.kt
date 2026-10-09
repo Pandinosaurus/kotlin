@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
 interface Foo<T> {
@@ -10,7 +10,7 @@ interface Bar<T> {
 }
 
 class Baz(): Foo<String>, Bar<Int> {
-    <!ACCIDENTAL_OVERRIDE!>fun foo(l: List<Long>) {}<!>
+    <!ACCIDENTAL_OVERRIDE!>fun foo(l: List<Long>)<!> {}
 }
 
 /* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, interfaceDeclaration, nullableType, primaryConstructor,

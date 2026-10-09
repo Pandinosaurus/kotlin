@@ -60,6 +60,7 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         additionalOptions: List<String>,
         expectedFileName: String?,
         additionalSources: List<String>,
+        stackSize: Long?,
         sanitizeCompilerOutput: (String) -> String,
     ): Pair<String, ExitCode> {
         val options =
@@ -72,7 +73,7 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         return super.compileKotlin(
             fileName, output, classpath, compiler, options,
             if (expectedFirFile != null && languageVersion.usesK2 && expectedFirFile.exists()) expectedFirFile.name else expectedFileName,
-            additionalSources, sanitizeCompilerOutput
+            additionalSources, stackSize, sanitizeCompilerOutput
         )
     }
 
@@ -781,7 +782,7 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         val library = compileLibrary(
             "library",
             additionalOptions = listOf(
-                CommonCompilerArguments::languageVersion.cliArgument, "2.1",
+                CommonCompilerArguments::languageVersion.cliArgument, LanguageVersion.LATEST_STABLE.versionString,
                 CommonCompilerArguments::suppressVersionWarnings.cliArgument,
             )
         )
@@ -790,7 +791,7 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         val library2 = compileLibrary(
             "library",
             additionalOptions = listOf(
-                CommonCompilerArguments::languageVersion.cliArgument, "2.1",
+                CommonCompilerArguments::languageVersion.cliArgument, LanguageVersion.LATEST_STABLE.versionString,
                 CommonCompilerArguments::suppressVersionWarnings.cliArgument,
                 K2JVMCompilerArguments::abiStability.cliArgument("stable")
             )
@@ -825,7 +826,7 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         val library = compileLibrary(
             "library",
             additionalOptions = listOf(
-                CommonCompilerArguments::languageVersion.cliArgument, "2.1",
+                CommonCompilerArguments::languageVersion.cliArgument, LanguageVersion.LATEST_STABLE.versionString,
                 CommonCompilerArguments::suppressVersionWarnings.cliArgument,
                 K2JVMCompilerArguments::abiStability.cliArgument("unstable")
             )
@@ -858,7 +859,7 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         )
         compileKotlin(
             "source.kt", tmpdir, listOf(library), additionalOptions = listOf(
-                CommonCompilerArguments::languageVersion.cliArgument, "2.1",
+                CommonCompilerArguments::languageVersion.cliArgument, LanguageVersion.LATEST_STABLE.versionString,
                 CommonCompilerArguments::suppressVersionWarnings.cliArgument,
                 CommonCompilerArguments::skipPrereleaseCheck.cliArgument,
             )

@@ -68,6 +68,7 @@ Frontend:
  - compiler/psi/parser
  - compiler/resolution
  - compiler/resolution.common
+ - compiler/resolution.common.js
  - compiler/resolution.common.jvm
  - compiler/serialization
  - compiler/serialization.common
@@ -112,8 +113,6 @@ Js:
  - js/js.config/src/org/jetbrains/kotlin/js/artifacts
  - js/js.config/src/org/jetbrains/kotlin/platform
  - js/js.config/src/org/jetbrains/kotlin/utils
- - js/js.frontend
- - js/js.frontend.common
  - js/js.parser
  - js/js.tests/ReadMe.md
  - js/js.tests/build.gradle.kts
@@ -126,6 +125,7 @@ Js:
  - js/js.translator/src
  - js/npm
  - js/typescript-export-standalone
+ - js/typescript-export-standalone-embeddable
 
 Native:
  - compiler/ir/backend.native
@@ -174,7 +174,9 @@ BuildToolsApi:
  - compiler/build-tools/CLAUDE.md
  - compiler/build-tools/README.md
  - compiler/build-tools/kotlin-build-tools-api
+ - compiler/build-tools/kotlin-build-tools-api-backports
  - compiler/build-tools/kotlin-build-tools-api-forward-tests
+ - compiler/build-tools/kotlin-build-tools-api-jps
  - compiler/build-tools/kotlin-build-tools-api-tests
  - compiler/build-tools/kotlin-build-tools-compat
  - compiler/build-tools/kotlin-build-tools-cri-impl
@@ -213,6 +215,9 @@ CompilerPlugins:
  - plugins/sam-with-receiver
  - plugins/test-plugins
 
+DocumentationModel:
+ - libraries/tools/kotlin-documentation-model
+
 Gradle:
  - libraries/tools/gradle
  - libraries/tools/kotlin-gradle-build-metrics
@@ -222,10 +227,12 @@ Gradle:
  - libraries/tools/kotlin-gradle-plugin-api
  - libraries/tools/kotlin-gradle-plugin-dsl-codegen
  - libraries/tools/kotlin-gradle-plugin-idea
+ - libraries/tools/kotlin-gradle-plugin-idea-browser-debug
  - libraries/tools/kotlin-gradle-plugin-idea-for-compatibility-tests
  - libraries/tools/kotlin-gradle-plugin-idea-proto
  - libraries/tools/kotlin-gradle-plugin-integration-tests
  - libraries/tools/kotlin-gradle-plugin-tcs-android
+ - libraries/tools/kotlin-gradle-plugin-test-coverage
  - libraries/tools/kotlin-gradle-plugin-test-utils-embeddable
  - libraries/tools/kotlin-gradle-plugins-bom
  - libraries/tools/kotlin-gradle-statistics
@@ -260,6 +267,7 @@ Unknown:
  - .claude
  - .editorconfig
  - .gitattributes
+ - .github
  - .gitignore
  - .junie
  - AGENTS.md
@@ -275,6 +283,7 @@ Unknown:
  - compiler/CLAUDE.md
  - compiler/ir/ReadMe.md
  - compiler/ir/code-rules.md
+ - compiler/test-coverage
  - dependencies
  - docs
  - generators
@@ -317,7 +326,6 @@ Unknown:
  - libraries/tools/kotlin-serialization
  - libraries/tools/kotlin-serialization-unshaded
  - libraries/tools/kotlin-stdlib-docs
- - libraries/tools/kotlin-stdlib-docs-legacy
  - libraries/tools/kotlin-stdlib-gen
  - libraries/tools/kotlin-tooling-core
  - libraries/tools/kotlin-tooling-metadata

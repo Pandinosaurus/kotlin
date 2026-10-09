@@ -7,16 +7,15 @@ package org.jetbrains.kotlin.js.test.runners
 
 import org.jetbrains.kotlin.test.FirParser
 import org.jetbrains.kotlin.test.TargetBackend
-import org.jetbrains.kotlin.test.backend.handlers.KlibAbiDumpAfterInliningVerifyingHandler
-import org.jetbrains.kotlin.test.backend.handlers.KlibAbiDumpHandler
-import org.jetbrains.kotlin.test.backend.handlers.KlibBackendDiagnosticsHandler
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.builders.configureFirHandlersStep
 import org.jetbrains.kotlin.test.builders.configureIrHandlersStep
-import org.jetbrains.kotlin.test.builders.configureKlibArtifactsHandlersStep
 import org.jetbrains.kotlin.test.configuration.commonFirHandlersForCodegenTest
 import org.jetbrains.kotlin.test.configuration.commonIrHandlersForCodegenTest
 import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives
+import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives.GENERATE_INLINE_ANONYMOUS_FUNCTIONS
+import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives.IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS
+import org.jetbrains.kotlin.test.directives.model.ValueDirective
 import org.jetbrains.kotlin.test.frontend.fir.FirMetaInfoDiffSuppressor
 import org.jetbrains.kotlin.test.services.configuration.JsEnvironmentConfigurator
 
@@ -37,14 +36,32 @@ abstract class AbstractJsES6Test(
 }
 
 
-abstract class AbstractJsES6BoxTest : AbstractJsES6Test(
+abstract class AbstractJsES6BoxTest(
+    testGroupOutputDirPrefix: String = "es6Box/",
+) : AbstractJsES6Test(
     pathToTestDir = "${JsEnvironmentConfigurator.TEST_DATA_DIR_PATH}/box/",
-    testGroupOutputDirPrefix = "es6Box/"
+    testGroupOutputDirPrefix = testGroupOutputDirPrefix,
 )
 
-abstract class AbstractJsES6CodegenBoxTest : AbstractJsES6Test(
+abstract class AbstractJsES6BoxWithInlineAnonymousFunctionsTest : AbstractJsES6BoxTest(
+    testGroupOutputDirPrefix = "es6BoxWithInlineAnonymousFunctions/"
+) {
+    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>
+        get() = listOf(IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS)
+
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.defaultDirectives {
+            +GENERATE_INLINE_ANONYMOUS_FUNCTIONS
+        }
+    }
+}
+
+abstract class AbstractJsES6CodegenBoxTest(
+    testGroupOutputDirPrefix: String = "codegen/es6Box/"
+) : AbstractJsES6Test(
     pathToTestDir = "compiler/testData/codegen/box/",
-    testGroupOutputDirPrefix = "codegen/es6Box/"
+    testGroupOutputDirPrefix = testGroupOutputDirPrefix,
 ) {
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
@@ -59,18 +76,43 @@ abstract class AbstractJsES6CodegenBoxTest : AbstractJsES6Test(
         builder.configureIrHandlersStep {
             commonIrHandlersForCodegenTest()
         }
+    }
+}
 
-        // TODO KT-87965: Move it to setupCommonHandlersForJsTest() to fully turn or IR Inliner checks in all testrunners, inlcluding TS export
-        builder.configureKlibArtifactsHandlersStep {
-            useHandlers(::KlibAbiDumpAfterInliningVerifyingHandler)
+abstract class AbstractJsES6CodegenBoxWithInlineAnonymousFunctionsTest : AbstractJsES6CodegenBoxTest(
+    testGroupOutputDirPrefix = "codegen/es6BoxWithInlineAnonymousFunctions/",
+) {
+    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>
+        get() = listOf(IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS)
+
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.defaultDirectives {
+            +GENERATE_INLINE_ANONYMOUS_FUNCTIONS
         }
     }
 }
 
-abstract class AbstractJsES6CodegenInlineTest : AbstractJsES6Test(
+abstract class AbstractJsES6CodegenInlineTest(
+    testGroupOutputDirPrefix: String = "codegen/es6BoxInline/",
+) : AbstractJsES6Test(
     pathToTestDir = "compiler/testData/codegen/boxInline/",
-    testGroupOutputDirPrefix = "codegen/es6BoxInline/"
+    testGroupOutputDirPrefix = testGroupOutputDirPrefix,
 )
+
+abstract class AbstractJsES6CodegenBoxInlineWithInlineAnonymousFunctionsTest : AbstractJsES6CodegenInlineTest(
+    testGroupOutputDirPrefix = "codegen/es6BoxInlineWithInlineAnonymousFunctions/",
+) {
+    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>
+        get() = listOf(IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS)
+
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.defaultDirectives {
+            +GENERATE_INLINE_ANONYMOUS_FUNCTIONS
+        }
+    }
+}
 
 abstract class AbstractJsES6CodegenWasmJsInteropTest : AbstractJsES6Test(
     pathToTestDir = "compiler/testData/codegen/boxWasmJsInterop",

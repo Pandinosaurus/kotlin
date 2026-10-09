@@ -5,19 +5,30 @@
 
 package org.jetbrains.kotlin.gradle
 
+import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.kotlin
 import org.gradle.kotlin.dsl.version
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
+import org.jetbrains.kotlin.gradle.dsl.toolchain.nodejs.NodeJsExecutable
+import org.jetbrains.kotlin.gradle.dsl.toolchain.nodejs.NodeJsRequest
+import org.jetbrains.kotlin.gradle.dsl.toolchain.nodejs.NodeJsToolchainService
+import org.jetbrains.kotlin.gradle.ecosystem.KotlinEcosystemExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.export.SwiftExportVisibility
 import org.jetbrains.kotlin.gradle.report.BuildReportType
+import org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTestsLocation
+import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin
+import org.jetbrains.kotlin.gradle.tasks.nodejs.UsesNodeJsToolchainService
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testbase.BuildOptions.IsolatedProjectsMode
 import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
+import org.jetbrains.kotlin.gradle.uklibs.include
 import org.jetbrains.kotlin.gradle.uklibs.includeBuild
 import org.jetbrains.kotlin.gradle.util.filterBackwardCompatibilityKotlinFusFiles
 import org.jetbrains.kotlin.gradle.util.filterKotlinFusFiles
@@ -206,7 +217,7 @@ class FusStatisticsIT : KGPBaseTest() {
             ) { fusDirectory ->
                 fusDirectory.assertFusReportContains(*expectedMetrics)
                 // asserts that we do not put DOKKA metrics everywhere just in case
-                fusDirectory.assertFusReportDoesNotContain("ENABLED_DOKKA_HTML", "KOTLIN_JS_PLUGIN_ENABLED")
+                fusDirectory.assertFusReportDoesNotContain("ENABLED_DOKKA_HTML")
             }
         }
     }
@@ -591,6 +602,92 @@ class FusStatisticsIT : KGPBaseTest() {
         }
     }
 
+    @OptIn(ExperimentalNodeJsToolchainDsl::class)
+    @JsGradlePluginTests
+    @DisplayName("Node.js toolchain service is reported")
+    @GradleTest
+    fun testNodeJsToolchainServiceIsReported(gradleVersion: GradleVersion, @TempDir tempDir: Path) {
+        project(
+            "empty",
+            gradleVersion,
+            buildOptions = defaultBuildOptions
+                // KT-75899 Support Gradle Project Isolation in KGP JS & Wasm
+                .disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
+        ) {
+            addKgpToBuildScriptCompilationClasspath()
+            addEcosystemPluginToBuildScriptCompilationClasspath()
+            settingsBuildScriptInjection {
+                settings.plugins.apply("org.jetbrains.kotlin.ecosystem")
+                settings.extensions.getByType(KotlinEcosystemExtension::class.java).toolchainManagement {
+                    nodeJs {
+                        toolchainService {
+                            installationDir.file("some-path")
+                            downloadBaseUrl.set("some-invalid-url")
+                        }
+                    }
+                }
+            }
+
+            buildScriptInjection {
+                registerTaskToPrintNodeJsToolchainService()
+            }
+
+            validateFusDirectory("printNodeJsToolchainService", buildAssertions = {
+                assertOutputContains("Node JS Toolchain Service is DefaultNodeJsToolchainServiceImpl\$Inject")
+            }) { fusDirectory ->
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    StringListMetrics.NODE_JS_TOOLCHAIN_SERVICE.name,
+                    listOf("download")
+                )
+            }
+        }
+    }
+
+    @OptIn(ExperimentalNodeJsToolchainDsl::class)
+    @JsGradlePluginTests
+    @DisplayName("Custom Node.js toolchain service is reported")
+    @GradleTest
+    fun testNodeJsCustomToolchainServiceIsReported(gradleVersion: GradleVersion, @TempDir tempDir: Path) {
+        project(
+            "empty",
+            gradleVersion,
+            buildOptions = defaultBuildOptions
+                // KT-75899 Support Gradle Project Isolation in KGP JS & Wasm
+                .disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
+        ) {
+            addKgpToBuildScriptCompilationClasspath()
+            addEcosystemPluginToBuildScriptCompilationClasspath()
+            settingsBuildScriptInjection {
+                settings.plugins.apply("org.jetbrains.kotlin.ecosystem")
+
+                abstract class CustomNodeJsToolchainService : NodeJsToolchainService<NodeJsToolchainService.Parameters> {
+                    override fun request(nodeJsRequest: NodeJsRequest): Provider<NodeJsExecutable> {
+                        throw UnsupportedOperationException("CustomNodeJsToolchainService is not supported")
+                    }
+                }
+
+                settings.extensions.getByType(KotlinEcosystemExtension::class.java).toolchainManagement {
+                    nodeJs {
+                        toolchainService(CustomNodeJsToolchainService::class) {}
+                    }
+                }
+            }
+
+            buildScriptInjection {
+                registerTaskToPrintNodeJsToolchainService()
+            }
+
+            validateFusDirectory("printNodeJsToolchainService", buildAssertions = {
+                assertOutputContains("Node JS Toolchain Service is FusStatisticsIT\$testNodeJsCustomToolchainServiceIsReported\$1\$1\$CustomNodeJsToolchainService\$Inject")
+            }) { fusDirectory ->
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    StringListMetrics.NODE_JS_TOOLCHAIN_SERVICE.name,
+                    listOf("custom")
+                )
+            }
+        }
+    }
+
     @DisplayName("native compiler arguments")
     @GradleTest
     @NativeGradlePluginTests
@@ -680,6 +777,209 @@ class FusStatisticsIT : KGPBaseTest() {
         }
     }
 
+    // Swift Export enabled only on macOS.
+    @OsCondition(supportedOn = [OS.MAC], enabledOnCI = [OS.MAC])
+    @DisplayName("Swift Export - new Swift Export DSL is not configured")
+    @GradleTest
+    @SwiftExportGradlePluginTests
+    fun testNewSwiftExportDslNotConfigured(gradleVersion: GradleVersion) {
+        project("empty", gradleVersion) {
+            plugins {
+                kotlin("multiplatform")
+            }
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    iosArm64()
+                }
+            }
+
+            validateFusDirectory("help") { fusDirectory ->
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_CONFIGURED")
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_MODULE_OPTIONS_OVERRIDES")
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_XCODE_INTEGRATION_ACTIVATED")
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_XCODE_INTEGRATION_OVERRIDES")
+            }
+        }
+    }
+
+    // Swift Export enabled only on macOS.
+    @OsCondition(supportedOn = [OS.MAC], enabledOnCI = [OS.MAC])
+    @DisplayName("Swift Export - new Swift Export DSL configured")
+    @GradleTest
+    @SwiftExportGradlePluginTests
+    @OptIn(ExperimentalSwiftExportDsl::class)
+    fun testNewSwiftExportDslConfigured(gradleVersion: GradleVersion) {
+        project("empty", gradleVersion) {
+            plugins {
+                kotlin("multiplatform")
+            }
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    iosArm64()
+                }
+                export.swift {
+                }
+            }
+
+            validateFusDirectory("help") { fusDirectory ->
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_CONFIGURED", listOf("true")
+                )
+
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_MODULE_OPTIONS_OVERRIDES")
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_XCODE_INTEGRATION_ACTIVATED")
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_XCODE_INTEGRATION_OVERRIDES")
+            }
+        }
+    }
+
+    // Swift Export enabled only on macOS.
+    @OsCondition(supportedOn = [OS.MAC], enabledOnCI = [OS.MAC])
+    @DisplayName("Swift Export - overridden module options are reported")
+    @GradleTest
+    @SwiftExportGradlePluginTests
+    @OptIn(ExperimentalSwiftExportDsl::class)
+    fun testSwiftExportDslModuleOptionsOverridesIsReported(gradleVersion: GradleVersion) {
+        project("empty", gradleVersion) {
+            plugins {
+                kotlin("multiplatform")
+            }
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    iosArm64()
+                }
+                export.swift {
+                    moduleName.set("Shared")
+                    rootPackage.set("com.example")
+                }
+            }
+
+            validateFusDirectory("help") { fusDirectory ->
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_CONFIGURED", listOf("true")
+                )
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_MODULE_OPTIONS_OVERRIDES", listOf("moduleName", "rootPackage")
+                )
+
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_XCODE_INTEGRATION_ACTIVATED")
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_XCODE_INTEGRATION_OVERRIDES")
+            }
+        }
+    }
+
+    // Swift Export enabled only on macOS.
+    @OsCondition(supportedOn = [OS.MAC], enabledOnCI = [OS.MAC])
+    @DisplayName("Swift Export - Xcode integration activation is reported")
+    @GradleTest
+    @SwiftExportGradlePluginTests
+    @OptIn(ExperimentalSwiftExportDsl::class)
+    fun testSwiftExportDslXcodeIntegrationActivationIsReported(gradleVersion: GradleVersion) {
+        project("empty", gradleVersion) {
+            plugins {
+                kotlin("multiplatform")
+            }
+            settingsBuildScriptInjection {
+                settings.rootProject.name = "shared"
+            }
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    iosArm64()
+                }
+                export.swift {
+                    moduleName.set("Shared")
+                    xcodeIntegration()
+                }
+            }
+
+            val subproject = project("empty", gradleVersion) {
+                buildScriptInjection {
+                    project.applyMultiplatform {
+                        iosArm64()
+                    }
+                }
+            }
+
+            include(subproject, "sub")
+
+            validateFusDirectory("help") { fusDirectory ->
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_CONFIGURED", listOf("true")
+                )
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_MODULE_OPTIONS_OVERRIDES", listOf("moduleName")
+                )
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_XCODE_INTEGRATION_ACTIVATED", listOf("true")
+                )
+
+                fusDirectory.assertFusReportDoesNotContain("SWIFT_EXPORT_DSL_XCODE_INTEGRATION_OVERRIDES")
+            }
+        }
+    }
+
+    // Swift Export enabled only on macOS.
+    @OsCondition(supportedOn = [OS.MAC], enabledOnCI = [OS.MAC])
+    @DisplayName("Swift Export - overridden Xcode integration options are reported")
+    @GradleTest
+    @SwiftExportGradlePluginTests
+    @OptIn(ExperimentalSwiftExportDsl::class)
+    fun testSwiftExportDslXcodeIntegrationOverridesIsReported(gradleVersion: GradleVersion) {
+        project("empty", gradleVersion) {
+            plugins {
+                kotlin("multiplatform")
+            }
+            settingsBuildScriptInjection {
+                settings.rootProject.name = "shared"
+            }
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    iosArm64()
+                }
+                export.swift {
+                    moduleName.set("Shared")
+                    xcodeIntegration {
+                        settings.put("key", "value")
+                        configure(project.dependencies.project(mapOf("path" to ":sub"))) {
+                            moduleName.set("Sub")
+                            rootPackage.set("com.example.sub")
+                            visibility.set(SwiftExportVisibility.EXPOSED)
+                        }
+                        configure("com.example:other:1.0") {
+                            visibility.set(SwiftExportVisibility.HIDDEN)
+                        }
+                    }
+                }
+            }
+
+            val subproject = project("empty", gradleVersion) {
+                buildScriptInjection {
+                    project.applyMultiplatform {
+                        iosArm64()
+                    }
+                }
+            }
+
+            include(subproject, "sub")
+
+            validateFusDirectory("help") { fusDirectory ->
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_CONFIGURED", listOf("true")
+                )
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_MODULE_OPTIONS_OVERRIDES", listOf("moduleName")
+                )
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_XCODE_INTEGRATION_ACTIVATED", listOf("true")
+                )
+                fusDirectory.assertFusReportContainsMetricWithValues(
+                    "SWIFT_EXPORT_DSL_XCODE_INTEGRATION_OVERRIDES",
+                    listOf("exposed", "hidden", "moduleName", "rootPackage", "settings")
+                )
+            }
+        }
+    }
+
     @DisplayName("add configuration metrics after build was finish")
     @GradleTest
     @MppGradlePluginTests
@@ -763,14 +1063,6 @@ class FusStatisticsIT : KGPBaseTest() {
             ) { fusFiles ->
                 assertFilesCombinedContains(fusFiles, "KOTLIN_BTA_USED=true")
             }
-
-            validateFusFiles(
-                "compileKotlin",
-                buildAction = BuildActions.build,
-                buildOptions = buildOptions.copy(runViaBuildToolsApi = false),
-            ) { fusFiles ->
-                assertFilesCombinedContains(fusFiles, "KOTLIN_BTA_USED=false")
-            }
         }
     }
 
@@ -808,7 +1100,7 @@ class FusStatisticsIT : KGPBaseTest() {
             buildScriptInjection {
                 @OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalBuildToolsApi::class)
                 kotlinJvm.compilerVersion.set("2.2.20")
-                kotlinJvm.coreLibrariesVersion = "2.2.20"
+                kotlinJvm.coreKotlinLibrariesVersion.set("2.2.20")
             }
             validateFusFiles(
                 "compileKotlin",
@@ -860,6 +1152,20 @@ class FusStatisticsIT : KGPBaseTest() {
         )
     }
 
+}
+
+@OptIn(ExperimentalNodeJsToolchainDsl::class)
+private fun GradleProjectBuildScriptInjectionContext.registerTaskToPrintNodeJsToolchainService() {
+    project.applyMultiplatform {} //kotlin plugin is required for FUS to be collected
+    project.plugins.apply(NodeJsPlugin::class.java)
+    abstract class PrintNodeJsToolchainServiceTask : DefaultTask(), UsesNodeJsToolchainService {
+        @TaskAction
+        fun action() {
+            println("Node JS Toolchain Service is ${nodeJsToolchainService.get().javaClass.simpleName}")
+        }
+    }
+    project.tasks.register("printNodeJsToolchainService", PrintNodeJsToolchainServiceTask::class.java) {
+    }
 }
 
 private fun Path.assertFusReportContains(vararg expectedMetrics: String) {

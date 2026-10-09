@@ -5,41 +5,57 @@
 
 package org.jetbrains.kotlin.light.classes.symbol
 
-import com.intellij.psi.PsiClassType
-import com.intellij.psi.PsiEnumConstant
-import com.intellij.psi.PsiLiteralExpression
-import com.intellij.psi.PsiMethod
+import com.intellij.psi.*
+import com.intellij.psi.impl.PsiSuperMethodImplUtil
+import org.jetbrains.kotlin.analysis.api.KaNonPublicApi
 import org.jetbrains.kotlin.analysis.api.diagnostics.diagnostics
+import org.jetbrains.kotlin.analysis.api.javaInterop.asFacadePsiClass
+import org.jetbrains.kotlin.analysis.api.javaInterop.asPsiClass
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryFallbackDependenciesModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.kaModule
 import org.jetbrains.kotlin.analysis.api.session.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.*
+import org.jetbrains.kotlin.analysis.api.types.symbol
+import org.jetbrains.kotlin.analysis.decompiled.light.classes.KtLightClassForDecompiledDeclaration
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.LLSourceLikeTestConfigurator
 import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiExecutionTest
 import org.jetbrains.kotlin.asJava.elements.KtLightElementBase
-import org.jetbrains.kotlin.asJava.findFacadeClass
-import org.jetbrains.kotlin.asJava.toLightClass
+import org.jetbrains.kotlin.asJava.renderClass
 import org.jetbrains.kotlin.light.classes.symbol.classes.SymbolLightClassForEnumEntry
+import org.jetbrains.kotlin.light.classes.symbol.methods.SymbolLightMethodForMappedJavaCollectionStubMethod
+import org.jetbrains.kotlin.light.classes.symbol.methods.SymbolLightNoArgConstructor
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
+import org.jetbrains.kotlin.utils.findIsInstanceAnd
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 
 class SymbolLightClassesCustomTest : AbstractAnalysisApiExecutionTest(testDirPathString = "testData/custom") {
     override val configurator = LLSourceLikeTestConfigurator()
 
     @Test
     fun fileModificationTracker(file: KtFile, testServices: TestServices) {
-        val facadeLightClass = file.findFacadeClass() ?: error("Facade light class was not found")
-        val classLightClass = (file.declarations.first() as KtClassOrObject).toLightClass() ?: error("Light class was not found")
-        val fakeFilesWithModificationStamp = listOf(facadeLightClass, classLightClass).map { lightClass ->
-            lightClass.containingFile to lightClass.containingFile.modificationStamp
-        }
+        analyze(file) {
+            val facadeLightClass = file.symbol.asFacadePsiClass() ?: error("Facade light class was not found")
+            val classLightClass =
+                (file.declarations.first() as KtClassOrObject).classSymbol?.asPsiClass() ?: error("Light class was not found")
+            val fakeFilesWithModificationStamp = listOf(facadeLightClass, classLightClass).map { lightClass ->
+                lightClass.containingFile to lightClass.containingFile.modificationStamp
+            }
 
-        // Emulate file modification
-        file.clearCaches()
+            // Emulate file modification
+            file.clearCaches()
 
-        for ([fakeFile, originalStamp] in fakeFilesWithModificationStamp) {
-            val newStamp = fakeFile.modificationStamp
-            testServices.assertions.assertTrue(originalStamp < newStamp) {
-                "Expected that $fakeFile will have a modification stamp greater than $originalStamp, but $newStamp was found"
+            for ([fakeFile, originalStamp] in fakeFilesWithModificationStamp) {
+                val newStamp = fakeFile.modificationStamp
+                testServices.assertions.assertTrue(originalStamp < newStamp) {
+                    "Expected that $fakeFile will have a modification stamp greater than $originalStamp, but $newStamp was found"
+                }
             }
         }
     }
@@ -47,7 +63,9 @@ class SymbolLightClassesCustomTest : AbstractAnalysisApiExecutionTest(testDirPat
     @Test
     fun enumEntryWithTypeAliasSameNameAsPrimitiveType(file: KtFile, testServices: TestServices) {
         val enumKtClass = file.declarations.filterIsInstance<KtClass>().first { it.isEnum() }
-        val enumLightClass = enumKtClass.toLightClass() ?: error("Light class was not found")
+        val enumLightClass = analyze(file) {
+            (enumKtClass.symbol as? KaClassSymbol)?.asPsiClass() ?: error("Light class was not found")
+        }
 
         val enumConstant = enumLightClass.fields.filterIsInstance<PsiEnumConstant>().first()
         val enumConstantType = enumConstant.type as PsiClassType
@@ -90,7 +108,13 @@ class SymbolLightClassesCustomTest : AbstractAnalysisApiExecutionTest(testDirPat
     }
 
     private fun assertMethodAnnotation(topLevelClass: KtClass, testServices: TestServices) {
-        val topLevelLightClass = topLevelClass.toLightClass() ?: error("Light class was not found")
+        val topLevelLightClass = analyze(topLevelClass) {
+            when (val symbol = topLevelClass.symbol) {
+                is KaEnumEntrySymbol -> symbol.initializer?.asPsiClass()
+                is KaClassSymbol -> symbol.asPsiClass()
+                else -> null
+            } ?: error("Light class was not found")
+        }
         val method = topLevelLightClass.findMethodsByName("method", false).first() as PsiMethod
         val annotation = method.annotations.first()
         val argument = annotation.findAttributeValue("value")!! as PsiLiteralExpression
@@ -98,5 +122,160 @@ class SymbolLightClassesCustomTest : AbstractAnalysisApiExecutionTest(testDirPat
 
         val nameReference = (argument as KtLightElementBase).kotlinOrigin as KtNameReferenceExpression
         testServices.assertions.assertEquals("MY_CONST", nameReference.getReferencedName())
+    }
+
+    @Test
+    fun findSuperMethods(file: KtFile) {
+        val testFunction = file.declarations.findIsInstanceAnd<KtNamedFunction> { it.name == "test" }
+            ?: error("Function 'test()' not found")
+
+        analyze(file) {
+            val javaImplSymbol = testFunction.valueParameters.single().symbol.returnType.symbol
+                ?: error("'JavaImpl' parameter type not resolved")
+
+            val psiJavaImplClass = javaImplSymbol.psi as PsiClass
+            val psiFooMethod = psiJavaImplClass.findMethodsByName("foo", false).single()
+
+            val psiFooMethodSupers = PsiSuperMethodImplUtil.findSuperMethods(psiFooMethod)
+
+            assertEquals(1, psiFooMethodSupers.size)
+
+            val psiJavaBaseClass = psiFooMethodSupers[0].parent as PsiClass
+            assertEquals("lib.JavaBase", psiJavaBaseClass.qualifiedName)
+        }
+    }
+
+    /**
+     * A constructor is a default one only if the class declares no constructor at all, so the light class has to synthesize one.
+     *
+     * A deserialized `object` is such a case: the metadata stub of an object carries no primary constructor, so the object symbol has no
+     * constructors either.
+     *
+     * Everything that does declare a constructor gets a regular light constructor. This includes the no-arg overload of a primary
+     * constructor with default parameter values, even though it is represented by the very same
+     * [SymbolLightNoArgConstructor][org.jetbrains.kotlin.light.classes.symbol.methods.SymbolLightNoArgConstructor] as the synthesized one.
+     *
+     * A regression test for KT-84373.
+     */
+    @Test
+    fun isDefaultConstructor(file: KtFile, testServices: TestServices) {
+        val project = file.project
+
+        fun lightClassOf(name: String): PsiClass {
+            analyze(file) {
+                val classId = ClassId(FqName("lib"), Name.identifier(name))
+                val classSymbol = findClass(classId) ?: error("'$classId' symbol was not found")
+                val declaration = classSymbol.realPsi as? KtClassOrObject
+                    ?: error("'$classId' is expected to have a decompiled PSI, but '${classSymbol.realPsi}' was found")
+
+
+                // Light classes for non-JVM declarations are only available with the multiplatform support enabled
+                @OptIn(KaNonPublicApi::class)
+                return withMultiplatformLightClassSupport(project) {
+                    declaration.classSymbol?.asPsiClass()
+                } ?: error("Light class for '$name' was not found")
+            }
+        }
+
+        val libraryObjectLightClass = lightClassOf("LibraryObject")
+        val synthesizedConstructor = libraryObjectLightClass.constructors.single()
+        testServices.assertions.assertTrue(synthesizedConstructor.isDefaultConstructor) {
+            "'LibraryObject' declares no constructor, so the synthesized '$synthesizedConstructor' is expected to be a default one"
+        }
+
+        testServices.assertions.assertEquals(
+            expected = """
+                public final class LibraryObject /* lib.LibraryObject*/ {
+                  @org.jetbrains.annotations.NotNull()
+                  public static final @org.jetbrains.annotations.NotNull() lib.LibraryObject INSTANCE;
+    
+                  private /* default ctor */  LibraryObject();//  .ctor()
+                }
+            """.trimIndent(),
+            actual = libraryObjectLightClass.renderClass(),
+        )
+
+        val classesWithDeclaredConstructor = listOf(lightClassOf("LibraryClass")) +
+                file.declarations.filterIsInstance<KtClassOrObject>().map { declaration ->
+                    analyze(declaration) {
+                        declaration.classSymbol?.asPsiClass() ?: error("Light class for '${declaration.name}' was not found")
+                    }
+                }
+
+        val declaredConstructors = classesWithDeclaredConstructor.flatMap { it.constructors.asList() }
+        for (constructor in declaredConstructors) {
+            testServices.assertions.assertFalse(constructor.isDefaultConstructor) {
+                "'${constructor.containingClass?.name}' declares a constructor, so '$constructor' is not expected to be a default one"
+            }
+        }
+
+        // Otherwise the check above misses the no-arg overload of 'ClassWithDefaultParameterValues'
+        testServices.assertions.assertTrue(declaredConstructors.any { it is SymbolLightNoArgConstructor }) {
+            "A no-arg constructor overload is expected among $declaredConstructors"
+        }
+    }
+
+    /**
+     * A library class resolved from a library source module with fallback dependencies is deserialized in the session of the
+     * [KaLibraryFallbackDependenciesModule], while its decompiled PSI belongs to the [KaLibraryModule].
+     *
+     * The declaration location has to be computed from the PSI, so such a class gets a light class built over decompiled Java stubs.
+     * The fallback dependencies module is not a declaration location, so no light class would be created otherwise.
+     */
+    @Test
+    fun libraryClassFromFallbackDependencies(file: KtFile, testServices: TestServices) {
+        analyze(file) {
+            val classId = ClassId(FqName("lib"), Name.identifier("LibraryClass"))
+            val classSymbol = findClass(classId) ?: error("'$classId' symbol was not found")
+
+            testServices.assertions.assertTrue(classSymbol.containingModule is KaLibraryFallbackDependenciesModule) {
+                "'$classId' is expected to come from fallback dependencies, but '${classSymbol.containingModule}' was found"
+            }
+
+            val declaration = classSymbol.realPsi as? KtClassOrObject
+                ?: error("'$classId' is expected to have a decompiled PSI, but '${classSymbol.realPsi}' was found")
+
+            testServices.assertions.assertTrue(declaration.kaModule is KaLibraryModule) {
+                "The decompiled PSI of '$classId' is expected to belong to a library module, but '${declaration.kaModule}' was found"
+            }
+
+            val lightClass = classSymbol.asPsiClass() ?: error("Light class for '$classId' was not found")
+            testServices.assertions.assertTrue(lightClass is KtLightClassForDecompiledDeclaration) {
+                "A light class for decompiled declaration is expected, but '${lightClass::class.simpleName}' was found"
+            }
+        }
+    }
+
+    /**
+     * A regression test for KT-89322 to ensure that the signature of a stub method generated for a mapped Java collection
+     * refers to the type parameters of the stub itself rather than to the ones of the overridden Java method.
+     * The parent chain of stub methods is covered by the parenting check of the regular light classes tests.
+     */
+    @Test
+    fun mappedJavaCollectionStubMethodTypeParameters(file: KtFile, testServices: TestServices) {
+        val ktClass = file.declarations.filterIsInstance<KtClass>().single()
+        val lightClass = analyze(ktClass) {
+            ktClass.classSymbol?.asPsiClass() ?: error("Light class was not found")
+        }
+
+        // `<T> T[] toArray(T[])`
+        val toArray = lightClass.methods
+            .filterIsInstance<SymbolLightMethodForMappedJavaCollectionStubMethod>()
+            .single { it.name == "toArray" && it.hasTypeParameters() }
+
+        val typeParameter = toArray.typeParameters.single()
+        testServices.assertions.assertEquals(toArray, typeParameter.owner) {
+            "Unexpected owner of $typeParameter in $toArray"
+        }
+
+        val parameterType = toArray.parameterList.parameters.single().type as PsiArrayType
+        testServices.assertions.assertEquals(typeParameter, (parameterType.componentType as PsiClassType).resolve()) {
+            "Unexpected type parameter in the parameter type of $toArray"
+        }
+
+        val returnType = toArray.returnType as PsiArrayType
+        testServices.assertions.assertEquals(typeParameter, (returnType.componentType as PsiClassType).resolve()) {
+            "Unexpected type parameter in the return type of $toArray"
+        }
     }
 }

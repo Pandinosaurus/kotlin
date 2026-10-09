@@ -2,12 +2,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
-
-project.updateJvmTarget("1.8")
 
 dependencies {
     implementation(kotlinStdlib())
@@ -20,7 +17,7 @@ dependencies {
     implementation("org.apache.maven.resolver:maven-resolver-impl:1.9.27")
     implementation(libs.apache.commons.io)
 
-    testImplementation(projectTests(":kotlin-scripting-dependencies"))
+    testImplementation(testFixtures(project(":kotlin-scripting-dependencies")))
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)

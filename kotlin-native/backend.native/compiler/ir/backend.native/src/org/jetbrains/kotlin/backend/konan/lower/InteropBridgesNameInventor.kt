@@ -166,6 +166,7 @@ internal class InteropBridgesNameInventor(val generationState: NativeGenerationS
                 when (bridge) {
                     is Bridge.CToKotlin -> {
                         val language = annotation.getConstArgument<String>("language")!!
+                        // Note: `declaration` is always empty at the moment. Will be removed later.
                         val declaration = fixUpAllPlaceHolders(annotation.getConstArgument<String>("declaration")!!)
                         newAnnotations[newAnnotations.indexOf(annotation)] =
                                 buildSimpleAnnotation(
@@ -199,7 +200,7 @@ internal class InteropBridgesNameInventor(val generationState: NativeGenerationS
 
                         generationState.cStubsManager.addStub(location, impl.split('\n'), language)
                         if (libraryName.isNotEmpty()) {
-                            val library = generationState.config.librariesWithDependencies().firstOrNull { it.uniqueName == libraryName }
+                            val library = generationState.config.loadedKlibs.all.firstOrNull { it.uniqueName == libraryName }
                                     ?: error("Library with name $libraryName not found in the dependencies")
                             generationState.dependenciesTracker.add(library)
                         }

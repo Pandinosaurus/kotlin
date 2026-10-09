@@ -96,9 +96,11 @@ class FirExpectActualMatchingContextImpl private constructor(
         get() = asSymbol().resolvedStatus.isInner
     override val RegularClassSymbolMarker.isInlineOrValue: Boolean
         get() = asSymbol().resolvedStatus.let { it.isInline || it.isValue }
-
     override val RegularClassSymbolMarker.isFun: Boolean
         get() = asSymbol().resolvedStatus.isFun
+
+    override val RegularClassSymbolMarker.containingClass: ClassLikeSymbolMarker?
+        get() = asSymbol().getContainingClassSymbol()
 
     override val ClassLikeSymbolMarker.typeParameters: List<TypeParameterSymbolMarker>
         get() = asSymbol().typeParameterSymbols
@@ -520,10 +522,10 @@ class FirExpectActualMatchingContextImpl private constructor(
             get() = getAnnotationClass()?.getRetention(actualSession) == AnnotationRetention.SOURCE
 
         override val isOptIn: Boolean
-            get() = getAnnotationClass()?.hasAnnotation(OptInNames.REQUIRES_OPT_IN_CLASS_ID, actualSession) ?: false
+            get() = getAnnotationClass().hasAnnotation(OptInNames.REQUIRES_OPT_IN_CLASS_ID, actualSession)
 
         override val isOptionalExpectation: Boolean
-            get() = getAnnotationClass()?.hasAnnotation(StandardClassIds.Annotations.OptionalExpectation, actualSession) ?: false
+            get() = getAnnotationClass().hasAnnotation(StandardClassIds.Annotations.OptionalExpectation, actualSession)
 
         private fun getAnnotationClass(): FirRegularClassSymbol? =
             getAnnotationConeType()?.toRegularClassSymbol(actualSession)

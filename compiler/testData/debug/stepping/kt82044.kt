@@ -1,7 +1,7 @@
 // DONT_TARGET_EXACT_BACKEND: JS_IR
 // ^^^ Test hangs while executing the debugger.
-// WASM_IGNORE_FOR: mode=single-module
-// ^^^ KT-88234
+
+
 
 // MODULE: a
 // FILE: a.kt
@@ -20,7 +20,7 @@ fun box(): String {
     }
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:17 box
 // a.kt:10 box
 // test.kt:18 box

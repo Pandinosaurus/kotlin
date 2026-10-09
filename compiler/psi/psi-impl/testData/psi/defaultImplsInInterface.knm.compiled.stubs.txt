@@ -2,7 +2,7 @@ FILE[kind=File[packageFqName=a]]
   PACKAGE_DIRECTIVE
     REFERENCE_EXPRESSION[referencedName=a]
   IMPORT_LIST
-  CLASS[classId=a/DefaultImplsInInterface, fqName=a.DefaultImplsInInterface, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=true, isLocal=false, isTopLevel=true, name=DefaultImplsInInterface, superNames=[]]
+  CLASS[classId=a/DefaultImplsInInterface, fqName=a.DefaultImplsInInterface, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=true, isTopLevel=true, name=DefaultImplsInInterface, superNames=[]]
     MODIFIER_LIST[public]
     CLASS_BODY
       PROPERTY[fqName=a.DefaultImplsInInterface.isVisible, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=isVisible]
@@ -12,6 +12,7 @@ FILE[kind=File[packageFqName=a]]
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=kotlin]
             REFERENCE_EXPRESSION[referencedName=Boolean]
+              isClassRef: true
       PROPERTY[fqName=a.DefaultImplsInInterface.isPersistent, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=isPersistent]
         MODIFIER_LIST[public abstract]
         TYPE_REFERENCE
@@ -19,6 +20,7 @@ FILE[kind=File[packageFqName=a]]
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=kotlin]
             REFERENCE_EXPRESSION[referencedName=Boolean]
+              isClassRef: true
       FUNCTION[fqName=a.DefaultImplsInInterface.show, hasBody=false, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=show]
         MODIFIER_LIST[public abstract suspend]
         VALUE_PARAMETER_LIST
@@ -28,11 +30,13 @@ FILE[kind=File[packageFqName=a]]
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Int]
+                  isClassRef: true
         TYPE_REFERENCE
           USER_TYPE
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=kotlin]
             REFERENCE_EXPRESSION[referencedName=Unit]
+              isClassRef: true
       FUNCTION[fqName=a.DefaultImplsInInterface.dismiss, hasBody=false, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=dismiss]
         MODIFIER_LIST[public abstract]
         VALUE_PARAMETER_LIST
@@ -41,6 +45,7 @@ FILE[kind=File[packageFqName=a]]
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=kotlin]
             REFERENCE_EXPRESSION[referencedName=Unit]
+              isClassRef: true
       FUNCTION[fqName=a.DefaultImplsInInterface.onDispose, hasBody=false, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=onDispose]
         MODIFIER_LIST[public abstract]
         VALUE_PARAMETER_LIST
@@ -49,3 +54,4 @@ FILE[kind=File[packageFqName=a]]
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=kotlin]
             REFERENCE_EXPRESSION[referencedName=Unit]
+              isClassRef: true

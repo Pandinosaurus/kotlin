@@ -9,20 +9,18 @@ import org.jetbrains.kotlin.build.androidsdkprovisioner.ProvisioningType
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.nativeDistribution.useProvidedNativeBootstrapDistribution
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.TemporaryTestFederationApi
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     id("gradle-plugin-common-configuration")
     id("kotlin-git.gradle-build-conventions.binary-compatibility-extended")
     id("kotlin-git.gradle-build-conventions.kgp-npm-tooling-helper")
+    id("kgp-jacoco-on-the-fly")
+    id("kgp-jacoco-instrumenter")
     id("android-sdk-provisioner")
     id("asm-deprecating-transformer")
-    id("project-tests-convention")
     id("native-bootstrap-distribution-provisioner")
     `java-test-fixtures`
     `jvm-test-suite`
@@ -46,31 +44,6 @@ kotlin {
         )
     }
 }
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_MIN,
-    GradlePluginVariant.GRADLE_82,
-)
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_MIN,
-    GradlePluginVariant.GRADLE_86,
-)
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_MIN,
-    GradlePluginVariant.GRADLE_811,
-)
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_MIN,
-    GradlePluginVariant.GRADLE_96,
-)
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_86,
-    GradlePluginVariant.GRADLE_96,
-)
 
 binaryCompatibilityValidator {
     targets.configureEach {
@@ -128,6 +101,11 @@ val unpublishedCompilerRuntimeDependencies = listOf(
     ":wasm:wasm.config", // for k/js task
 )
 
+configurations.embedded.configure {
+    // excludes stdlib and other dependencies provided by Gradle runtime
+    excludeGradleCommonDependencies()
+}
+
 dependencies {
     commonApi(platform(project(":kotlin-gradle-plugins-bom")))
     commonApi(project(":kotlin-gradle-plugin-api"))
@@ -149,6 +127,7 @@ dependencies {
     }
     commonCompileOnly(project(":kotlin-gradle-statistics"))
     commonCompileOnly(project(":kotlin-gradle-build-metrics"))
+    commonCompileOnly(project(":kotlin-gradle-plugin-idea-browser-debug"))
     commonCompileOnly(project(":compiler:build-tools:kotlin-build-tools-jdk-utils"))
     commonCompileOnly(libs.android.gradle.plugin.gradle.api) {
         overrideTargetJvmVersion(11)
@@ -204,14 +183,11 @@ dependencies {
 
     embedded(project(":kotlin-gradle-build-metrics"))
     embedded(project(":kotlin-gradle-statistics"))
+    embedded(project(":kotlin-gradle-plugin-idea-browser-debug"))
     embedded(libs.intellij.asm) { isTransitive = false }
     embedded(commonDependency("com.google.code.gson:gson")) { isTransitive = false }
     embedded(libs.develocity.gradlePluginAdapter)
     embedded("org.jetbrains.kotlinx:kotlinx-serialization-json") {
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-common")
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk7")
         version {
             strictly(GradlePluginVariant.GRADLE_MIN.compatibleKotlinxJsonSerializationVersion)
         }
@@ -424,7 +400,7 @@ tasks {
              * These files are required only at compilation time, but we include the modules only for runtime
              * Hack for not limiting LV to 1.8 for those modules. To be removed after KT-70247
              */
-            pivotVersion = KotlinMetadataPivotVersion(1, 9, 0)
+            pivotVersion = KotlinMetadataPivotVersion(2, 2, 0)
         }
     }
     GradlePluginVariant.values().forEach { variant ->
@@ -484,12 +460,6 @@ gradlePlugin {
                     configurationCache = true
                 }
             }
-        }
-        create("kotlinJsPlugin") {
-            id = "org.jetbrains.kotlin.js"
-            description = "Kotlin JS plugin"
-            displayName = description
-            implementationClass = "org.jetbrains.kotlin.gradle.plugin.KotlinJsPluginWrapper"
         }
         create("kotlinMultiplatformPlugin") {
             id = "org.jetbrains.kotlin.multiplatform"
@@ -644,6 +614,7 @@ testing {
                 runtimeOnly(libs.android.gradle.plugin.gradle.api.latest)
                 runtimeOnly(gradleApi())
                 runtimeOnly(libs.apache.commons.compress) // is required for `TarArchiveOutputStream` in `NativeVersionValueSourceTest`
+                runtimeOnly(libs.org.tukaani.xz) // is required for `PackKotlinArchiveTaskTest`
             }
 
             targets.configureEach {
@@ -652,8 +623,9 @@ testing {
 
                     systemProperty("kotlinVersion", kotlinBuildProperties.kotlinVersion.get())
 
-                    @OptIn(TemporaryTestFederationApi::class)
-                    smokeTestConfig = SmokeTestConfig.RunAllTests
+                    testFederation {
+                        smokeTests { includeAll() }
+                    }
 
                     // These two lines are required for AGP 9+ to work with current KGP in tests
                     systemProperty("org.gradle.project.android.builtInKotlin", "false")
@@ -771,17 +743,14 @@ testFixturesCompilation.compileTaskProvider.configure {
 }
 testFixturesCompilation.enableKotlinSerializationPlugin()
 
-val functionalTestCompilation = kotlin.target.compilations.getByName("functionalTest")
-functionalTestCompilation.compileJavaTaskProvider.configure {
-    sourceCompatibility = JavaLanguageVersion.of(17).toString()
-    targetCompatibility = JavaLanguageVersion.of(17).toString()
-}
-functionalTestCompilation.compileTaskProvider.configure {
-    with(this as KotlinCompile) {
-        kotlinJavaToolchain.toolchain.use(project.getToolchainLauncherFor(JdkMajorVersion.JDK_17_0))
+jvmToolchains {
+    configureForSourceSet("functionalTest") {
+        jdkVersion = JdkMajorVersion.JDK_17_0
+        targetBytecodeVersion = JdkMajorVersion.JDK_17_0
     }
 }
 
+val functionalTestCompilation = kotlin.target.compilations.getByName("functionalTest")
 functionalTestCompilation.enableKotlinSerializationPlugin()
 functionalTestCompilation.associateWith(kotlin.target.compilations.getByName(gradlePluginVariantForFunctionalTests.sourceSetName))
 functionalTestCompilation.associateWith(kotlin.target.compilations.getByName("common"))

@@ -55,7 +55,11 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_LOCALS by error<PsiElement>()
         val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_REIFIED by error<PsiElement>()
         val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_PRIVATE by error<PsiElement>()
+        val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_SEALED_CONSTRUCTOR by error<PsiElement>()
         val JVM_EXPOSE_BOXED_CAN_BE_REPLACED_WITH_JVM_NAME by warning<PsiElement>()
+        val JVM_EXPOSE_BOXED_NAME_IS_NOT_JAVA_IDENTIFIER by warning<PsiElement> {
+            parameter<String>("name")
+        }
 
         val WRONG_TYPE_FOR_JAVA_OVERRIDE by warning<PsiElement>(PositioningStrategy.OVERRIDE_MODIFIER) {
             parameter<FirCallableSymbol<*>>("override")
@@ -149,6 +153,7 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         val SYNCHRONIZED_IN_ANNOTATION by deprecationError<KtAnnotationEntry>(ForbidJvmAnnotationsOnAnnotationParameters)
         val SYNCHRONIZED_ON_INLINE by warning<KtAnnotationEntry>()
         val SYNCHRONIZED_ON_VALUE_CLASS by deprecationError<KtAnnotationEntry>(ProhibitSynchronizationByValueClassesAndPrimitives)
+        val SYNCHRONIZED_ON_WILL_BECOME_VALUE_CLASS by error<KtAnnotationEntry>()
         val SYNCHRONIZED_ON_SUSPEND_ERROR by error<KtAnnotationEntry>()
         val OVERLOADS_WITHOUT_DEFAULT_ARGUMENTS by warning<KtAnnotationEntry>()
         val OVERLOADS_ABSTRACT by error<KtAnnotationEntry>()
@@ -165,6 +170,7 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         val JVM_PACKAGE_NAME_NOT_SUPPORTED_IN_FILES_WITH_CLASSES by error<KtAnnotationEntry>()
 
         val POSITIONED_VALUE_ARGUMENT_FOR_JAVA_ANNOTATION by error<KtExpression>()
+        val POSITIONED_VALUE_ARGUMENT_FOR_JAVA_ANNOTATION_WARNING by warning<KtExpression>()
 
         val REDUNDANT_REPEATABLE_ANNOTATION by warning<KtAnnotationEntry> {
             parameter<FqName>("kotlinRepeatable")
@@ -179,6 +185,9 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
             parameter<Collection<String>>("correspondingKotlinTargets")
         }
         val ANNOTATION_TARGETS_ONLY_IN_JAVA by warning<KtAnnotationEntry>()
+        val ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR by warning<KtAnnotationEntry> {
+            parameter<String>("declarationName")
+        }
         val RUNTIME_ANNOTATION_ON_LAMBDA_IS_NOT_RETAINED by warning<KtAnnotationEntry> {
             parameter<FirClassLikeSymbol<*>>("annotationClass")
         }

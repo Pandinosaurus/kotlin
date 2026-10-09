@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.test.framework.services.libraries
 
+import org.jetbrains.kotlin.analysis.test.framework.directives.CompilerPluginsDirectives
 import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
 import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
@@ -51,6 +52,8 @@ abstract class CliTestModuleCompiler : TestModuleCompiler() {
         resourceFiles: List<TestFile>,
         testServices: TestServices,
     ): Path {
+        allowTestsOnlyLanguageFeatures()
+
         val allowedLibraryPlatforms = module.directives[Directives.LIBRARY_PLATFORMS].map { it.targetPlatform }
         val compilationErrorExpected = Directives.COMPILATION_ERRORS in module.directives
                 || (allowedLibraryPlatforms.isNotEmpty() && module.targetPlatform(testServices) !in allowedLibraryPlatforms)
@@ -142,6 +145,13 @@ abstract class CliTestModuleCompiler : TestModuleCompiler() {
             add(CommonCompilerArguments::allowKotlinPackage.cliArgument)
         }
 
+        if (CompilerPluginsDirectives.WITH_FIR_TEST_COMPILER_PLUGIN in module.directives) {
+            // Libraries are compiled by a separate CLI compiler invocation, which doesn't see the plugin registered for the
+            // analysis session, so the plugin JAR has to be passed explicitly.
+            val pluginJar = ForTestCompileRuntime.pluginSandboxJarForTests()
+            add(CommonCompilerArguments::pluginClasspaths.cliArgument(pluginJar.absolutePath))
+        }
+
         addAll(module.directives[Directives.COMPILER_ARGUMENTS])
     }
 
@@ -196,6 +206,10 @@ abstract class JvmTestModuleCompiler : CliTestModuleCompiler() {
             }
 
             addAll(listOf(K2JVMCompilerArguments::jdkHome.cliArgument, jdkHome.toString()))
+        }
+
+        module.directives.singleOrZeroValue(LanguageSettingsDirectives.JVM_DEFAULT_MODE)?.let { jvmDefaultMode ->
+            add(K2JVMCompilerArguments::jvmDefaultStable.cliArgument(jvmDefaultMode.description))
         }
 
         if (LanguageSettingsDirectives.JVM_EXPOSE_BOXED in module.directives) {

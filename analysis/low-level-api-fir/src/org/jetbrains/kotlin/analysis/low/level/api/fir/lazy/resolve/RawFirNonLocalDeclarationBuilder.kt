@@ -7,8 +7,6 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve
 
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.KtPsiSourceFile
-import org.jetbrains.kotlin.KtSourceElement
-import org.jetbrains.kotlin.analysis.api.impl.base.util.requireIsInstance
 import org.jetbrains.kotlin.analysis.api.impl.base.util.withPsiEntry
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.FirDesignation
 import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.llFirModuleData
@@ -21,19 +19,17 @@ import org.jetbrains.kotlin.fir.builder.buildDestructuringVariable
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isExpect
 import org.jetbrains.kotlin.fir.declarations.utils.isInner
-import org.jetbrains.kotlin.fir.declarations.utils.isReplSnippetDeclaration
 import org.jetbrains.kotlin.fir.expressions.FirMultiDelegatedConstructorCall
 import org.jetbrains.kotlin.fir.references.FirSuperReference
 import org.jetbrains.kotlin.fir.scopes.FirScopeProvider
-import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.name.NameUtils
-import org.jetbrains.kotlin.psi
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.util.PrivateForInline
+import org.jetbrains.kotlin.utils.addToStdlib.requireIsInstance
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
@@ -44,7 +40,12 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
     private val originalDeclaration: FirDeclaration,
     private val declarationToBuild: KtElement,
     private val declarationsToRebind: List<FirDeclaration>,
-) : PsiRawFirBuilder(session, baseScopeProvider, bodyBuildingMode = BodyBuildingMode.NORMAL) {
+) : PsiRawFirBuilder(
+    session = session,
+    baseScopeProvider = baseScopeProvider,
+    bodyBuildingMode = BodyBuildingMode.NORMAL,
+    context = NonLocalFirBuilderContext(originalDeclaration),
+) {
     companion object {
         fun buildWithSymbolRebind(
             session: FirSession,
@@ -55,10 +56,6 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
             val declarationsToRebind = when (val originalDeclaration = designation.target) {
                 is FirFunction -> listOf(originalDeclaration)
                 is FirProperty -> listOfNotNull(originalDeclaration.getter, originalDeclaration.setter)
-                is FirReplSnippet -> originalDeclaration.snippetClass.let { snippetClass ->
-                    snippetClass.declarations.filter { it.isReplSnippetDeclaration == true } + snippetClass
-                }
-
                 else -> emptyList()
             }
 
@@ -100,19 +97,6 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
         super.bindFunctionTarget(target, computeRebindTarget(function) as? FirFunction ?: function)
     }
 
-    override fun <T : FirDeclaration, R : FirBasedSymbol<T>> replSnippetDeclarationSymbol(declaration: T): R {
-        val target = (computeRebindTarget(declaration) ?: declaration)
-        requireWithAttachment(
-            declaration.javaClass == target.javaClass,
-            { "Expected ${declaration.javaClass.simpleName} but got ${target.javaClass.simpleName}" },
-        ) {
-            withFirEntry("declaration", declaration)
-            withFirEntry("target", target)
-        }
-
-        return super.replSnippetDeclarationSymbol(target)
-    }
-
     /**
      * @return [FirFunction] if another function should be used instead of [declaration] for [FirFunctionTarget]
      *
@@ -132,28 +116,15 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
         return declarationsToRebind.firstOrNull { it is FirPropertyAccessor && it.isGetter == accessor.isGetter && it.psi == accessorPsi }
     }
 
-    override fun addCapturedTypeParameters(
-        status: Boolean,
-        declarationSource: KtSourceElement?,
-        currentFirTypeParameters: List<FirTypeParameterRef>,
-    ) {
-        if (originalDeclaration is FirTypeParameterRefsOwner && declarationSource?.psi == originalDeclaration.psi) {
-            super.addCapturedTypeParameters(status, declarationSource, originalDeclaration.typeParameters)
-        } else {
-            super.addCapturedTypeParameters(status, declarationSource, currentFirTypeParameters)
-        }
-    }
-
     private inner class VisitorWithReplacement(private val containingClass: FirRegularClass?) : Visitor() {
         fun convertDestructuringDeclaration(element: KtDestructuringDeclaration, containingDeclaration: FirDeclaration?): FirVariable {
             return if (containingDeclaration is FirScript) {
-                withContainerSymbol(containingDeclaration.symbol) {
+                context.withContainerSymbol(containingDeclaration.symbol) {
                     // Annotations from script destructuring declarations are linked to the script itself
                     buildScriptDestructuringDeclaration(element)
                 }
             } else {
-                val initializer = element.toInitializerExpression()
-                buildErrorNonLocalDestructuringDeclaration(element.toFirSourceElement(), initializer)
+                buildErrorNonLocalDestructuringDeclaration(element)
             }
         }
 
@@ -167,6 +138,7 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
             }
 
             return buildDestructuringVariable(
+                context,
                 moduleData = baseModuleData,
                 container = container,
                 element,
@@ -344,16 +316,15 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
         val psi = parent.psi
         val typeParameters = when (psi) {
             is KtClassOrObject -> parent.typeParameters.subList(0, psi.typeParameters.size)
-            is KtScript -> emptyList()
             else -> errorWithFirSpecificEntries(
-                message = "Expected ${KtClassOrObject::class.simpleName}/${KtScript::class.simpleName} is not found",
+                message = "Expected ${KtClassOrObject::class.simpleName} is not found",
                 fir = parent,
                 psi = psi,
             )
         }
 
-        withChildClassName(parent.name, isExpect = parent.isExpect) {
-            withCapturedTypeParameters(
+        context.withChildClassName(parent.name, isExpect = parent.isExpect) {
+            context.withCapturedTypeParameters(
                 status = parent.isInner,
                 declarationSource = null,
                 currentFirTypeParameters = typeParameters,

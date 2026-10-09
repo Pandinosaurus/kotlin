@@ -4,6 +4,7 @@
  */
 
 import org.gradle.api.Project
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
@@ -22,22 +23,6 @@ import java.io.File
 import java.nio.file.Files
 import javax.inject.Inject
 
-private abstract class MuteWithDatabaseArgumentProvider @Inject constructor(objects: ObjectFactory) : CommandLineArgumentProvider {
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.NONE)
-    val mutesFile: RegularFileProperty = objects.fileProperty()
-
-    override fun asArguments(): Iterable<String> =
-        listOf("-Dorg.jetbrains.kotlin.test.mutes.file=${mutesFile.get().asFile.canonicalPath}")
-}
-
-private fun Test.muteWithDatabase() {
-    jvmArgumentProviders.add(
-        project.objects.newInstance<MuteWithDatabaseArgumentProvider>().apply {
-            mutesFile.fileValue(File(project.rootDir, "tests/mute-common.csv"))
-        })
-    systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
-}
 
 abstract class GeneralTestArgumentProvider @Inject constructor() : CommandLineArgumentProvider {
     @get:Inject
@@ -63,10 +48,46 @@ abstract class GeneralTestArgumentProvider @Inject constructor() : CommandLineAr
     @get:Internal
     val prefix = projectName.zip(taskName) { projectName, taskName -> "${projectName}Project_${taskName}_" }
 
-    override fun asArguments(): Iterable<String?> = listOfNotNull(
-        excludesFile.orNull?.let { "-Dteamcity.build.parallelTests.excludesFile=${excludesFile.get().path}" },
-        tempDir.orNull?.let { "-Djava.io.tmpdir=" + Files.createTempDirectory(File(it).toPath(), prefix.get()).toString() },
-    )
+    /**
+     * Directory for unified JVM GC logs (`-Xlog:gc*`) of the forked test JVMs.
+     * Intentionally not an output: the logs are diagnostics for OOM investigations and must not affect caching.
+     */
+    @get:Internal
+    abstract val gcLogDirectory: DirectoryProperty
+
+    /** Major version of the JDK that launches the tests; some GC flags exist only in a range of JDK versions. */
+    @get:Internal
+    abstract val javaMajorVersion: Property<Int>
+
+    override fun asArguments(): Iterable<String?> = buildList {
+        excludesFile.orNull?.let { add("-Dteamcity.build.parallelTests.excludesFile=${it.path}") }
+        tempDir.orNull?.let { add("-Djava.io.tmpdir=" + Files.createTempDirectory(File(it).toPath(), prefix.get()).toString()) }
+        if (javaMajorVersion.get() < 25) {
+            // With many concurrent test threads, an allocation stalled by the GC locker (JNI critical sections,
+            // e.g. zip inflation) gives up after only 2 retries and throws OOM before a full GC gets a chance (JDK-8192647).
+            // JDK 25 reworked the GC locker so that a GC always runs, and removed this flag: passing it there fails JVM startup.
+            add("-XX:+UnlockDiagnosticVMOptions")
+            add("-XX:GCLockerRetryAllocationCount=100")
+        }
+        gcLogDirectory.orNull?.let { dir ->
+            // The JVM refuses to start if the log file cannot be created, so the directory has to exist up front.
+            val logDir = dir.asFile.apply { mkdirs() }
+            // `%p` is expanded to the PID by the JVM, so every forked test JVM writes its own file.
+            // Rotation keeps the last 100 MB per JVM, which covers the run-up to an OOM.
+            val logFile = logDir.resolve("gc-%p.log")
+            if (javaMajorVersion.get() >= 9) {
+                add("-Xlog:gc*:file=$logFile:time,uptime,level,tags:filecount=5,filesize=20m")
+            } else {
+                // JDK 8 has no unified logging (`-Xlog` is rejected as an unrecognized option).
+                add("-Xloggc:$logFile")
+                add("-XX:+PrintGCDetails")
+                add("-XX:+PrintGCDateStamps")
+                add("-XX:+UseGCLogFileRotation")
+                add("-XX:NumberOfGCLogFiles=5")
+                add("-XX:GCLogFileSize=20M")
+            }
+        }
+    }
 }
 
 val testMaxHeapSizeTiny get() = 256.MiB
@@ -98,15 +119,16 @@ internal fun Project.createGeneralTestTask(
     val effectiveXms = properties.testXms.orElse(minHeapSize)
     val effectiveGC = properties.testGarbageCollector.orElse(provider { garbageCollector })
 
-    project.dependencies {
-        "testRuntimeOnly"(project(":compiler:tests-mutes:mutes-junit5"))
-    }
     val shouldInstrument = project.providers.gradleProperty("kotlin.test.instrumentation.disable")
         .orNull?.toBoolean() != true
-    return getOrCreateTask<Test>(taskName) {
+
+    val testTaskInitializer = fun Test.() {
         this.javaLauncher.set(getToolchainLauncherFor(javaLauncher))
 
-        if (taskName != "test" && classpath.isEmpty) {
+        // Only `test` gets its classpath from the java plugin; other tasks, including `testDataManagerWarmup`
+        // (configured with `taskName == "test"`), need this fallback. Checking the name first also avoids
+        // resolving the classpath of `test` during configuration.
+        if (name != "test" && classpath.isEmpty) {
             classpath = sourceSets.getByName("test").runtimeClasspath
             testClassesDirs = sourceSets.getByName("test").output.classesDirs
         }
@@ -117,8 +139,6 @@ internal fun Project.createGeneralTestTask(
             classpath.from(ideaHomeForTests)
             directory.value(ideaHomePathForTests())
         })
-
-        muteWithDatabase()
 
         if (shouldInstrument) {
             val agentJar = configurations.detachedConfiguration(dependencies.project(":test-instrumenter")).apply { isTransitive = false }
@@ -148,8 +168,7 @@ internal fun Project.createGeneralTestTask(
             "-XX:+UseCodeCacheFlushing",
             "-XX:ReservedCodeCacheSize=${reservedCodeCacheSize.toJvmArg()}",
             "-XX:MaxMetaspaceSize=${maxMetaspaceSize.toJvmArg()}",
-            "-XX:CICompilerCount=2",
-            "-Djna.nosys=true"
+            "-Djna.nosys=true",
         )
 
         when (effectiveGC.orNull) {
@@ -184,6 +203,10 @@ internal fun Project.createGeneralTestTask(
         val testArgumentProvider = objects.newInstance<GeneralTestArgumentProvider>().also {
             it.projectName.set(project.name)
             it.taskName.set(name)
+            it.gcLogDirectory.set(project.layout.buildDirectory.dir("test-gc-logs/$name"))
+            // Read from the task's final launcher, not the `javaLauncher` parameter:
+            // some modules reassign `Test.javaLauncher` in their own configuration (e.g. fir2ir to JDK 8).
+            it.javaMajorVersion.set(this.javaLauncher.map { launcher -> launcher.metadata.languageVersion.asInt() })
         }
         jvmArgumentProviders.add(testArgumentProvider)
 
@@ -222,6 +245,25 @@ internal fun Project.createGeneralTestTask(
         }
         body()
     }
+
+    // A special mock test task is required for the test data manager
+    // to be able to fully reuse its configuration without forcing real tests execution.
+    // Mirrors only `test`: other general test tasks (e.g., `codebaseTest`) must not add their configuration to it.
+    // `getOrCreateTask` like for `test` itself, so a repeated `testTask { ... }` configures both the same way.
+    if (taskName == "test") {
+        project.pluginManager.withPlugin("test-data-manager") {
+            getOrCreateTask<Test>("testDataManagerWarmup") {
+                description = "Carries Test configuration for test-data-manager"
+
+                testTaskInitializer()
+                onlyIf("configuration carrier; tests must not be executed") {
+                    false
+                }
+            }
+        }
+    }
+
+    return getOrCreateTask<Test>(taskName, testTaskInitializer)
 }
 
 private val Test.commandLineIncludePatterns: Set<String>

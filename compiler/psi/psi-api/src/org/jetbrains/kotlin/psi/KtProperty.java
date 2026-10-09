@@ -12,7 +12,9 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.PsiTreeUtil;
+import kotlin.DeprecationLevel;
 import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;
@@ -39,6 +41,7 @@ import static org.jetbrains.kotlin.psi.psiUtil.KtPsiUtilKt.isKtFile;
  * // The entire property
  * }</pre>
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtProperty extends KtTypeParameterListOwnerStub<KotlinPropertyStub>
         implements KtVariableDeclaration {
 
@@ -177,7 +180,8 @@ public class KtProperty extends KtTypeParameterListOwnerStub<KotlinPropertyStub>
             replaceWith = @ReplaceWith(
                     expression = "this.setPropertyTypeReference(typeRef)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.setPropertyTypeReference"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     public KtTypeReference setTypeReference(@Nullable KtTypeReference typeRef) {
@@ -318,7 +322,8 @@ public class KtProperty extends KtTypeParameterListOwnerStub<KotlinPropertyStub>
             replaceWith = @ReplaceWith(
                     expression = "this.setPropertyInitializer(initializer)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.setPropertyInitializer"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     public KtExpression setInitializer(@Nullable KtExpression initializer) {

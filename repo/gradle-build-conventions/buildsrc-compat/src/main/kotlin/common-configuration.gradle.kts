@@ -1,4 +1,8 @@
 import org.gradle.accessors.dm.LibrariesForLibs
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.DocsType
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
 import org.gradle.api.internal.file.collections.DefaultConfigurableFileCollection
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
@@ -15,6 +19,7 @@ import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
 plugins {
     id("implicit-dependencies")
     id("java-instrumentation")
+    id("jvm-toolchains-convention")
 }
 
 // Common Group and version
@@ -22,12 +27,13 @@ val kotlinVersion: String = project.kotlinBuildProperties.kotlinVersion.get()
 group = "org.jetbrains.kotlin"
 version = kotlinVersion
 
-project.configureJvmDefaultToolchain()
+project.configureKotlinJavaCompileHygiene()
 project.addEmbeddedConfigurations()
 project.configureJavaCompile()
 project.configureKotlinCompilationOptions()
 project.configureArtifacts()
 project.configureTests()
+project.registerApiSurfaceTasks()
 project.checkNoApiDependenciesOnK1Modules()
 project.configureMigratedRootSettings()
 project.configureJsCacheRedirector()
@@ -41,6 +47,51 @@ project.configureTestLifecycleTasksModelBuilder()
 //  - idea seems unable to exclude common buildDir from indexing
 // therefore it is disabled by default
 // buildDir = File(commonBuildDir, project.name)
+
+/**
+ * Registers the `checkApiSurface` and `updateApiSurface` lifecycle tasks of a project.
+ *
+ * A module that tracks its own API surface — an ABI dump, the foreign classes its public API leaks, the conventions
+ * its declarations follow — hangs the verifying half of each such check on `checkApiSurface` and the rewriting half
+ * on `updateApiSurface`. Whoever owns a check does that wiring itself, from inside the project, so aggregates over
+ * several modules can depend on the two task paths without inspecting anyone else's task container. Gradle's project
+ * isolation forbids that inspection, and an unconfigured project answers it with an empty task container, which
+ * silently turns such an aggregate into a no-op.
+ *
+ * Both tasks are deliberately kept out of `check`. `updateApiSurface` rewrites files in the source tree, and
+ * `checkApiSurface` duplicates work that `check` already does through the checks' own `check` wiring.
+ *
+ * The tasks are registered for every project of the build, so a module that starts tracking its API surface only
+ * needs to declare the checks themselves.
+ */
+fun Project.registerApiSurfaceTasks() {
+    val checkApiSurface = tasks.register("checkApiSurface") {
+        group = "verification"
+        description = "Verifies the API surface dumps of this project against its sources"
+    }
+
+    val updateApiSurface = tasks.register("updateApiSurface") {
+        group = "verification"
+        description = "Rewrites the API surface dumps of this project from its sources"
+    }
+
+    // The ABI dump tasks come from the Kotlin Gradle plugin's 'abiValidation', and their classes are internal to it,
+    // so they cannot be picked up by type the way the checks owned by this repository are. Both names are stable
+    // parts of the plugin's contract; see 'KotlinAbiCheckTaskImpl.NAME' and 'KotlinAbiUpdateTask.NAME'.
+    checkApiSurface.configure { dependsOn(registeredTaskNames("checkKotlinAbi")) }
+    updateApiSurface.configure { dependsOn(registeredTaskNames("updateKotlinAbi")) }
+}
+
+/**
+ * Those of [names] that this project has registered, as a dependency value for a lifecycle task.
+ *
+ * Resolved from a provider, so the lookup happens once the execution graph is built. By then the build script of
+ * this project has run, and its task names are final.
+ */
+private fun Project.registeredTaskNames(vararg names: String): Provider<List<String>> {
+    val projectTasks = tasks
+    return provider { names.filter { it in projectTasks.names } }
+}
 
 /**
  * Validates that the project does not expose K1 frontend modules
@@ -92,6 +143,24 @@ fun Project.addEmbeddedConfigurations() {
     }
 }
 
+/**
+ * Kotlin JVM projects don't need annotation processing on their `JavaCompile` tasks (Kotlin's own
+ * annotation processing goes through kapt/KSP instead), and consistent UTF-8 encoding avoids
+ * platform-default-charset-dependent compilation. `compileJava9Java` is excluded because it's
+ * configured separately for multi-release-jar compilation (see `configureJava9Compilation`).
+ */
+fun Project.configureKotlinJavaCompileHygiene() {
+    plugins.withId("org.jetbrains.kotlin.jvm") {
+        tasks.withType<JavaCompile>()
+            .configureEach {
+                if (name != "compileJava9Java") {
+                    options.compilerArgs.add("-proc:none")
+                    options.encoding = "UTF-8"
+                }
+            }
+    }
+}
+
 fun Project.configureJavaCompile() {
     plugins.withType<JavaPlugin> {
         tasks.withType<JavaCompile>().configureEach {
@@ -104,7 +173,8 @@ fun Project.configureJavaCompile() {
     }
 }
 
-val kotlinApiVersionForProjectsDependingOnStableStdlib: Provider<String> = project.providers.gradleProperty("kotlinApiVersionForProjectsDependingOnStableStdlib")
+val kotlinApiVersionForProjectsDependingOnStableStdlib: Provider<String> =
+    project.providers.gradleProperty("kotlinApiVersionForProjectsDependingOnStableStdlib")
 
 fun Project.configureKotlinCompilationOptions() {
     plugins.withType<KotlinBasePluginWrapper> {
@@ -121,24 +191,14 @@ fun Project.configureKotlinCompilationOptions() {
                         "-opt-in=kotlin.RequiresOptIn",
                         "-progressive".takeIf { project.kotlinBuildProperties.booleanProperty("test.progressive.mode", false).get() },
                         "-Xdont-warn-on-error-suppression",
-                        "-Xcontext-parameters", // KT-72222
-                        "-Xexplicit-backing-fields".takeUnless { skipNewLanguageFeatures }, // KT-14663
-                        "-Xname-based-destructuring=complete".takeUnless { skipNewLanguageFeatures },
-                        "-Xcollection-literals".takeUnless { skipNewLanguageFeatures },
-                        // Between making a language feature stable and the next bootstrap, we need to keep providing the compiler argument.
-                        // But this produces a warning
-                        // "The argument ... is redundant for the current language version ..."
-                        // in the bootstrap test and fails because of -Werror.
-                        // To work around it, we suppress the warning.
-                        @OptIn(ExperimentalBuildToolsApi::class, ExperimentalKotlinGradlePluginApi::class)
-                        "-Xwarning-level=REDUNDANT_CLI_ARG:disabled".takeIf {
-                            project.kotlinExtension.compilerVersion.get() == project.kotlinToolingVersion.toString()
-                        },
+
+                        *if (skipNewLanguageFeatures) emptyArray() else dogfoodedExperimentalFeatures.toTypedArray(),
+                        redundantCliArgWarningSuppression.takeUnless { skipNewLanguageFeatures },
                     )
                 }
 
                 freeCompilerArgs.addAll(commonCompilerArgs)
-                languageVersion.set(kotlinLanguageVersion.map{ KotlinVersion.fromVersion(it) })
+                languageVersion.set(kotlinLanguageVersion.map { KotlinVersion.fromVersion(it) })
                 apiVersion.set(kotlinLanguageVersion.map { KotlinVersion.fromVersion(it) })
                 freeCompilerArgs.add("-Xskip-prerelease-check")
 
@@ -159,6 +219,7 @@ fun Project.configureKotlinCompilationOptions() {
                 !project.path.startsWith(":native:objcexport-header-generator") &&
                 !project.path.startsWith(":libraries:tools:analysis-api-based-klib-reader") &&
                 !project.path.startsWith(":native:external-projects-test-utils") &&
+                !project.path.startsWith(":plugins:parcelize:parcelize-runtime") &&
                 !project.path.startsWith(":plugins:plugin-sandbox:plugin-annotations") &&
                 !project.path.startsWith(":kotlin-power-assert-runtime")
             ) {
@@ -198,32 +259,14 @@ fun Project.configureKotlinCompilationOptions() {
                 }
 
                 if (!skipJvmDefaultForModule(project.path)) {
-                    freeCompilerArgs.add(
-                        if (project.shouldUseOldJvmDefaultArgument())
-                            "-Xjvm-default=all"
-                        else
-                            "-jvm-default=no-compatibility"
-                    )
+                    jvmDefault = JvmDefaultMode.NO_COMPATIBILITY
                 } else {
-                    freeCompilerArgs.add(
-                        if (project.shouldUseOldJvmDefaultArgument())
-                            "-Xjvm-default=disable"
-                        else
-                            "-jvm-default=disable"
-                    )
+                    jvmDefault = JvmDefaultMode.DISABLE
                 }
 
             }
         }
     }
-}
-
-private fun Project.shouldUseOldJvmDefaultArgument(): Boolean {
-    @OptIn(ExperimentalBuildToolsApi::class, ExperimentalKotlinGradlePluginApi::class)
-    val isOldCompilerVersion =
-        KotlinToolingVersion(kotlinExtension.compilerVersion.get()) < KotlinToolingVersion("2.2")
-
-    return isOldCompilerVersion
 }
 
 private val libs = project.the<LibrariesForLibs>()
@@ -235,6 +278,46 @@ private fun Project.skipArgumentForOlderKotlinCompilerVersion(): Boolean {
 }
 
 fun Project.configureArtifacts() {
+    plugins.withType<JavaPlugin> {
+        extensions.configure<JavaPluginExtension> {
+            withSourcesJar()
+        }
+    }
+
+    plugins.withId("java-test-fixtures") {
+        val testFixtures = extensions.getByType<JavaPluginExtension>().sourceSets.getByName("testFixtures")
+        val testFixturesSourcesJar = tasks.register<Jar>("testFixturesSourcesJar") {
+            archiveClassifier.set("test-fixtures-sources")
+            from(testFixtures.allSource)
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        }
+        val testFixturesCapabilities = configurations.getByName("testFixturesApiElements").outgoing.capabilities
+        configurations.findByName("testFixturesSourcesElements") ?: configurations.create("testFixturesSourcesElements") {
+            isCanBeConsumed = true
+            isCanBeResolved = false
+            attributes {
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.DOCUMENTATION))
+                attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, DocsType.SOURCES))
+                attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements::class.java, LibraryElements.JAR))
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+            }
+            testFixturesCapabilities.forEach { outgoing.capability(it) }
+            outgoing.artifact(testFixturesSourcesJar)
+        }
+    }
+
+    tasks.withType<Jar>().matching { it.name == "sourcesJar" || it.name == "testFixturesSourcesJar" }.configureEach {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    tasks.withType<AbstractArchiveTask>().configureEach {
+        if (name == "kotlinSourcesJar") {
+            enabled = false
+            archiveClassifier.set("unused-kotlin-sources")
+            archiveFileName.set("unused-kotlin-sources.jar")
+        }
+    }
+
     tasks.withType<Javadoc>().configureEach {
         enabled = false
     }
@@ -316,137 +399,8 @@ fun Project.configureArtifacts() {
 }
 
 fun Project.configureTests() {
-    val concurrencyLimitService = project.gradle.sharedServices.registerIfAbsent(
-        "concurrencyLimitService",
-        ConcurrencyLimitService::class
-    ) {
-        maxParallelUsages.set(1)
-    }
-
-    tasks.withType<Test>().configureEach {
-        val notCacheableTestProjects: List<String> = listOf(
-            ":analysis:analysis-api-standalone:analysis-api-standalone-native",
-            ":analysis:low-level-api-fir:low-level-api-fir-native-compiler-tests",
-            ":compiler:build-tools:kotlin-build-tools-api",
-            ":compiler:build-tools:kotlin-build-tools-compat",
-            ":compiler:build-tools:kotlin-build-tools-generator",
-            ":compiler:fir:modularized-tests",
-            ":compiler:fir:raw-fir:light-tree2fir",
-            ":compiler:fir:raw-fir:psi2fir",
-            ":compiler:multiplatform-parsing",
-            ":compiler:test-infrastructure-utils",
-            ":compiler:tests-integration",
-            ":compose-compiler-gradle-plugin",
-            ":examples:scripting-jvm-embeddable-host",
-            ":examples:scripting-jvm-maven-deps-host",
-            ":examples:scripting-jvm-simple-script-host",
-            ":generators",
-            ":jps:jps-common",
-            ":jps:jps-plugin",
-            ":kotlin-annotation-processing",
-            ":kotlin-annotation-processing-base",
-            ":kotlin-build-common",
-            ":kotlin-compiler-client-embeddable",
-            ":kotlin-compiler-embeddable",
-            ":kotlin-daemon-client",
-            ":kotlin-gradle-plugin",
-            ":kotlin-gradle-plugin-dsl-codegen",
-            ":kotlin-gradle-plugin-integration-tests",
-            ":kotlin-gradle-statistics",
-            ":kotlin-main-kts",
-            ":kotlin-main-kts-test",
-            ":kotlin-metadata-jvm",
-            ":kotlin-power-assert-runtime", // TODO(KTI-3056): 'test-inputs-check' cannot be combined with 'multiplatform' projects
-            ":kotlin-scripting-common",
-            ":kotlin-scripting-dependencies",
-            ":kotlin-scripting-dependencies-maven",
-            ":kotlin-scripting-dependencies-maven-all",
-            ":kotlin-scripting-ide-services-test",
-            ":kotlin-scripting-jsr223-test",
-            ":kotlin-scripting-jvm",
-            ":kotlin-scripting-jvm-host-test",
-            ":kotlin-stdlib",
-            ":kotlin-stdlib-jdk8",
-            ":kotlin-stdlib:samples",
-            ":kotlin-test",
-            ":kotlin-util-klib",
-            ":kotlinx-metadata-klib",
-            ":libraries:tools:abi-validation:abi-tools",
-            ":libraries:tools:abi-validation:abi-tools-api",
-            ":libraries:tools:abi-validation:abi-tools-tests",
-            ":libraries:tools:abi-validation:kgp-integration-tests",
-
-            ":plugins:compose-compiler-plugin:compiler-hosted:integration-tests",
-            ":plugins:scripting:scripting-tests",
-            ":plugins:scripting:scripting-tests:runtime",
-            ":repo:auto-code-review", // Runs processes, traverses all repo files. Quick.
-            ":repo:artifacts-tests",
-            ":repo:codebase-tests",
-            ":tools:binary-compatibility-validator",
-            ":tools:ide-plugin-dependencies-validator",
-            ":benchmarks",
-            ":test-instrumenter"
-        )
-        val projectPath = project.path
-        val hasTestInputCheckPlugin = plugins.hasPlugin("test-inputs-check")
-        if (!hasTestInputCheckPlugin) {
-            outputs.doNotCacheIf("https://youtrack.jetbrains.com/issue/KTI-112") { true }
-        }
-        doFirst {
-            if (!hasTestInputCheckPlugin) {
-                if (projectPath !in notCacheableTestProjects) {
-                    throw GradleException(
-                        """
-                        Tests are not cacheable in: $projectPath
-                        Apply id("test-inputs-check") to the project to make the tests cacheable.
-                    """.trimIndent()
-                    )
-                }
-            } else {
-                if (projectPath in notCacheableTestProjects) {
-                    throw GradleException("Tests are cacheable in: ${projectPath}, but we listed it in `notCacheableTestProjects`")
-                }
-            }
-        }
-        if (project.kotlinBuildProperties.limitTestTasksConcurrency) {
-            usesService(concurrencyLimitService)
-        }
-
-        /*
-        We're disabling test reports on teamcity for Gradle 9.4 as we experienced failures like
-        'File name too long' when upgrading to Gradle 9.4 while generating those reports.
-        https://github.com/gradle/gradle/issues/36996
-         */
-        reports {
-            configureEach {
-                if (GradleVersion.current() == GradleVersion.version("9.4.0")) {
-                    this.required = false
-                }
-            }
-        }
-
-    }
-
-    tasks.withType<AbstractTestTask>().configureEach {
-        val disableVerificationTasks: Provider<Boolean> = providers.gradleProperty("kotlin.build.disable.verification.tasks")
-            .map { it.toBoolean() }
-            .orElse(false)
-        inputs.property("kotlin.build.disable.verification.tasks", disableVerificationTasks)
-
-        val testInventoryListener = TestInventoryListener(name, project.layout.buildDirectory.asFile)
-        addTestListener(testInventoryListener)
-        outputs.file(testInventoryListener.inventoryFile)
-
-        doFirst {
-            if (disableVerificationTasks.get()) {
-                logger.warn("Task $path is disabled because `kotlin.build.disable.verification.tasks` is true")
-                throw StopExecutionException("Verification tasks are disabled.")
-            }
-        }
-    }
-    // Aggregate task for build related checks
-    tasks.register("checkBuild")
-    configureTestRetriesForTestTasks()
+    plugins.apply("project-tests-convention")
+    plugins.apply("test-federation-convention")
 }
 
 // TODO: migrate remaining modules to the new JVM default scheme.
@@ -491,7 +445,7 @@ fun Project.configureMigratedRootSettings() {
             configurations.all {
                 // Remove kotlin-compiler from dependencies during Idea import. KTI-1598
                 if (dependencies.removeIf { (it as? ProjectDependency)?.path == ":kotlin-compiler" }) {
-                    logger.warn("Removed :kotlin-compiler project dependency from \$this")
+                    logger.warn("Removed :kotlin-compiler project dependency from $this")
                 }
             }
         }

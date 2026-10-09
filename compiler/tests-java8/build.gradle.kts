@@ -1,9 +1,7 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("test-inputs-check")
     id("java-test-fixtures")
 }
@@ -36,7 +34,6 @@ projectTests {
     testData(project(":compiler").isolated, "testData/builtin-classes")
 
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withScriptingPlugin()
     withTestJar()
     withAnnotations()
@@ -57,4 +54,3 @@ projectTests {
 
 optInToK1Deprecation()
 
-testsJar()

@@ -94,7 +94,7 @@ object FirTree : AbstractFirTreeBuilder() {
             This includes all function-like declarations (see [FirFunction] and all variable-like declarations (see [FirVariable]).
 
             Notable properties:
-            - [symbol] — the symbol which serves as a pointer to this càllable declaration.
+            - [symbol] — the symbol which serves as a pointer to this callable declaration.
             - [typeParameters] — type parameter references declared for this callable declaration, if any.
             In certain situations, references to type parameters of its outer classes may also be present in the list. 
             - [dispatchReceiverType] — dispatch receiver type for non-static member callables, or null for top-level or static callables.
@@ -267,7 +267,7 @@ object FirTree : AbstractFirTreeBuilder() {
 
         parent(jump.withArgs("E" to function))
 
-        +field("result", expression, withTransform = true)
+        +field("result", expression, withReplace = true, withTransform = true)
     }
 
     val label: Element by element(Other) {
@@ -368,6 +368,17 @@ object FirTree : AbstractFirTreeBuilder() {
         """.trimIndent()
     }
 
+    val numericClassConversion: Element by element(Expression) {
+        parent(expression)
+
+        +field("originalExpression", expression)
+
+        kDoc = """
+            Represents a point of implicit conversion between an object of a builtin numeric type and an expect numeric class annotated with
+            `@NumericClass` annotation.
+        """.trimIndent()
+    }
+
     val functionCall: Element by element(Expression) {
         parent(qualifiedAccessExpression)
         parent(call)
@@ -393,9 +404,12 @@ object FirTree : AbstractFirTreeBuilder() {
                 |  
                 |### After body resolution phase / deserialized
                 |
-                |Represents array literals in annotation arguments or default parameter values.
-                |Both original collection literals and explicit `arrayOf` (`intArrayOf`, `doubleArrayOf`, etc.) calls in annotations are
-                |represented as [${collectionLiteral.render()}] nodes.
+                |Represents array literals in _evaluated_ annotation argument mappings or _evaluated_ default initializers of annotation
+                |parameters. Both original collection literals and explicit `arrayOf` (`intArrayOf`, `doubleArrayOf`, etc.) calls are
+                |represented as [${collectionLiteral.render()}] nodes in these cases.
+                |
+                |When [org.jetbrains.kotlin.util.ArrayLiteralResolution] is used, also represents array literals in
+                |annotation arguments and default initializers of annotation parameters.
                 |
                 |The structure of its [argumentList] is the same as for [${varargArgumentsExpression.render()}] - both regular expressions
                 |and [${spreadArgumentExpression.render()}]s are possible (consider `intArrayOf(0, *[1, 2, 3], 4)`).
@@ -663,7 +677,7 @@ object FirTree : AbstractFirTreeBuilder() {
         +field(varianceType)
         +field("isReified", boolean)
         // TODO: `useMutableOrEmpty = true` is a workaround for KT-60324 until KT-60445 has been fixed.
-        +listField("bounds", typeRef, withReplace = true, useMutableOrEmpty = true)
+        +listField("bounds", typeRef, withReplace = true, useMutableOrEmpty = true, withTransform = true)
         +annotations
     }
 
@@ -789,11 +803,13 @@ object FirTree : AbstractFirTreeBuilder() {
         generateBooleanFields(
             "expect", "actual", "override", "operator", "infix", "inline", "value", "tailRec",
             "external", "const", "lateInit", "inner", "companion", "data", "suspend", "static",
-            "fromSealedClass", "fromEnumClass", "fun", "hasStableParameterNames"
+            "fromSealedClass", "fromEnumClass", "fun", "richError", "hasStableParameterNames"
         )
         +field("returnValueStatus", returnValueStatusType, nullable = false)
         +field("defaultVisibility", visibilityType, nullable = false)
         +field("defaultModality", modalityType, nullable = false)
+
+        fields.find { it.name == "isRichError" }!!.kDoc = "A class or object with the `error` modifier."
     }
 
     val resolvedDeclarationStatus: Element by element(Declaration) {
@@ -1104,6 +1120,7 @@ object FirTree : AbstractFirTreeBuilder() {
         """.trimIndent()
         parent(expression)
 
+        +field("source", sourceElementType, nullable = true, withReplace = true)
         +field("useSiteTarget", annotationUseSiteTargetType, nullable = true, withReplace = true)
         +field("annotationTypeRef", typeRef, withReplace = true, withTransform = true)
         +field("argumentMapping", annotationArgumentMapping, withReplace = true)
@@ -1214,6 +1231,7 @@ object FirTree : AbstractFirTreeBuilder() {
         +field("checkedSubjectRef", safeCallCheckedSubjectReferenceType)
         // One that uses checkedReceiver as a receiver
         +field("selector", statement, withReplace = true, withTransform = true)
+        +field("kind", safeCallKind)
     }
 
     val checkedSafeCallSubject: Element by element(Expression) {
@@ -1422,6 +1440,12 @@ object FirTree : AbstractFirTreeBuilder() {
         }
         +listField("nonFatalDiagnostics", coneDiagnosticType, useMutableOrEmpty = true, withReplace = true)
         +field("resolvedSymbolOrigin", resolvedSymbolOrigin, nullable = true, withReplace = true)
+        +field("originalNameForContextSensitiveResolution", nameType, nullable = true, withReplace = true) {
+            kDoc = """
+                |Having a non-null value in a case when the qualifier should be considered as a candidate for CSR.
+                |It might be different from the name of [qualifierSymbol], e.g., when the qualifier is resolved via an import alias.
+            """.trimMargin()
+        }
         +typeArguments {
             withTransform = true
         }
@@ -1456,7 +1480,7 @@ object FirTree : AbstractFirTreeBuilder() {
         parent(statement)
 
         +field("lValue", expression, withReplace = true, withTransform = true)
-        +field("rValue", expression, withTransform = true)
+        +field("rValue", expression, withReplace = true, withTransform = true)
     }
 
     val whenSubjectExpression: Element by element(Expression) {
@@ -1632,6 +1656,11 @@ object FirTree : AbstractFirTreeBuilder() {
 
         +field("leftType", typeRef)
         +field("rightType", typeRef)
+    }
+
+    val unionTypeRef: Element by element(TypeRefElement) {
+        parent(unresolvedTypeRef)
+        +listField("types", typeRef)
     }
 
     val thisReceiverExpression: Element by element(Expression) {

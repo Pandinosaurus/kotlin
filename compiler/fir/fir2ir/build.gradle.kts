@@ -4,23 +4,18 @@ import org.jetbrains.kotlin.testFederation.testFederationDomains
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
+    id("test-coverage-convention")
     id("require-explicit-types")
 }
 
 dependencies {
     implementation(project(":core:descriptors"))
     implementation(project(":core:descriptors.jvm"))
-    implementation(project(":compiler:fir:cones"))
     implementation(project(":compiler:fir:resolve"))
-    implementation(project(":compiler:fir:providers"))
-    implementation(project(":compiler:fir:semantics"))
-    implementation(project(":compiler:fir:tree"))
     implementation(project(":compiler:ir.tree"))
     implementation(project(":compiler:ir.backend.common"))
     implementation(project(":compiler:ir.serialization.common"))
@@ -101,7 +96,11 @@ projectTests {
     testData(project(":compiler:tests-spec").isolated, "testData/codegen")
 
     val environment = listOf(JdkMajorVersion.JDK_1_8, JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_17_0, JdkMajorVersion.JDK_21_0)
-    testTask(defineJDKEnvVariables = environment) {
+    testTask(
+        defineJDKEnvVariables = environment,
+        maxHeapSize = testMaxHeapSizeLarge,
+        garbageCollector = GarbageCollector.Parallel
+    ) {
         configure()
     }
 
@@ -130,7 +129,6 @@ projectTests {
     testGenerator("org.jetbrains.kotlin.test.TestGeneratorForFir2IrTestsKt", generateTestsInBuildDirectory = true)
 
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withMockJdkAnnotationsJar()
     withTestJar()
     withScriptingPlugin()

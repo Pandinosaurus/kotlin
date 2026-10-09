@@ -6,11 +6,11 @@
 package org.jetbrains.kotlin.light.classes.symbol.classes
 
 import com.intellij.psi.*
-import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.jetbrains.kotlin.analysis.api.scopes.combinedDeclaredMemberScope
+import org.jetbrains.kotlin.analysis.api.scopes.declaredMemberScope
 import org.jetbrains.kotlin.analysis.api.scopes.delegatedMemberScope
 import org.jetbrains.kotlin.analysis.api.scopes.staticDeclaredMemberScope
 import org.jetbrains.kotlin.analysis.api.symbols.*
@@ -24,11 +24,9 @@ import org.jetbrains.kotlin.asJava.classes.METHOD_INDEX_FOR_NON_ORIGIN_METHOD
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.light.classes.symbol.annotations.ExcludeAnnotationFilter
 import org.jetbrains.kotlin.light.classes.symbol.annotations.GranularAnnotationsBox
 import org.jetbrains.kotlin.light.classes.symbol.annotations.SymbolAnnotationsProvider
-import org.jetbrains.kotlin.light.classes.symbol.cachedValue
 import org.jetbrains.kotlin.light.classes.symbol.fields.SymbolLightField
 import org.jetbrains.kotlin.light.classes.symbol.fields.SymbolLightFieldForEnumEntry
 import org.jetbrains.kotlin.light.classes.symbol.fields.SymbolLightFieldForObject
@@ -38,6 +36,7 @@ import org.jetbrains.kotlin.light.classes.symbol.methods.SymbolLightSimpleMethod
 import org.jetbrains.kotlin.light.classes.symbol.modifierLists.GranularModifiersBox
 import org.jetbrains.kotlin.light.classes.symbol.modifierLists.SymbolLightClassModifierList
 import org.jetbrains.kotlin.light.classes.symbol.records.SymbolLightRecordHeader
+import org.jetbrains.kotlin.light.classes.symbol.utils.cachedValue
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.StandardClassIds
@@ -53,49 +52,41 @@ import org.jetbrains.kotlin.util.OperatorNameConventions.TO_STRING
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
 
 internal class SymbolLightClassForClassOrObject : SymbolLightClassForNamedClassLike {
-    private val isValueClass: Boolean
-    override fun isValueClass() = isValueClass
+    /**
+     * Whether the class is an inline value class: it is unboxed on the JVM, its members are replaced with static `-impl`
+     * methods, and its constructor is not exposed to Java.
+     *
+     * A [full value class](https://github.com/Kotlin/KEEP/blob/main/proposals/KEEP-0454-better-immutability-value-classes-MFVC.md)
+     * and a value object are compiled as regular classes, so they are not inline value classes even though they have the
+     * `value` modifier. The distinction cannot be made from PSI alone, as it depends on the `@JvmInline` annotation, the
+     * target platform, and the `FullValueClasses` language feature, so the flag is computed from the class symbol.
+     *
+     * @see KaNamedClassSymbol.isInline
+     */
+    val isInlineClass: Boolean
 
     constructor(
-        ktModule: KaModule,
+        useSiteModule: KaModule,
         classSymbol: KaNamedClassSymbol,
-        manager: PsiManager,
     ) : super(
-        ktModule = ktModule,
+        useSiteModule = useSiteModule,
         classSymbol = classSymbol,
-        manager = manager,
     ) {
         require(classSymbol.classKind != KaClassKind.INTERFACE && classSymbol.classKind != KaClassKind.ANNOTATION_CLASS)
-        isValueClass = classSymbol.isInline
-    }
-
-    @OptIn(KaImplementationDetail::class)
-    constructor(
-        classOrObject: KtClassOrObject,
-        ktModule: KaModule,
-    ) : this(
-        classOrObjectDeclaration = classOrObject,
-        classSymbolPointer = classOrObject.createSymbolPointer(ktModule),
-        ktModule = ktModule,
-        manager = classOrObject.manager,
-        isValueClass = classOrObject.hasModifier(KtTokens.VALUE_KEYWORD) || classOrObject.hasModifier(KtTokens.INLINE_KEYWORD),
-    ) {
-        require(classOrObject !is KtClass || !classOrObject.isInterface() && !classOrObject.isAnnotation())
+        isInlineClass = classSymbol.isInline
     }
 
     private constructor(
         classOrObjectDeclaration: KtClassOrObject?,
         classSymbolPointer: KaSymbolPointer<KaNamedClassSymbol>,
-        ktModule: KaModule,
-        manager: PsiManager,
-        isValueClass: Boolean,
+        useSiteModule: KaModule,
+        isInlineClass: Boolean,
     ) : super(
         classOrObjectDeclaration = classOrObjectDeclaration,
         classSymbolPointer = classSymbolPointer,
-        ktModule = ktModule,
-        manager = manager,
+        useSiteModule = useSiteModule,
     ) {
-        this.isValueClass = isValueClass
+        this.isInlineClass = isInlineClass
     }
 
     override fun getModifierList(): PsiModifierList = cachedValue {
@@ -103,7 +94,7 @@ internal class SymbolLightClassForClassOrObject : SymbolLightClassForNamedClassL
             containingDeclaration = this,
             modifiersBox = GranularModifiersBox(computer = ::computeModifiers),
             annotationsBox = GranularAnnotationsBox(
-                annotationsProvider = SymbolAnnotationsProvider(ktModule, classSymbolPointer),
+                annotationsProvider = SymbolAnnotationsProvider(useSiteModule, symbolPointer),
                 annotationFilter = ExcludeAnnotationFilter.JvmExposeBoxed,
             ),
         )
@@ -182,7 +173,7 @@ internal class SymbolLightClassForClassOrObject : SymbolLightClassForNamedClassL
     }
 
     private fun isEnumEntriesDisabled(): Boolean {
-        return (ktModule as? KaSourceModule)
+        return (useSiteModule as? KaSourceModule)
             ?.languageVersionSettings
             ?.supportsFeature(LanguageFeature.EnumEntries) != true
     }
@@ -212,16 +203,16 @@ internal class SymbolLightClassForClassOrObject : SymbolLightClassForNamedClassL
             lightMemberOrigin,
             METHOD_INDEX_BASE,
             isTopLevel = false,
-            suppressValueClass = true,
+            suppressInlineClass = true,
         )
     }
 
     context(session: KaSession)
     private fun generateMethodsFromAny(classSymbol: KaNamedClassSymbol, result: MutableList<PsiMethod>): Unit = with(session) {
-        if (!classSymbol.isData && !classSymbol.isInline) return
+        if (!classSymbol.isData && !classSymbol.isValue) return
 
-        // Compiler will generate 'equals/hashCode/toString' for data/value class if they are not final.
-        // We want to mimic that.
+        // Compiler will generate 'equals/hashCode/toString' for data/value class if they are not final. We want to mimic that.
+        // Note: an abstract or sealed value class has no generated members, as they are only generated for a concrete class
         val generatedFunctionsFromAny = classSymbol.memberScope
             .callables(EQUALS, HASH_CODE, TO_STRING)
             .filterIsInstance<KaNamedFunctionSymbol>()
@@ -251,7 +242,7 @@ internal class SymbolLightClassForClassOrObject : SymbolLightClassForNamedClassL
                 lightMemberOrigin = lightMemberOrigin,
                 methodIndex = METHOD_INDEX_FOR_NON_ORIGIN_METHOD,
                 isTopLevel = false,
-                suppressValueClass = true,
+                suppressInlineClass = true,
             )
         }
 
@@ -346,6 +337,7 @@ internal class SymbolLightClassForClassOrObject : SymbolLightClassForNamedClassL
                 SymbolLightFieldForEnumEntry(
                     enumEntry = enumEntry,
                     enumEntryName = name,
+                    symbolPointer = enumEntry.symbol.createPointer(),
                     containingClass = this@SymbolLightClassForClassOrObject,
                 )
             }
@@ -362,9 +354,15 @@ internal class SymbolLightClassForClassOrObject : SymbolLightClassForNamedClassL
     override fun getRecordHeader(): PsiRecordHeader? = cachedValue {
         if (!isRecord) return@cachedValue null
 
+        val constructorPsi = (classOrObjectDeclaration as? KtClass)?.primaryConstructor
+        val constructorSymbolPointer = withClassSymbol { classSymbol ->
+            classSymbol.declaredMemberScope.constructors.singleOrNull { it.isPrimary }?.createPointer()
+        } ?: return@cachedValue null
         SymbolLightRecordHeader(
-            kotlinOrigin = (classOrObjectDeclaration as? KtClass)?.primaryConstructor,
+            kotlinOrigin = constructorPsi,
+            symbolPointer = constructorSymbolPointer,
             containingClass = this@SymbolLightClassForClassOrObject,
+            useSiteModule = useSiteModule
         )
     }
 
@@ -373,9 +371,8 @@ internal class SymbolLightClassForClassOrObject : SymbolLightClassForNamedClassL
 
     override fun copy(): SymbolLightClassForClassOrObject = SymbolLightClassForClassOrObject(
         classOrObjectDeclaration = classOrObjectDeclaration,
-        classSymbolPointer = classSymbolPointer,
-        ktModule = ktModule,
-        manager = manager,
-        isValueClass = isValueClass,
+        classSymbolPointer = symbolPointer,
+        useSiteModule = useSiteModule,
+        isInlineClass = isInlineClass,
     )
 }

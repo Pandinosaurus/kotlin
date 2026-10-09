@@ -27,6 +27,8 @@ public final class kotlin/metadata/Attributes {
 	public static final fun getVisibility (Lkotlin/metadata/KmProperty;)Lkotlin/metadata/Visibility;
 	public static final fun getVisibility (Lkotlin/metadata/KmPropertyAccessorAttributes;)Lkotlin/metadata/Visibility;
 	public static final fun getVisibility (Lkotlin/metadata/KmTypeAlias;)Lkotlin/metadata/Visibility;
+	public static final fun isCompanionBlockMember (Lkotlin/metadata/KmFunction;)Z
+	public static final fun isCompanionBlockMember (Lkotlin/metadata/KmProperty;)Z
 	public static final fun isConst (Lkotlin/metadata/KmProperty;)Z
 	public static final fun isCrossinline (Lkotlin/metadata/KmValueParameter;)Z
 	public static final fun isData (Lkotlin/metadata/KmClass;)Z
@@ -60,6 +62,8 @@ public final class kotlin/metadata/Attributes {
 	public static final fun isTailrec (Lkotlin/metadata/KmFunction;)Z
 	public static final fun isValue (Lkotlin/metadata/KmClass;)Z
 	public static final fun isVar (Lkotlin/metadata/KmProperty;)Z
+	public static final fun setCompanionBlockMember (Lkotlin/metadata/KmFunction;Z)V
+	public static final fun setCompanionBlockMember (Lkotlin/metadata/KmProperty;Z)V
 	public static final fun setConst (Lkotlin/metadata/KmProperty;Z)V
 	public static final fun setCrossinline (Lkotlin/metadata/KmValueParameter;Z)V
 	public static final fun setData (Lkotlin/metadata/KmClass;Z)V
@@ -143,7 +147,13 @@ public final class kotlin/metadata/ClassNameKt {
 public abstract interface annotation class kotlin/metadata/ExperimentalAnnotationsInMetadata : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class kotlin/metadata/ExperimentalCompanionBlocks : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class kotlin/metadata/ExperimentalCompanionBlocksAndExtensions : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class kotlin/metadata/ExperimentalCompanionExtensions : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class kotlin/metadata/ExperimentalContextReceivers : java/lang/annotation/Annotation {
@@ -1011,6 +1021,8 @@ public final class kotlin/metadata/jvm/KotlinModuleMetadata {
 	public final fun getKmModule ()Lkotlin/metadata/jvm/KmModule;
 	public final fun getVersion ()Lkotlin/metadata/jvm/JvmMetadataVersion;
 	public static final fun read ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
+	public static final fun readLenient ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
+	public static final fun readStrict ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
 	public final fun setKmModule (Lkotlin/metadata/jvm/KmModule;)V
 	public final fun setVersion (Lkotlin/metadata/jvm/JvmMetadataVersion;)V
 	public final fun write ()[B
@@ -1018,6 +1030,8 @@ public final class kotlin/metadata/jvm/KotlinModuleMetadata {
 
 public final class kotlin/metadata/jvm/KotlinModuleMetadata$Companion {
 	public final fun read ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
+	public final fun readLenient ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
+	public final fun readStrict ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
 }
 
 public abstract interface annotation class kotlin/metadata/jvm/UnstableMetadataApi : java/lang/annotation/Annotation {

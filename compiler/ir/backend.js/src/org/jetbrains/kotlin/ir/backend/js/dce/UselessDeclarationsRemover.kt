@@ -29,7 +29,6 @@ import org.jetbrains.kotlin.utils.memoryOptimizedFilter
 import org.jetbrains.kotlin.utils.memoryOptimizedMap
 
 class UselessDeclarationsRemover(
-    private val removeUnusedAssociatedObjects: Boolean,
     private val usefulDeclarations: Set<IrDeclaration>,
     private val context: JsIrBackendContext,
     private val dceRuntimeDiagnostic: RuntimeDiagnostic?,
@@ -71,7 +70,7 @@ class UselessDeclarationsRemover(
     override fun visitClass(declaration: IrClass) {
         process(declaration)
         // Drop `findAssociatedObject` annotations whose association can no longer be emitted. See `shouldKeepAnnotation`.
-        if (removeUnusedAssociatedObjects && declaration.annotations.any { !it.shouldKeepAnnotation() }) {
+        if (declaration.annotations.any { !it.shouldKeepAnnotation() }) {
             declaration.annotations = declaration.annotations.memoryOptimizedFilter { it.shouldKeepAnnotation() }
         }
 
@@ -87,6 +86,12 @@ class UselessDeclarationsRemover(
         }
     }
 
+    /**
+     * Collects the transitive supertypes of this class that survive DCE.
+     *
+     * @return an insertion-ordered set of the surviving supertypes. The insertion order is needed to keep the order of types
+     * deterministic, so that it doesn't change between compilations.
+     */
     private fun IrClassSymbol.collectUsedSuperTypes(): Set<IrClassSymbol> {
         return savedTypesCache.getOrPut(this) {
             if (owner in usefulDeclarations || context.keeper.shouldKeep(owner)) {
@@ -94,7 +99,7 @@ class UselessDeclarationsRemover(
             } else {
                 owner.superTypes
                     .flatMap { it.takeIf { !it.isAny() }?.classOrNull?.collectUsedSuperTypes() ?: emptyList() }
-                    .toHashSet()
+                    .toCollection(LinkedHashSet())
             }
         }
     }

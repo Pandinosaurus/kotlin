@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.analysis.api.impl.base.permissions.KaBaseWriteAction
 import org.jetbrains.kotlin.analysis.api.impl.base.restrictedAnalysis.KaBaseRestrictedAnalysisException
 import org.jetbrains.kotlin.analysis.api.impl.base.util.withKaModuleEntry
 import org.jetbrains.kotlin.analysis.api.platform.KaCachedService
+import org.jetbrains.kotlin.analysis.api.platform.KaSessionListener
 import org.jetbrains.kotlin.analysis.api.platform.KotlinPlatformSettings
 import org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory
 import org.jetbrains.kotlin.analysis.api.platform.permissions.KaAnalysisPermissionChecker
@@ -25,7 +26,7 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.isResolvable
 import org.jetbrains.kotlin.analysis.api.session.KaSessionProvider
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
-import org.jetbrains.kotlin.utils.exceptions.shouldIjPlatformExceptionBeRethrown
+import org.jetbrains.kotlin.utils.exceptions.rethrowIntellijPlatformExceptionIfNeeded
 
 @KaImplementationDetail
 abstract class KaBaseSessionProvider(project: Project) : KaSessionProvider(project) {
@@ -57,6 +58,14 @@ abstract class KaBaseSessionProvider(project: Project) : KaSessionProvider(proje
 
     private val writeActionStartedChecker = KaBaseWriteActionStartedChecker(this)
 
+    /**
+     * Checks that the [useSiteElement] is valid. Should be called before the use-site module is computed from the element, so that issues
+     * with analysis on invalid PSI are caught as early as possible.
+     */
+    protected fun checkUseSiteElement(useSiteElement: PsiElement) {
+        PsiUtilCore.ensureValid(useSiteElement)
+    }
+
     protected fun checkUseSiteModule(useSiteModule: KaModule) {
         if (useSiteModule is KaLibraryModule && !kotlinPlatformSettings.allowUseSiteLibraryModuleAnalysis) {
             throw KaBaseUseSiteLibraryModuleAnalysisException(useSiteModule)
@@ -70,18 +79,11 @@ abstract class KaBaseSessionProvider(project: Project) : KaSessionProvider(proje
         }
     }
 
-    override fun beforeEnteringAnalysis(session: KaSession, useSiteElement: PsiElement) {
-        // Catch issues with analysis on invalid PSI as early as possible.
-        PsiUtilCore.ensureValid(useSiteElement)
-
-        beforeEnteringAnalysis(session)
-    }
-
-    override fun beforeEnteringAnalysis(session: KaSession, useSiteModule: KaModule) {
-        beforeEnteringAnalysis(session)
-    }
-
-    private fun beforeEnteringAnalysis(session: KaSession) {
+    /**
+     * Checks whether analysis may be performed at all in the current context. Should be called before a session is acquired, so that we
+     * don't create and cache a session for an analysis that is going to be rejected anyway.
+     */
+    protected fun checkAnalysisAllowed() {
         if (!permissionChecker.isAnalysisAllowed()) {
             throw ProhibitedAnalysisException("Analysis is not allowed: ${permissionChecker.getRejectionReason()}")
         }
@@ -93,25 +95,46 @@ abstract class KaBaseSessionProvider(project: Project) : KaSessionProvider(proje
                 rejectRestrictedAnalysis()
             }
         }
+    }
+
+    override fun beforeEnteringAnalysis(session: KaSession, useSiteElement: PsiElement) {
+        beforeEnteringAnalysisInternal(session, session.useSiteModule, useSiteElement)
+    }
+
+    override fun beforeEnteringAnalysis(session: KaSession, useSiteModule: KaModule) {
+        beforeEnteringAnalysisInternal(session, useSiteModule, null)
+    }
+
+    protected fun forEachListenerSafe(action: (KaSessionListener) -> Unit) = KaSessionListener.EP_NAME.forEachExtensionSafe(action)
+
+    private fun beforeEnteringAnalysisInternal(session: KaSession, useSiteModule: KaModule, useSiteElement: PsiElement?) {
+        // Session acquisition might take a while (e.g. when the session has to be created), so we check for cancellation again before
+        // entering analysis.
+        ProgressManager.checkCanceled()
 
         lifetimeTracker.beforeEnteringAnalysis(session)
         writeActionStartedChecker.beforeEnteringAnalysis()
+
+        forEachListenerSafe { it.beforeEnteringAnalysis(useSiteModule, useSiteElement) }
     }
 
     override fun handleAnalysisException(throwable: Throwable, session: KaSession, useSiteElement: PsiElement): Nothing {
-        handleAnalysisException(throwable)
+        handleAnalysisExceptionInternal(throwable, session.useSiteModule, useSiteElement)
     }
 
     override fun handleAnalysisException(throwable: Throwable, session: KaSession, useSiteModule: KaModule): Nothing {
-        handleAnalysisException(throwable)
+        handleAnalysisExceptionInternal(throwable, useSiteModule, null)
     }
 
-    private fun handleAnalysisException(throwable: Throwable): Nothing {
-        if (
-            restrictedAnalysisService?.isAnalysisRestricted == true &&
-            throwable !is Error &&
-            !shouldIjPlatformExceptionBeRethrown(throwable)
-        ) {
+    private fun handleAnalysisExceptionInternal(
+        throwable: Throwable,
+        useSiteModule: KaModule,
+        useSiteElement: PsiElement?,
+    ): Nothing {
+        rethrowIntellijPlatformExceptionIfNeeded(throwable)
+        forEachListenerSafe { it.onAnalysisException(useSiteModule, useSiteElement, throwable) }
+
+        if (restrictedAnalysisService?.isAnalysisRestricted == true && throwable !is Error) {
             throw KaBaseRestrictedAnalysisException(cause = throwable)
         }
 
@@ -119,14 +142,16 @@ abstract class KaBaseSessionProvider(project: Project) : KaSessionProvider(proje
     }
 
     override fun afterLeavingAnalysis(session: KaSession, useSiteElement: PsiElement) {
-        afterLeavingAnalysis(session)
+        afterLeavingAnalysisInternal(session, session.useSiteModule, useSiteElement)
     }
 
     override fun afterLeavingAnalysis(session: KaSession, useSiteModule: KaModule) {
-        afterLeavingAnalysis(session)
+        afterLeavingAnalysisInternal(session, useSiteModule, null)
     }
 
-    private fun afterLeavingAnalysis(session: KaSession) {
+    private fun afterLeavingAnalysisInternal(session: KaSession, useSiteModule: KaModule, useSiteElement: PsiElement?) {
+        forEachListenerSafe { it.afterLeavingAnalysis(useSiteModule, useSiteElement) }
+
         try {
             // `writeActionStartedChecker` might throw an "illegal write action" exception.
             writeActionStartedChecker.afterLeavingAnalysis()

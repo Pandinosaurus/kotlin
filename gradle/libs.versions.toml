@@ -1,7 +1,7 @@
 [versions]
-kotlin-release = "2.4.20-RC"
+kotlin-release = "2.4.20"
 dexMemberList = "4.1.1"
-dokka = "2.2.0"
+dokka = "2.3.0-Beta"
 gradle-custom-user-data = "2.4.0"
 develocity = "4.3.3"
 develocity-plugin-adapter = "1.2.1"
@@ -18,7 +18,7 @@ kotlinx-serialization-min = "1.7.3"
 kotlinx-schema = "0.5.0"
 # Version of the coroutines should be aligned with the oldest supported IntelliJ IDEA. IntelliJ IDEA uses 1.6 since 2022.3
 # Check the version in this file: https://github.com/JetBrains/intellij-community/blob/cc37866d3827c51712f9856f5e580d405784d1ef/.idea/libraries/kotlinx_coroutines_core.xml
-# Should be synchronized with 'analysis-api-kotlinx-coroutines'
+# Should be synchronized with 'intellij-kotlinx-coroutines'
 kotlinx-coroutines = "1.8.0"
 shadow = "9.3.2"
 spdx = "0.11.0"
@@ -27,11 +27,12 @@ ktor = "3.3.1"
 kotlinx-bcv = "0.17.0"
 kotlinx-benchmark = "0.4.16"
 gson = "2.11.0"
+icu4j = "78.3"
 jetbrains-ideaExt = "1.4.1"
 jackson = "2.21.1"
 jgit = "7.3.0.202506031305-r"
-jline = "3.30.16"
 jsoup = "1.17.2"
+jetbrains-markdown = "0.7.3"
 junit4 = "4.13.2"
 junit5 = "5.14.4"
 junit-platform = "1.14.4"
@@ -49,8 +50,9 @@ androidx-collections = "1.5.0" # Used for Compose compiler plugin tests
 ant = "1.10.14"
 # It is recommended to skip at least one major release, e.g., use 2.0.21 when the default bootstrap version is 2.2.
 # This ensures additional verification that Gradle-related code does not get dependencies of higher LV
-kotlin-for-gradle-plugins-compilation = "2.2.21"
+kotlin-for-gradle-plugins-compilation = "2.4.20"
 intellij-asm = "9.6.1"
+intellij-kotlinx-coroutines = "1.10.2-intellij-1" # Should be synchronized with 'kotlinx-coroutines'
 diff-utils = "4.12"
 opentelemetry-api = "1.41.0"
 auto-value-annotations = "1.11.0" # Used in opentelemetry-api
@@ -58,7 +60,7 @@ fastutil = "8.5.14-jb1"
 rwmutex-idea = "0.0.10"
 # Wasm specific
 wasmedge = "0.16.3"
-wasmtime = "47.0.3"
+wasmtime = "49.0.1"
 jscTahoe = "312950"
 jscLinux = "312950"
 jscWindows = "312950"
@@ -93,15 +95,15 @@ log4j2 = "2.26.0"
 maven-xml-impl = "4.0.0-beta-5"
 yarn = "1.22.22"
 # This is also the version of bouncycastle that is used by KGP
-bouncycastle = "1.84"
+bouncycastle = "1.86"
 kotlin-before-bta-v2 = "2.2.21"
+jacoco = "0.8.14"
 bytebuddy = "1.18.9"
 playwright = "1.61.0"
 fileLeakDetector = "1.21"
 jmh = "0.7.3"
 
 analysis-api-kotlin = "2.3.21"
-analysis-api-kotlinx-coroutines = "1.10.2-intellij-1" # Should be synchronized with 'kotlinx-coroutines'
 
 [libraries]
 kotlin-compiler-arguments-release = { module = "org.jetbrains.kotlin:kotlin-compiler-arguments-description", version.ref = "kotlin-release" }
@@ -159,11 +161,12 @@ jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 guava-failureaccess = { module = "com.google.guava:failureaccess", version.ref = "failureaccess" }
+icu4j = { module = "com.ibm.icu:icu4j", version.ref = "icu4j" }
 vavr = { module = "io.vavr:vavr", version.ref = "vavr" }
 jetbrains-ideaExt-gradlePlugin = { module = "gradle.plugin.org.jetbrains.gradle.plugin.idea-ext:gradle-idea-ext", version.ref = "jetbrains-ideaExt" }
 jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
-jline = { module = "org.jline:jline", version.ref = "jline" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+jetbrains-markdown = { module = "org.jetbrains:markdown", version.ref = "jetbrains-markdown" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit5" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit5" }
@@ -189,6 +192,8 @@ android-gradle-plugin-builder-model = { module = "com.android.tools.build:builde
 android-tools-common = { module = "com.android.tools:common", version.ref = "android-tools" }
 
 intellij-fastutil = { module = "org.jetbrains.intellij.deps.fastutil:intellij-deps-fastutil", version.ref = "fastutil" }
+intellij-patched-kotlinx-coroutines-core-jvm = { module = "org.jetbrains.intellij.deps.kotlinx:kotlinx-coroutines-core-jvm", version.ref = "intellij-kotlinx-coroutines" }
+intellij-patched-kotlinx-coroutines-debug = { module = "org.jetbrains.intellij.deps.kotlinx:kotlinx-coroutines-debug", version.ref = "intellij-kotlinx-coroutines" }
 rwmutex-idea = { module = "org.jetbrains.intellij.deps:rwmutex-idea", version.ref = "rwmutex-idea" }
 
 xerces = { module = "xerces:xercesImpl", version.ref = "xerces" }
@@ -243,10 +248,11 @@ playwright = { module = "com.microsoft.playwright:playwright", version.ref = "pl
 analysis-api-kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "analysis-api-kotlin" }
 analysis-api-kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "analysis-api-kotlin" }
 analysis-api-kotlin-metadata-jvm = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "analysis-api-kotlin" }
-analysis-api-intellij-patched-kotlinx-coroutines-core-jvm = { module = "org.jetbrains.intellij.deps.kotlinx:kotlinx-coroutines-core-jvm", version.ref = "analysis-api-kotlinx-coroutines" }
-analysis-api-intellij-patched-kotlinx-coroutines-debug = { module = "org.jetbrains.intellij.deps.kotlinx:kotlinx-coroutines-debug", version.ref = "analysis-api-kotlinx-coroutines" }
 
 fileLeakDetector = { module = "io.jenkins.tools:file-leak-detector", version.ref = "fileLeakDetector" }
+
+jacoco-agent = { module = "org.jacoco:org.jacoco.agent", version.ref = "jacoco" }
+jacoco-cli = { module = "org.jacoco:org.jacoco.cli", version.ref = "jacoco" }
 
 [plugins]
 gradle-node = { id = "com.github.node-gradle.node", version.ref = "gradle-node-plugin" }

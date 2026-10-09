@@ -10,15 +10,9 @@ import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.backend.js.*
-import org.jetbrains.kotlin.ir.backend.js.correspondingField
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irSetField
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
-import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
-import org.jetbrains.kotlin.ir.declarations.IrField
-import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrSetField
@@ -56,17 +50,20 @@ import org.jetbrains.kotlin.name.Name
  * ```kotlin
  * class Foo {
  *   companion {
- *     var static_init_called = 0
+ *     var static_init_state = 1
  *     static_init() {
- *       if (checkInitializationState(static_init_called, Foo::class)) return
- *       static_init_called = 1
+ *       if (!static_init_state) return
+ *       if (static_init_state == 2) {
+ *         staticInitializationFailureWithClassName(Foo::class)
+ *       }
+ *       static_init_state = 0
  *       try {
  *         first = initFirst()
  *         second = initSecond()
  *         third = initThird()
  *       } catch (reason: Throwable) {
- *         static_init_called = 2
- *         kotlint.internal.staticInitializationFailure(reason, null)
+ *         static_init_state = 2
+ *         kotlin.internal.staticInitializationFailure(reason, null)
  *       }
  *     }
  *   }
@@ -88,7 +85,7 @@ abstract class WebStaticInitializersDeclarationLowering : FileLoweringPass {
         val STATIC_CLASS_INITIALIZER by IrDeclarationOriginImpl.Synthetic
 
         const val STATIC_INIT_FUNCTION_NAME = "static_init"
-        const val STATIC_INIT_CALLED_PROPERTY_NAME = "static_init_called"
+        const val STATIC_INIT_STATE_PROPERTY_NAME = "static_init_state"
     }
 
     protected abstract val context: JsCommonBackendContext
@@ -134,7 +131,7 @@ abstract class WebStaticInitializersDeclarationLowering : FileLoweringPass {
                 // A companion object is initialized together with its container, so the container needs
                 // a static_init as soon as the companion has anything observable to initialize. Otherwise, we omit it to
                 // not blow up the bundle size.
-                is IrClass if it.isCompanion && !it.isInitializersFreeClass() -> true
+                is IrClass if it.isCompanion && !it.isInitializersFreeObject() -> true
                 else -> false
             }
         }
@@ -180,10 +177,10 @@ abstract class WebStaticInitializersDeclarationLowering : FileLoweringPass {
         // Both declarations must be created within the *same* restrictTo block: the stage controller resets its signature index
         // on every restrictTo call, so creating them in two separate blocks gives both the very same
         // `IdSignature.LoweredDeclarationSignature`. Cross-file references are resolved by the rendered signature, so the
-        // collision makes a reference to `static_init` resolve to `static_init_called` instead.
-        val [staticInitCalledField, staticInitFunction] = context.irFactory.stageController.restrictTo(container) {
+        // collision makes a reference to `static_init` resolve to `static_init_state` instead.
+        val [staticInitStateField, staticInitFunction] = context.irFactory.stageController.restrictTo(container) {
             val stateField = initializationGenerator.createStateField(
-                name = Name.identifier(STATIC_INIT_CALLED_PROPERTY_NAME),
+                name = Name.identifier(STATIC_INIT_STATE_PROPERTY_NAME),
                 origin = STATIC_CLASS_INITIALIZER,
             ).apply {
                 parent = container
@@ -212,7 +209,7 @@ abstract class WebStaticInitializersDeclarationLowering : FileLoweringPass {
         // Adding static_init declaration after adding its usages to make sure we don't insert usages inside static_init itself
         container.staticInitFunction = staticInitFunction
         container.companionObject()?.staticInitFunction = staticInitFunction
-        container.declarations.addAll(0, listOf(staticInitCalledField, staticInitFunction))
+        container.declarations.addAll(0, listOf(staticInitStateField, staticInitFunction))
     }
 
     private fun IrClass.createInitializer(declaration: IrDeclaration, field: IrField, initializer: IrExpression): IrSetField =
@@ -223,28 +220,66 @@ abstract class WebStaticInitializersDeclarationLowering : FileLoweringPass {
                 value = initializer,
                 origin = STATIC_FIELD_INITIALIZER
             )
+    }
+
+    private inline fun IrClass.traverseSuperTypes(f: (IrClass) -> Unit) {
+        for (superType in superTypes) {
+            if (superType.isAny()) continue
+            val superClass = superType.classOrNull?.owner ?: continue
+            f(superClass)
+        }
+    }
+
+    // In the case of super interfaces, only ones having at least 1 non-abstract, non-static member
+    // trigger its initialization from the implementing class. The ordering follows the recursive
+    // enumeration over the superinterface hierarchy of each directly implemented interface. See
+    // section §3.3 of the KEEP and JVM spec section §5.5 step 7. Here, the behavior is aligned with
+    // what is done on the JVM.
+    private val IrClass.dependencySuperTypes: List<IrClass>
+        get() = collectSuperDependencies(this)
+
+    private fun collectSuperDependencies(clazz: IrClass): List<IrClass> {
+        val result = mutableListOf<IrClass>()
+        val visited = mutableSetOf<IrClass>()
+        clazz.traverseSuperTypes {
+            when {
+                it.isInterface -> collectInterfaceDependencies(it, result, visited)
+                visited.add(it) -> result.add(it)
+            }
+        }
+        return result
+    }
+
+    private fun collectInterfaceDependencies(iface: IrClass, result: MutableList<IrClass>, visited: MutableSet<IrClass>) {
+        if (!visited.add(iface)) return
+
+        iface.traverseSuperTypes {
+            if (it.isInterface) {
+                collectInterfaceDependencies(it, result, visited)
+            }
         }
 
-    private val IrClass.dependencySuperTypes: List<IrClass>
-        get() = superTypes
-            .filter { !it.isAny() }
-            .mapNotNull { it.classOrNull?.owner }
-            // In the case of super interfaces, only ones having at least 1 non-abstract member trigger
-            // its initialization from the implementing class. See section §3.3 of the KEEP.
-            .filter { clazz -> !clazz.isInterface || clazz.declarations.any { it.isNonAbstractInstanceMember() } }
+        if (iface.declarations.any { it.isNonAbstractInstanceMember() }) {
+            result.add(iface)
+        }
+    }
 
     private fun IrDeclaration.isNonAbstractInstanceMember(): Boolean = when (this) {
         is IrSimpleFunction if isReal && modality != Modality.ABSTRACT && dispatchReceiverParameter != null -> true
         is IrProperty if isReal && modality != Modality.ABSTRACT && (getter ?: setter)?.dispatchReceiverParameter != null -> true
         else -> false // nested classes, companion object, fields, etc. don't count
     }
+}
 
-    private fun IrClass.isInitializersFreeClass(): Boolean {
-        return when {
-            superTypes.any { !it.isAny() } -> false
-            declarations.any { it is IrField } -> false
-            declarations.any { it is IrAnonymousInitializer } -> false
-            else -> true
-        }
+/**
+ * A conservative estimate of whether it is safe to make this object eagerly initialized.
+ */
+internal fun IrClass.isInitializersFreeObject(): Boolean {
+    // TODO: use a smarter heuristic, like in PurifyObjectInstanceGettersLowering
+    return when {
+        superTypes.any { !it.isAny() } -> false
+        declarations.any { it is IrField && it.origin != IrDeclarationOrigin.FIELD_FOR_OBJECT_INSTANCE } -> false
+        declarations.any { it is IrAnonymousInitializer } -> false
+        else -> true
     }
 }

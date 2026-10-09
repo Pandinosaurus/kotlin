@@ -37,7 +37,7 @@ Tower Data Context:
 FILE: [ResolvedTo(IMPORTS)] delegationExpressionAnnotationArgumentCompanion.kt
     public abstract [ResolvedTo(STATUS)] interface MyInterface : R|kotlin/Any| {
     }
-    @R|kotlin/annotation/Retention|[Types](LAZY_EXPRESSION) @R|kotlin/annotation/Target|[Types](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.EXPRESSION|) public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Retention|[Types](LAZY_EXPRESSION) @R|kotlin/annotation/Target|[Types](AnnotationTarget#.EXPRESSION#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.EXPRESSION|))] public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
         public [ResolvedTo(STATUS)] constructor([ResolvedTo(STATUS)] value: R|kotlin/Int|): R|pack/Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -72,13 +72,13 @@ FILE: [ResolvedTo(IMPORTS)] delegationExpressionAnnotationArgumentCompanion.kt
         public final [ResolvedTo(BODY_RESOLVE)] val i: R|pack/MyInterface| = R|<local>/i|
             public [ResolvedTo(BODY_RESOLVE)] get(): R|pack/MyInterface|
 
-        public final companion [ResolvedTo(ANNOTATION_ARGUMENTS)] object Companion : R|kotlin/Any| {
-            private [ResolvedTo(BODY_RESOLVE)] constructor(): R|pack/TopLevelClass.Companion| {
-                super<R|kotlin/Any|>()
+        public final companion [ResolvedTo(STATUS)] object Companion : R|kotlin/Any| {
+            private [ResolvedTo(STATUS)] constructor(): R|pack/TopLevelClass.Companion| {
+                LAZY_super<R|kotlin/Any|>
             }
 
-            public final const [ResolvedTo(BODY_RESOLVE)] val CONST: R|kotlin/Int| = Int(1)
-                public [ResolvedTo(BODY_RESOLVE)] get(): R|kotlin/Int|
+            public final const [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] val CONST: R|kotlin/Int| = Int(1)
+                public [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] get(): R|kotlin/Int|
 
         }
 

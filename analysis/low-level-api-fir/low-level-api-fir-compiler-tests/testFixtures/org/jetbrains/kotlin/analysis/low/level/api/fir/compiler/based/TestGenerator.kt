@@ -20,14 +20,19 @@ import org.jetbrains.kotlin.generators.util.TestGeneratorUtil.canFreezeIDE
 import org.jetbrains.kotlin.spec.utils.GeneralConfiguration
 import org.jetbrains.kotlin.spec.utils.tasks.detectDirsWithTestsMapFileOnly
 import org.jetbrains.kotlin.test.utils.CUSTOM_TEST_DATA_EXTENSION_PATTERN
-import org.jetbrains.kotlin.testFederation.AffectedByCompilerPlugins
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
 
 fun main(args: Array<String>) {
     val generatedTestRoot = args[0]
     generateTestGroupSuiteWithJUnit5(args) {
-        testGroup(generatedTestRoot, "compiler/fir/raw-fir/psi2fir/testData") {
+        testGroup(generatedTestRoot, "compiler/fir/raw-fir/testData") {
+            // REPL snippets are not supported by the Analysis API
+            fun TestGroup.TestClass.rawBuilderInit() {
+                model("rawBuilder", pattern = KT_OR_KTS, excludedPattern = TestGeneratorUtil.REPL_KTS)
+            }
+
             testClass<AbstractLLSourceLikeLazyBodiesCalculatorTest> {
-                model("rawBuilder", pattern = KT_OR_KTS)
+                rawBuilderInit()
             }
 
             testClass<AbstractFirOutOfContentRootLazyBodiesCalculatorTest> {
@@ -35,15 +40,15 @@ fun main(args: Array<String>) {
             }
 
             testClass<AbstractLLSourceAnnotationArgumentsCalculatorTest> {
-                model("rawBuilder", pattern = KT_OR_KTS)
+                rawBuilderInit()
             }
 
             testClass<AbstractLLSourceLikeStubBasedResolutionTest> {
-                model("rawBuilder", pattern = KT_OR_KTS)
+                rawBuilderInit()
             }
 
             testClass<AbstractLLSourceLikeRawFirBuilderLazyBodiesTest> {
-                model("rawBuilder", pattern = KT_OR_KTS)
+                rawBuilderInit()
             }
         }
 
@@ -58,37 +63,15 @@ fun main(args: Array<String>) {
                 }
 
                 testClass<AbstractLLScriptWithCustomDefDiagnosticsTest>(
-                    annotations = listOf(provider<AffectedByCompilerPlugins>())
+                    annotations = listOf(provider<MustRunOnChangesInCompilerPlugins>())
                 ) {
                     scriptDiagnosticsInit()
                 }
 
                 testClass<AbstractLLReversedScriptWithCustomDefDiagnosticsTest>(
-                    annotations = listOf(provider<AffectedByCompilerPlugins>())
+                    annotations = listOf(provider<MustRunOnChangesInCompilerPlugins>())
                 ) {
                     scriptDiagnosticsInit()
-                }
-            }
-
-            run {
-                fun TestGroup.TestClass.replDiagnosticsInit() {
-                    model(
-                        "diagnostics/repl",
-                        pattern = TestGeneratorUtil.KTS,
-                        excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
-                    )
-                }
-
-                testClass<AbstractLLReplDiagnosticsTest>(
-                    annotations = listOf(provider<AffectedByCompilerPlugins>())
-                ) {
-                    replDiagnosticsInit()
-                }
-
-                testClass<AbstractLLReversedReplDiagnosticsTest>(
-                    annotations = listOf(provider<AffectedByCompilerPlugins>())
-                ) {
-                    replDiagnosticsInit()
                 }
             }
 
@@ -103,13 +86,13 @@ fun main(args: Array<String>) {
                 }
 
                 testClass<AbstractLLScriptWithCustomDefBlackBoxTest>(
-                    annotations = listOf(provider<AffectedByCompilerPlugins>())
+                    annotations = listOf(provider<MustRunOnChangesInCompilerPlugins>())
                 ) {
                     scriptCustomDefBackBoxInit()
                 }
 
                 testClass<AbstractLLReversedScriptWithCustomDefBlackBoxTest>(
-                    annotations = listOf(provider<AffectedByCompilerPlugins>())
+                    annotations = listOf(provider<MustRunOnChangesInCompilerPlugins>())
                 ) {
                     scriptCustomDefBackBoxInit()
                 }
@@ -210,6 +193,11 @@ fun main(args: Array<String>) {
                     "diagnostics/testsWithStdLib",
                     excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
                     excludeDirs = listOf("native"),
+                    pattern = KT_OR_KTS.canFreezeIDE,
+                )
+                model(
+                    "diagnostics/testsWithAnyBackend",
+                    excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
                     pattern = KT_OR_KTS.canFreezeIDE,
                 )
             }

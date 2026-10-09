@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.backend.common.overrides.IrLinkerFakeOverrideProvide
 import org.jetbrains.kotlin.backend.common.serialization.*
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.PartialLinkageConfig
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
@@ -22,8 +21,6 @@ import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.isJsStdlib
 import org.jetbrains.kotlin.library.isWasmStdlib
-import org.jetbrains.kotlin.library.metadata.DeserializedKlibModuleOrigin
-import org.jetbrains.kotlin.library.metadata.klibModuleOriginOrNull
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.utils.memoryOptimizedMap
 
@@ -34,10 +31,8 @@ class JsIrLinker(
     irDiagnosticReporter: IrDiagnosticReporter,
     friendModules: Map<String, Collection<String>> = emptyMap(),
 ) : KotlinIrLinker(
-    currentModule = null,
     configuration = configuration,
     symbolTable = symbolTable,
-    exportedDependencies = emptyList(),
     deserializedSymbolPostProcessor = { symbol, signature, fileSymbol ->
         runIf(signature.isLocal) {
             symbol.privateSignature = IdSignature.CompositeSignature(IdSignature.FileSignature(fileSymbol), signature)
@@ -65,9 +60,8 @@ class JsIrLinker(
 
     override val moduleDependencyTracker: IrModuleDependencyTracker = IrModuleDependencyTrackerImpl()
 
-    override fun isBuiltInModule(moduleDescriptor: ModuleDescriptor): Boolean {
-        val origin: DeserializedKlibModuleOrigin? = moduleDescriptor.klibModuleOriginOrNull as? DeserializedKlibModuleOrigin
-        val klib: KotlinLibrary = origin?.library ?: return false
+    override fun isBuiltInModule(module: IrModuleFragment): Boolean {
+        val klib = module.kotlinLibrary ?: return false
         return klib.isJsStdlib || klib.isWasmStdlib
     }
 
@@ -94,13 +88,8 @@ class JsIrLinker(
         }
     }
 
-    val modules
-        get() = deserializersForModules.values
-            .map { it.moduleFragment }
-
-
-    fun moduleDeserializer(moduleDescriptor: ModuleDescriptor): IrModuleDeserializer {
-        return deserializersForModules[moduleDescriptor.name.asString()] ?: error("Deserializer for $moduleDescriptor not found")
+    fun moduleDeserializer(module: IrModuleFragment): IrModuleDeserializer {
+        return klibDeserializers[module.kotlinLibrary!!] ?: error("Deserializer for ${module.name} not found")
     }
 
     fun getDeserializedFilesInKlibOrder(fragment: IrModuleFragment): List<IrFile> {

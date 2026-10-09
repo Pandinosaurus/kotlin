@@ -2,15 +2,17 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
-project.configureJvmToolchain(JdkMajorVersion.JDK_1_8)
+jvmToolchains {
+    targetBytecodeVersion = JdkMajorVersion.JDK_1_8
+}
 
 dependencies {
-    api(project(":kotlin-script-runtime"))
+    compileOnly(project(":kotlin-script-runtime")) // only for the deprecated jvm/compat/diagnosticsUtil.kt
+    runtimeOnly(project(":kotlin-script-runtime")) // legacy templates support, to be dropped with the artifact deprecation
     api(kotlinStdlib())
     api(project(":kotlin-scripting-common"))
 

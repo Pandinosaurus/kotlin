@@ -1,7 +1,7 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
-<!CONFLICTING_JVM_DECLARATIONS!>fun foo(x: String) {}<!>
-<!CONFLICTING_JVM_DECLARATIONS!>fun foo(x: String?) {}<!>
+<!CONFLICTING_JVM_DECLARATIONS!>fun foo(x: String)<!> {}
+<!CONFLICTING_JVM_DECLARATIONS!>fun foo(x: String?)<!> {}
 
 /* GENERATED_FIR_TAGS: functionDeclaration, nullableType */

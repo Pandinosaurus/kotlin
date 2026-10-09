@@ -7,7 +7,9 @@ package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
+import kotlin.DeprecationLevel;
 import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;
@@ -27,6 +29,7 @@ import java.util.List;
  * //       ^____^
  * }</pre>
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtTypeParameterList extends KtElementImplStub<KotlinPlaceHolderStub<KtTypeParameterList>> {
     @KtImplementationDetail
     public KtTypeParameterList(@NotNull ASTNode node) {
@@ -54,7 +57,8 @@ public class KtTypeParameterList extends KtElementImplStub<KotlinPlaceHolderStub
             replaceWith = @ReplaceWith(
                     expression = "this.appendTypeParameter(typeParameter)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.appendTypeParameter"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     public KtTypeParameter addParameter(@NotNull KtTypeParameter typeParameter) {

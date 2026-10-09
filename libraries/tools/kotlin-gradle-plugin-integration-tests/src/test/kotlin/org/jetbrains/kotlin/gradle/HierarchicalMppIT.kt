@@ -53,7 +53,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
     @GradleTest
     @DisplayName("Check build with published third-party library")
     fun testPublishedModules(gradleVersion: GradleVersion, @TempDir tempDir: Path) {
-        val buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
+        val buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG, suppressedGradlePluginErrors = emptySet())
 
         publishThirdPartyLib(gradleVersion = gradleVersion, localRepoDir = tempDir)
 
@@ -220,7 +220,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
                 "hierarchical-mpp-project-dependency",
                 gradleVersion,
                 localRepoDir = tempDir,
-                buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
+                buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG, suppressedGradlePluginErrors = emptySet())
             )
         ) {
             build("publish", "assemble") {
@@ -235,7 +235,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
     @TestMetadata("hierarchical-mpp-published-modules")
     @DisplayName("Check that only composite metadata artifacts are transformed")
     fun testOnlyCompositeMetadataArtifactsTransformed(gradleVersion: GradleVersion, @TempDir tempDir: Path) {
-        val buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
+        val buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG, suppressedGradlePluginErrors = emptySet())
         publishThirdPartyLib(gradleVersion = gradleVersion, localRepoDir = tempDir)
 
         val regex = """artifact: '(.+)'""".toRegex()
@@ -309,7 +309,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
             "hierarchical-mpp-multi-modules",
             gradleVersion
         ) {
-            build("assemble", "-Pkotlin.internal.suppressGradlePluginErrors=KotlinTargetAlreadyDeclaredError")
+            build("assemble", buildOptions = buildOptions.suppressingGradlePluginErrors("KotlinTargetAlreadyDeclaredError"))
         }
     }
 
@@ -333,7 +333,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
         ) {
             val testClassesTaskName = "jvmTestClasses"
 
-            build("assemble", testClassesTaskName, "-Pkotlin.internal.suppressGradlePluginErrors=KotlinTargetAlreadyDeclaredError") {
+            build("assemble", testClassesTaskName, buildOptions = buildOptions.suppressingGradlePluginErrors("KotlinTargetAlreadyDeclaredError")) {
                 assertTasksExecuted(
                     ":dependsOnPlainJvm:compileKotlinJvm",
                     ":dependsOnPlainJvm:compileJvmMainJava",
@@ -593,7 +593,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
 
         val actualClasspath = classpathItems.joinToString("\n")
 
-        shouldInclude.forEach { [module, sourceSet] ->
+        shouldInclude.forEach { (module, sourceSet) ->
             assertTrue(
                 "expected module '$module' source set '$sourceSet' on the classpath of task $taskPath. Actual classpath:\n$actualClasspath"
             ) {
@@ -601,7 +601,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
             }
         }
 
-        shouldNotInclude.forEach { [module, sourceSet] ->
+        shouldNotInclude.forEach { (module, sourceSet) ->
             assertTrue(
                 "not expected module '$module' source set '$sourceSet' on the compile classpath of task $taskPath. " +
                         "Actual classpath:\n$actualClasspath"
@@ -641,7 +641,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
                 "linuxAndJsMain" to setOf("commonMain"),
                 "commonMain" to emptySet()
             ),
-            sourceSetModuleDependencies = sourceSetModuleDependencies.mapValues { [_, pairs] ->
+            sourceSetModuleDependencies = sourceSetModuleDependencies.mapValues { (_, pairs) ->
                 pairs.map {
                     ModuleDependencyIdentifier(it.first, it.second)
                 }.toSet()
@@ -798,7 +798,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
             gradleVersion = gradleVersion,
             localRepoDir = tempDir
         ).run {
-            build("publish", "-Pkotlin.internal.suppressGradlePluginErrors=KotlinTargetAlreadyDeclaredError")
+            build("publish", buildOptions = buildOptions.suppressingGradlePluginErrors("KotlinTargetAlreadyDeclaredError"))
 
             fun macOnly(code: () -> List<String>): List<String> = if (OS.MAC.isCurrentOs) code() else emptyList()
 
@@ -840,7 +840,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
             )
 
             val expectedSourcePublicationLayoutBySourcesFile: Map<String, List<String>> = expectedSourcePublicationLayout
-                .flatMap { [sourceSet, sources] -> sources.map { sourceSet to it } }
+                .flatMap { (sourceSet, sources) -> sources.map { sourceSet to it } }
                 .groupBy(
                     keySelector = { it.second },
                     valueTransform = { it.first }
@@ -951,7 +951,7 @@ open class HierarchicalMppIT : KGPBaseTest() {
                 """.trimIndent()
             )
 
-            build("publish", "-Pkotlin.internal.suppressGradlePluginErrors=KotlinTargetAlreadyDeclaredError")
+            build("publish", buildOptions = buildOptions.suppressingGradlePluginErrors("KotlinTargetAlreadyDeclaredError"))
 
             val gradleModuleFileContent = tempDir.resolveRepoArtifactPath("test", "lib", "1.0", extension = "module").readText()
             fun assertNoSourcesPublished(expectedJarLocation: Path, variantName: String) {

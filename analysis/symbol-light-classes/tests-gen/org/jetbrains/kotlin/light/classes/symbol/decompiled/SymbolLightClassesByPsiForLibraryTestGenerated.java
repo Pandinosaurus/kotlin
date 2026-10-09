@@ -113,15 +113,21 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
   }
 
   @Test
-  @TestMetadata("defaultMethodInKotlinWithSettingAll.kt")
-  public void testDefaultMethodInKotlinWithSettingAll() {
-    run("defaultMethodInKotlinWithSettingAll.kt");
+  @TestMetadata("defaultMethodInKotlinWithSettingDisable.kt")
+  public void testDefaultMethodInKotlinWithSettingDisable() {
+    run("defaultMethodInKotlinWithSettingDisable.kt");
   }
 
   @Test
-  @TestMetadata("defaultMethodInKotlinWithSettingAllCompatibility.kt")
-  public void testDefaultMethodInKotlinWithSettingAllCompatibility() {
-    run("defaultMethodInKotlinWithSettingAllCompatibility.kt");
+  @TestMetadata("defaultMethodInKotlinWithSettingEnable.kt")
+  public void testDefaultMethodInKotlinWithSettingEnable() {
+    run("defaultMethodInKotlinWithSettingEnable.kt");
+  }
+
+  @Test
+  @TestMetadata("defaultMethodInKotlinWithSettingNoCompatibility.kt")
+  public void testDefaultMethodInKotlinWithSettingNoCompatibility() {
+    run("defaultMethodInKotlinWithSettingNoCompatibility.kt");
   }
 
   @Test
@@ -257,6 +263,18 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
   }
 
   @Test
+  @TestMetadata("interfaceWithOnlyPrivateImplementations.kt")
+  public void testInterfaceWithOnlyPrivateImplementations() {
+    run("interfaceWithOnlyPrivateImplementations.kt");
+  }
+
+  @Test
+  @TestMetadata("interfaceWithOnlyPrivateImplementationsWithSettingDisable.kt")
+  public void testInterfaceWithOnlyPrivateImplementationsWithSettingDisable() {
+    run("interfaceWithOnlyPrivateImplementationsWithSettingDisable.kt");
+  }
+
+  @Test
   @TestMetadata("jvmField.kt")
   public void testJvmField() {
     run("jvmField.kt");
@@ -284,6 +302,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
   @TestMetadata("jvmRecord.kt")
   public void testJvmRecord() {
     run("jvmRecord.kt");
+  }
+
+  @Test
+  @TestMetadata("jvmStaticInInterfaceCompanion.kt")
+  public void testJvmStaticInInterfaceCompanion() {
+    run("jvmStaticInInterfaceCompanion.kt");
   }
 
   @Test
@@ -341,6 +365,18 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
   }
 
   @Test
+  @TestMetadata("privateMethodInInterfaceWithSettingDisable.kt")
+  public void testPrivateMethodInInterfaceWithSettingDisable() {
+    run("privateMethodInInterfaceWithSettingDisable.kt");
+  }
+
+  @Test
+  @TestMetadata("privateMethodInInterfaceWithSettingNoCompatibility.kt")
+  public void testPrivateMethodInInterfaceWithSettingNoCompatibility() {
+    run("privateMethodInInterfaceWithSettingNoCompatibility.kt");
+  }
+
+  @Test
   @TestMetadata("properties.kt")
   public void testProperties() {
     run("properties.kt");
@@ -362,6 +398,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
   @TestMetadata("simpleFunctions.kt")
   public void testSimpleFunctions() {
     run("simpleFunctions.kt");
+  }
+
+  @Test
+  @TestMetadata("staticMethodsForOverrides.kt")
+  public void testStaticMethodsForOverrides() {
+    run("staticMethodsForOverrides.kt");
   }
 
   @Test
@@ -1439,6 +1481,68 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
   }
 
   @Nested
+  @TestMetadata("analysis/symbol-light-classes/testData/lightClassByPsi/fullValueClasses")
+  @TestDataPath("$PROJECT_ROOT")
+  public class FullValueClasses {
+    private void run(String fileName) {
+      runTest("analysis/symbol-light-classes/testData/lightClassByPsi/fullValueClasses/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInFullValueClasses() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/symbol-light-classes/testData/lightClassByPsi/fullValueClasses"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("facadeWithFullValueClass.kt")
+    public void testFacadeWithFullValueClass() {
+      run("facadeWithFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassAsUpperBound.kt")
+    public void testFullValueClassAsUpperBound() {
+      run("fullValueClassAsUpperBound.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassHierarchy.kt")
+    public void testFullValueClassHierarchy() {
+      run("fullValueClassHierarchy.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassInSignature.kt")
+    public void testFullValueClassInSignature() {
+      run("fullValueClassInSignature.kt");
+    }
+
+    @Test
+    @TestMetadata("jvmExposeBoxedAnnotation.kt")
+    public void testJvmExposeBoxedAnnotation() {
+      run("jvmExposeBoxedAnnotation.kt");
+    }
+
+    @Test
+    @TestMetadata("jvmExposeBoxedDirective.kt")
+    public void testJvmExposeBoxedDirective() {
+      run("jvmExposeBoxedDirective.kt");
+    }
+
+    @Test
+    @TestMetadata("jvmExposeBoxedWithInlineClass.kt")
+    public void testJvmExposeBoxedWithInlineClass() {
+      run("jvmExposeBoxedWithInlineClass.kt");
+    }
+
+    @Test
+    @TestMetadata("jvmInlineWithFullValueClassesEnabled.kt")
+    public void testJvmInlineWithFullValueClassesEnabled() {
+      run("jvmInlineWithFullValueClassesEnabled.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("analysis/symbol-light-classes/testData/lightClassByPsi/jvmExposeBoxed")
   @TestDataPath("$PROJECT_ROOT")
   public class JvmExposeBoxed {
@@ -1449,6 +1553,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
     @Test
     public void testAllFilesPresentInJvmExposeBoxed() {
       KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/symbol-light-classes/testData/lightClassByPsi/jvmExposeBoxed"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("bigArity.kt")
+    public void testBigArity() {
+      run("bigArity.kt");
     }
 
     @Test
@@ -1485,6 +1595,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
     @TestMetadata("contexts.kt")
     public void testContexts() {
       run("contexts.kt");
+    }
+
+    @Test
+    @TestMetadata("exposedWithoutValueClass.kt")
+    public void testExposedWithoutValueClass() {
+      run("exposedWithoutValueClass.kt");
     }
 
     @Test
@@ -1545,6 +1661,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
     @TestMetadata("int.kt")
     public void testInt() {
       run("int.kt");
+    }
+
+    @Test
+    @TestMetadata("internalDeclarations.kt")
+    public void testInternalDeclarations() {
+      run("internalDeclarations.kt");
     }
 
     @Test
@@ -1632,6 +1754,18 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
     }
 
     @Test
+    @TestMetadata("resultNullable.kt")
+    public void testResultNullable() {
+      run("resultNullable.kt");
+    }
+
+    @Test
+    @TestMetadata("secondaryConstructor.kt")
+    public void testSecondaryConstructor() {
+      run("secondaryConstructor.kt");
+    }
+
+    @Test
     @TestMetadata("simple.kt")
     public void testSimple() {
       run("simple.kt");
@@ -1681,6 +1815,18 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
       }
 
       @Test
+      @TestMetadata("bigArity.kt")
+      public void testBigArity() {
+        run("bigArity.kt");
+      }
+
+      @Test
+      @TestMetadata("bigArityLambda.kt")
+      public void testBigArityLambda() {
+        run("bigArityLambda.kt");
+      }
+
+      @Test
       @TestMetadata("companionObject.kt")
       public void testCompanionObject() {
         run("companionObject.kt");
@@ -1717,15 +1863,33 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
       }
 
       @Test
+      @TestMetadata("defaultConstructors.kt")
+      public void testDefaultConstructors() {
+        run("defaultConstructors.kt");
+      }
+
+      @Test
       @TestMetadata("defaultInInterface.kt")
       public void testDefaultInInterface() {
         run("defaultInInterface.kt");
       }
 
       @Test
+      @TestMetadata("enumClass.kt")
+      public void testEnumClass() {
+        run("enumClass.kt");
+      }
+
+      @Test
       @TestMetadata("extensionVariable.kt")
       public void testExtensionVariable() {
         run("extensionVariable.kt");
+      }
+
+      @Test
+      @TestMetadata("finalClass.kt")
+      public void testFinalClass() {
+        run("finalClass.kt");
       }
 
       @Test
@@ -1774,6 +1938,18 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
       @TestMetadata("int.kt")
       public void testInt() {
         run("int.kt");
+      }
+
+      @Test
+      @TestMetadata("internalDeclarations.kt")
+      public void testInternalDeclarations() {
+        run("internalDeclarations.kt");
+      }
+
+      @Test
+      @TestMetadata("introducedAtConstructor.kt")
+      public void testIntroducedAtConstructor() {
+        run("introducedAtConstructor.kt");
       }
 
       @Test
@@ -1846,6 +2022,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
       @TestMetadata("result.kt")
       public void testResult() {
         run("result.kt");
+      }
+
+      @Test
+      @TestMetadata("resultNullable.kt")
+      public void testResultNullable() {
+        run("resultNullable.kt");
       }
 
       @Test
@@ -1959,9 +2141,21 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
       }
 
       @Test
+      @TestMetadata("companionExtensions.kt")
+      public void testCompanionExtensions() {
+        run("companionExtensions.kt");
+      }
+
+      @Test
       @TestMetadata("globalLateinit.kt")
       public void testGlobalLateinit() {
         run("globalLateinit.kt");
+      }
+
+      @Test
+      @TestMetadata("introducedAtConstructor.kt")
+      public void testIntroducedAtConstructor() {
+        run("introducedAtConstructor.kt");
       }
 
       @Test
@@ -2043,6 +2237,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
       }
 
       @Test
+      @TestMetadata("jvmOverloadsJvmName.kt")
+      public void testJvmOverloadsJvmName() {
+        run("jvmOverloadsJvmName.kt");
+      }
+
+      @Test
       @TestMetadata("jvmOverloadsRegularReceiver.kt")
       public void testJvmOverloadsRegularReceiver() {
         run("jvmOverloadsRegularReceiver.kt");
@@ -2115,6 +2315,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
       }
 
       @Test
+      @TestMetadata("jvmOverloadsValueParameterDirective.kt")
+      public void testJvmOverloadsValueParameterDirective() {
+        run("jvmOverloadsValueParameterDirective.kt");
+      }
+
+      @Test
       @TestMetadata("jvmStatic.kt")
       public void testJvmStatic() {
         run("jvmStatic.kt");
@@ -2178,6 +2384,12 @@ public class SymbolLightClassesByPsiForLibraryTestGenerated extends AbstractSymb
       @TestMetadata("vararg.kt")
       public void testVararg() {
         run("vararg.kt");
+      }
+
+      @Test
+      @TestMetadata("versionOverloads.kt")
+      public void testVersionOverloads() {
+        run("versionOverloads.kt");
       }
     }
 

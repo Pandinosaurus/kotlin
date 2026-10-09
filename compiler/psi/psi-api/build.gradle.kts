@@ -1,14 +1,12 @@
-import org.jetbrains.kotlin.build.foreign.CheckForeignClassUsageTask
+import org.jetbrains.kotlin.build.foreign.registerForeignClassUsageTasks
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("kotlin-git.gradle-build-conventions.foreign-class-usage-checker")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -16,7 +14,9 @@ dependencies {
     api(project(":core:compiler.common"))
     api(project(":compiler:util"))
     api(project(":compiler:frontend.common"))
+    api(project(":core:deserialization.common"))
 
+    compileOnly(project(":kotlin-util-klib"))
     compileOnly(intellijCore())
     compileOnly(libs.guava)
     compileOnly(libs.intellij.fastutil)
@@ -42,7 +42,9 @@ sourceSets {
 private val stableNonPublicMarkers = listOf(
     "org.jetbrains.kotlin.psi.KtImplementationDetail",
     "org.jetbrains.kotlin.psi.KtNonPublicApi",
+    "org.jetbrains.kotlin.psi.KtIdeApi",
     "org.jetbrains.kotlin.psi.KtExperimentalApi",
+    "org.jetbrains.kotlin.psi.KtPlatformInterface",
 )
 
 kotlin {
@@ -54,7 +56,6 @@ kotlin {
     }
 }
 
-testsJar()
 
 projectTests {
     testTask()
@@ -62,7 +63,7 @@ projectTests {
     testCodebaseTask()
 }
 
-val checkForeignClassUsage = tasks.register("checkForeignClassUsage", CheckForeignClassUsageTask::class) {
+registerForeignClassUsageTasks {
     outputFile = file("api/psi-api.foreign")
     nonPublicMarkers.addAll(stableNonPublicMarkers)
 }

@@ -9,7 +9,6 @@ import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.library.KLIB_PROPERTY_DEPENDS
 import org.jetbrains.kotlin.library.loader.KlibLoader
-import org.jetbrains.kotlin.library.unresolvedDependencies
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.fail
@@ -30,10 +29,6 @@ class MppSharedNativeCompileIT : KGPBaseTest() {
 
                 val libraryFile = KlibLoader { libraryPaths(nativeMainKlib) }.load().librariesStdlibFirst.single()
 
-                if (libraryFile.unresolvedDependencies.isNotEmpty()) {
-                    fail("Expected metadata klib to not list dependencies. Found ${libraryFile.unresolvedDependencies}")
-                }
-
                 if (KLIB_PROPERTY_DEPENDS in libraryFile.manifestProperties) {
                     fail(
                         "Expected metadata klib to not contain $KLIB_PROPERTY_DEPENDS. " +
@@ -50,7 +45,8 @@ class MppSharedNativeCompileIT : KGPBaseTest() {
     @GradleTest
     @Disabled("KT-60943: Will be fixed in K2")
     fun `test - K2 - shared native compilation - assemble`(gradleVersion: GradleVersion) {
-        project("kt-57944-k2-native-compilation", gradleVersion, buildOptions = defaultBuildOptions.copy(languageVersion = "2.0")) {
+        // FIXME(KT-69597): Previously hardcoded to language version 2.0.
+        project("kt-57944-k2-native-compilation", gradleVersion) {
             build("assemble") {
                 assertTasksExecuted(":compileCommonMainKotlinMetadata")
                 assertTasksExecuted(":compileNativeMainKotlinMetadata")

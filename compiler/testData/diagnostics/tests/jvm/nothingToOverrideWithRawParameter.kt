@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-62605
 // JVM_TARGET: 1.8
 // IGNORE_FIR_DIAGNOSTICS
@@ -24,7 +24,7 @@ public class JavaMethodBreakpointType implements JavaBreakpointType<String>{
 // FILE: test.kt
 
 class KotlinFunctionBreakpointType : JavaMethodBreakpointType() {
-    <!NOTHING_TO_OVERRIDE!>override<!> <!ACCIDENTAL_OVERRIDE!>fun createJavaBreakpoint(breakpoint: Breakpoint<String>) = Breakpoint<String>()<!>
+    <!ACCIDENTAL_OVERRIDE!><!NOTHING_TO_OVERRIDE!>override<!> fun createJavaBreakpoint(breakpoint: Breakpoint<String>)<!> = Breakpoint<String>()
 }
 
 /* GENERATED_FIR_TAGS: classDeclaration, flexibleType, functionDeclaration, javaFunction, javaType, override */

@@ -11,10 +11,7 @@ import org.jetbrains.kotlin.analysis.api.lifetime.KaLifetimeToken
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.scopes.KaScope
 import org.jetbrains.kotlin.analysis.api.scopes.KaTypeScope
-import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaFileSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaPackageSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KaDeclarationContainerSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.psi.KtElement
@@ -302,13 +299,135 @@ public interface KaScopeContext : KaLifetimeOwner {
      * The list is sorted according to the order of scopes in the scope tower (from innermost to outermost).
      */
     public val scopes: List<KaScopeWithKind>
+
+    /**
+     * The list of smart casts available at the context position.
+     *
+     * Note that an actual smart cast will only appear if the original expression type does not match the expected type.
+     * For actual smart cast application, check [KaDataFlowProvider.smartCastInfo].
+     *
+     * The list has an arbitrary (but stable) order.
+     */
+    @KaExperimentalApi
+    public val possibleSmartCasts: List<KaSmartCastPossibility>
+}
+
+/**
+ * Represents a possible smart cast at a fixed context position.
+ *
+ * The word "possible" means that the compiler is allowed to produce smart casts for the [source] expression if there is a need to do so.
+ * Note that unless [isStable] is set, the smart cast will not be applied. In addition, the `SMARTCAST_IMPOSSIBLE` error is issued
+ * in certain cases.
+ */
+@KaExperimentalApi
+@SubclassOptInRequired(KaImplementationDetail::class)
+public interface KaSmartCastPossibility : KaLifetimeOwner {
+    /**
+     * A declaration to whose references a smart cast may be applied (if [isStable] is `true`).
+     */
+    public val source: KaSmartCastSource
+
+    /**
+     * Types that [source] may be automatically cast to.
+     */
+    public val smartCastTypes: List<KaType>
+
+    /**
+     * Whether the smart cast [source] is stable at the context position.
+     *
+     * The same [source] can have different smart cast stability depending on the context position.
+     * For example, in the code snippet below, a smart cast will be applied to the first usage of `value`. However, after the conditional
+     * expression, the compiler is not sure anymore that `value` is still set, so a compilation error is reported.
+     *
+     * ```
+     * fun test() {
+     *     var value: String? = System.getProperty("some.property")
+     *     if (value == null) {
+     *         return
+     *     }
+     *
+     *     value.length  // Smart cast is applied
+     *
+     *     if (Random.nextBoolean()) {
+     *         value = null
+     *     }
+     *
+     *     value.length  // UNSAFE_CALL
+     * }
+     * ```
+     *
+     * For more information on smart cast stability, check the Kotlin specification:
+     * [Smart cast sink stability](https://kotlinlang.org/spec/type-inference.html#smart-cast-sink-stability).
+     */
+    public val isStable: Boolean
+}
+
+/**
+ * Either a symbol for which a smart cast is generated, or one of its receivers.
+ */
+@KaExperimentalApi
+@SubclassOptInRequired(KaImplementationDetail::class)
+public interface KaSmartCastSource : KaLifetimeOwner {
+    /**
+     * A declaration participating in the smart cast path.
+     *
+     * Smart casts to the same declaration can be allowed or prohibited, depending on how that declaration is accessed.
+     * In the following example, the [symbol] will be `val value: Any`. However, a smart cast will only be produced for `a.value`.
+     *
+     * ```
+     * class Holder(val value: Any)
+     *
+     * fun test(a: Holder, b: Holder) {
+     *     if (a.value is String) {
+     *         a.value.length  // OK
+     *         b.value.length  // compilation error
+     *     }
+     * }
+     * ```
+     *
+     * For `a.value` from the example above, a [KaSmartCastSource] is generated whose [symbol] points to `val value: Any` (a property),
+     * and whose [dispatchReceiver] is the `a: Holder` value parameter.
+     *
+     * For `this`, the [symbol] may be either a [org.jetbrains.kotlin.analysis.api.symbols.KaReceiverParameterSymbol] (for an extension
+     * receiver parameter) or a [org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol] (if the cast occurs right inside a class).
+     */
+    public val symbol: KaDeclarationSymbol
+
+    /**
+     * The required dispatch receiver for this path component, if any.
+     *
+     * The [symbol] only participates in the smart cast if its dispatch receiver is the same as this one. E.g.:
+     *
+     * ```
+     * class Holder(val value: Any)
+     *
+     * fun test(holder: Holder) {
+     *     if (holder.value is String) {
+     *         holder.value.length  // Context position
+     *     }
+     * }
+     * ```
+     *
+     * In the example above, the `holder` parameter is a required dispatch receiver for `value`. If any other receiver is passed,
+     * such as `Holder().value`, the smart cast is not generated.
+     */
+    public val dispatchReceiver: KaSmartCastSource?
+
+    /**
+     * The required extension receiver for this path component, if any.
+     */
+    public val extensionReceiver: KaSmartCastSource?
+
+    /**
+     * The original type of the [symbol].
+     */
+    public val originalType: KaType
 }
 
 /**
  * Represents a value which can be used implicitly inside a particular [KaScopeContext].
  */
 @KaExperimentalApi
-@OptIn(KaImplementationDetail::class)
 public sealed interface KaScopeImplicitValue : KaLifetimeOwner {
     /**
      * The implicit value type.
@@ -529,7 +648,8 @@ public class KaScopeWithKindImpl(
  * in addition to members which are declared explicitly inside the symbol's body.
  *
  * The member scope doesn't include [synthetic Java properties](https://kotlinlang.org/docs/java-interop.html#getters-and-setters). For
- * a scope which contains synthetic properties, please refer to [syntheticJavaPropertiesScope].
+ * a scope which contains synthetic properties, please refer to
+ * [syntheticJavaPropertiesScope][org.jetbrains.kotlin.analysis.api.scopes.syntheticJavaPropertiesScope].
  *
  * @see staticMemberScope
  */
@@ -778,68 +898,6 @@ public fun List<KaScope>.asCompositeScope(): KaScope {
         asCompositeScope()
     }
 }
-
-/**
- * A [KaTypeScope] for the given [KaType], or `null` if the type is [erroneous][org.jetbrains.kotlin.analysis.api.types.KaErrorType].
- * The scope includes all members which are callable on a given type. It also includes [synthetic Java properties](https://kotlinlang.org/docs/java-interop.html#getters-and-setters).
- *
- * Comparing to [KaScope], the [KaTypeScope] contains members whose use-site type parameters have been substituted.
- *
- * #### Example
- *
- * ```kotlin
- * fun foo(list: List<String>) {
- *     list
- * }
- *```
- *
- * We can get a [KaTypeScope] for the [expression type][org.jetbrains.kotlin.analysis.api.components.KaExpressionTypeProvider.expressionType]
- * of `list`. This scope contains a `get(index: Int): String` function, where the return type `E` from [List.get] is substituted with
- * the type argument `String`.
- *
- * @see KaTypeScope
- * @see KaTypeProvider.type
- * @see KaExpressionTypeProvider.expressionType
- */
-@Deprecated(
-    message = "Use the 'org.jetbrains.kotlin.analysis.api.scopes' endpoint instead.",
-    replaceWith = ReplaceWith("this.scope", "org.jetbrains.kotlin.analysis.api.scopes.scope"),
-    level = DeprecationLevel.ERROR,
-)
-@KaExperimentalApi
-@KaContextParameterApi
-context(session: KaSession)
-public val KaType.scope: KaTypeScope?
-    get() = with(session) { scope }
-
-/**
- * A [KaScope] containing unsubstituted declarations from the [KaType]'s underlying declaration.
- */
-@Deprecated(
-    message = "Use the 'org.jetbrains.kotlin.analysis.api.scopes' endpoint instead.",
-    replaceWith = ReplaceWith("this.declarationScope", "org.jetbrains.kotlin.analysis.api.scopes.declarationScope"),
-    level = DeprecationLevel.ERROR,
-)
-@KaExperimentalApi
-@KaContextParameterApi
-context(session: KaSession)
-public val KaTypeScope.declarationScope: KaScope
-    get() = with(session) { declarationScope }
-
-/**
- * A [KaTypeScope] containing the [synthetic Java properties](https://kotlinlang.org/docs/java-interop.html#getters-and-setters) created
- * for a given [KaType].
- */
-@Deprecated(
-    message = "Use the 'org.jetbrains.kotlin.analysis.api.scopes' endpoint instead.",
-    replaceWith = ReplaceWith("this.syntheticJavaPropertiesScope", "org.jetbrains.kotlin.analysis.api.scopes.syntheticJavaPropertiesScope"),
-    level = DeprecationLevel.ERROR,
-)
-@KaExperimentalApi
-@KaContextParameterApi
-context(session: KaSession)
-public val KaType.syntheticJavaPropertiesScope: KaTypeScope?
-    get() = with(session) { syntheticJavaPropertiesScope }
 
 /**
  * Computes the lexical scope context for a given [position] in the [KtFile]. The scope context includes all scopes that are relevant

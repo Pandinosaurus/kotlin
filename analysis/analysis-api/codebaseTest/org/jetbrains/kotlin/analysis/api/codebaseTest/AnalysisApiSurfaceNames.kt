@@ -5,8 +5,10 @@
 
 package org.jetbrains.kotlin.analysis.api.codebaseTest
 
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.components.KaSessionComponent
+import org.jetbrains.kotlin.analysis.api.internals.KaInternals
 
 internal object AnalysisApiSurfaceNames {
     @Suppress("OPT_IN_USAGE") // Suppress instead of @OptIn because the annotation is not available in the test sources
@@ -14,9 +16,8 @@ internal object AnalysisApiSurfaceNames {
 
     val KA_SESSION: String = KaSession::class.simpleName!!
 
-    const val KA_SPI: String = "KaSpi"
-    val SUBCLASS_OPT_IN_REQUIRED: String = SubclassOptInRequired::class.simpleName!!
-    val SUBCLASS_OPT_IN_REQUIRED_ANNOTATION: String = "@$SUBCLASS_OPT_IN_REQUIRED(KaImplementationDetail::class)"
+    @OptIn(KaImplementationDetail::class)
+    val KA_INTERNALS: String = KaInternals::class.simpleName!!
 
     const val KA_IMPLEMENTATION_DETAIL: String = "KaImplementationDetail"
 

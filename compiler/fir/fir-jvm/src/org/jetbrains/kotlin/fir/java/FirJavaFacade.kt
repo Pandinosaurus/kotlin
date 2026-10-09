@@ -9,7 +9,6 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.JavaPsiRecordUtil
 import org.jetbrains.kotlin.*
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
-import org.jetbrains.kotlin.config.isValhallaSupportEnabled
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.Modality
@@ -44,13 +43,17 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
-class FirJavaFacadeForSource(
+/**
+ * A [FirJavaFacade] whose classes all belong to a module defined by the [moduleData].
+ * Whether a session sees Java sources or class files is decided by [classFinder].
+ */
+class FirJavaFacadeForModule(
     session: FirSession,
-    private val sourceModuleData: FirModuleData,
+    private val moduleData: FirModuleData,
     classFinder: JavaClassFinder,
 ) : FirJavaFacade(session, classFinder) {
     override fun getModuleDataForClass(javaClass: JavaClass): FirModuleData {
-        return sourceModuleData
+        return moduleData
     }
 }
 
@@ -206,7 +209,7 @@ abstract class FirJavaFacade(session: FirSession, private val classFinder: JavaC
                 this.isJavaRecord = true
             }
 
-            if (session.languageVersionSettings.isValhallaSupportEnabled() && javaClass.isValue) {
+            if (javaClass.isValue) {
                 this.isJavaValueClass = true
             }
 

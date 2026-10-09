@@ -49,6 +49,8 @@ internal class BtaImplOptionsGenerator(
 
     private val outputs = mutableListOf<Pair<Path, String>>()
 
+    private var currentFileCallsApiEnumValues = false
+
     override fun generateArgumentsForLevel(
         level: KotlinCompilerArgumentsLevel,
         parentClass: ClassName?,
@@ -57,7 +59,8 @@ internal class BtaImplOptionsGenerator(
         val apiClassName = level.name.capitalizeAsciiOnly()
         val implClassName = apiClassName + "Impl"
         val mainFileAppendable = createGeneratedFileAppendable()
-        val mainFile = FileSpec.builder(targetPackage, implClassName).apply {
+        currentFileCallsApiEnumValues = false
+        val mainFileBuilder = FileSpec.builder(targetPackage, implClassName).apply {
             // Kotlinpoet requires these aliased imports when there's a name clash in the current context or else it calls the wrong member
             addAliasedImport(MemberName("org.jetbrains.kotlin.compilerRunner", "toArgumentStrings"), "compilerToArgumentStrings")
             addAliasedImport(MemberName(ClassName("org.jetbrains.kotlin.config", "KotlinCompilerVersion"), "VERSION"), "KC_VERSION")
@@ -203,14 +206,22 @@ internal class BtaImplOptionsGenerator(
                     addFunction(toCompilerArgumentsAffectingOutcomeFun.build())
                 }
 
-                maybeAddApplyArgumentStringsFun(level, parentClass, generateCompatLayer)
+                maybeAddApplyArgumentStringsFun(level, generateCompatLayer, compatLayerConfig?.currentKotlinVersion ?: kotlinVersion)
+                maybeAddApplyCommandLineArgumentsFun(level, generateCompatLayer)
                 maybeAddToArgumentsStringFun(level, parentClass)
                 if (!generateCompatLayer) {
                     generateRestrictedArgViolationCollection(level, parentClass)
                     generateToCompilationInputsFun(level, implClassName, parentClass)
                 }
             }
-        }.build()
+        }
+        if (currentFileCallsApiEnumValues) {
+            mainFileBuilder.addAnnotation(
+                AnnotationSpec.builder(ClassName("kotlin", "Suppress"))
+                    .addMember("%S", "EnumValuesSoftDeprecate").build()
+            )
+        }
+        val mainFile = mainFileBuilder.build()
         mainFile.writeTo(mainFileAppendable)
         outputs += Path(mainFile.relativePath) to mainFileAppendable.toString()
         return GeneratorOutputs(ClassName(targetPackage, implClassName), outputs)
@@ -631,11 +642,14 @@ internal class BtaImplOptionsGenerator(
         }
 
         when {
+            // BTA-API and BTA-IMPL could be used with different Kotlin-stdlib versions at the runtime, but from the different classloaders,
+            // which lead to JDK linkage error for `EnumEntries` symbol. We avoiding it by explicitly using values() method instead.
             type.isGeneratedEnum -> {
+                currentFileCallsApiEnumValues = true
                 add(maybeGetNullabilitySign(argument))
                 if (!generateCompatLayer) {
                     add(
-                        $$".let { %T.entries.firstOrNull { entry -> entry.stringValue.equals(it, true) }?.also { entry -> %M(_restrictedArgViolations, arguments::%N, entry.stringValue, it) } ?: throw %M(\"Unknown -$${argument.name} value: $it\") }",
+                        $$".let { %T.values().firstOrNull { entry -> entry.stringValue.equals(it, true) }?.also { entry -> %M(_restrictedArgViolations, arguments::%N, entry.stringValue, it) } ?: throw %M(\"Unknown -$${argument.name} value: $it\") }",
                         argumentTypeParameter.copy(nullable = false),
                         MemberName(targetPackage, "checkCaseMatches"),
                         effectiveCompilerName,
@@ -643,16 +657,17 @@ internal class BtaImplOptionsGenerator(
                     )
                 } else {
                     add(
-                        $$".let { %T.entries.firstOrNull { entry -> entry.stringValue.equals(it, true) } ?: throw %M(\"Unknown -$${argument.name} value: $it\") }",
+                        $$".let { %T.values().firstOrNull { entry -> entry.stringValue.equals(it, true) } ?: throw %M(\"Unknown -$${argument.name} value: $it\") }",
                         argumentTypeParameter.copy(nullable = false),
                         MemberName("org.jetbrains.kotlin.buildtools.api", "CompilerArgumentsParseException"),
                     )
                 }
             }
             type.isGeneratedEnumList() -> {
+                currentFileCallsApiEnumValues = true
                 val enumType = type.typeArguments[0]
                 add(
-                    $$".map { %T.entries.firstOrNull { entry -> entry.stringValue == it } ?: throw %M(\"Unknown -$${argument.name} value: $it\") }",
+                    $$".map { %T.values().firstOrNull { entry -> entry.stringValue == it } ?: throw %M(\"Unknown -$${argument.name} value: $it\") }",
                     enumType.copy(nullable = false),
                     MemberName("org.jetbrains.kotlin.buildtools.api", "CompilerArgumentsParseException")
                 )
@@ -1108,7 +1123,52 @@ private fun toCompilerConverterFunBuilder(
 
 private fun TypeSpec.Builder.maybeAddApplyArgumentStringsFun(
     level: KotlinCompilerArgumentsLevel,
-    parentClass: TypeName?,
+    generateCompatLayer: Boolean,
+    kotlinVersion: KotlinReleaseVersion,
+) {
+    if (!level.isLeaf()) {
+        return
+    }
+    val compilerArgumentsClass = level.getCompilerArgumentsClassName()
+    withDeprecationCycle(
+        kotlinVersion,
+        warnFrom = KotlinReleaseVersion.v2_5_0,
+        errorFrom = KotlinReleaseVersion.v2_6_0,
+        removeFrom = KotlinReleaseVersion.v2_7_0,
+        deprecationMessage = "This method is deprecated. Use applyCommandLineArguments instead."
+    ) { annotation ->
+        function("applyArgumentStrings") {
+            addModifiers(KModifier.OVERRIDE)
+            annotation?.let { addAnnotation(it) }
+            addParameter("arguments", listTypeNameOf<String>())
+            addStatement(
+                "val compilerArgs: %T = %M(arguments)",
+                compilerArgumentsClass,
+                MemberName("org.jetbrains.kotlin.cli.common.arguments", "parseCommandLineArguments")
+            )
+            if (!generateCompatLayer) {
+                addStatement("collectRestrictedArgViolations(compilerArgs, %T())", compilerArgumentsClass)
+                addStatement(
+                    "%M(compilerArgs.errors).forEach { _argumentValidationErrors.add(it) }",
+                    MemberName("org.jetbrains.kotlin.cli.common.arguments", "validateArgumentsAllErrors"),
+                )
+                // has to run before the values are applied, so that values previously set through the typed argument API
+                // are still observable
+                addStatement("argumentParseDiagnostics.record(compilerArgs, arguments) { toCompilerArguments() }")
+            } else {
+                addStatement(
+                    "%M(compilerArgs.errors)?.let { throw %M(it) }",
+                    MemberName("org.jetbrains.kotlin.cli.common.arguments", "validateArguments"),
+                    MemberName("org.jetbrains.kotlin.buildtools.api", "CompilerArgumentsParseException"),
+                )
+            }
+            addStatement("applyCompilerArguments(compilerArgs)")
+        }
+    }
+}
+
+private fun TypeSpec.Builder.maybeAddApplyCommandLineArgumentsFun(
+    level: KotlinCompilerArgumentsLevel,
     generateCompatLayer: Boolean,
 ) {
     if (!level.isLeaf()) {
@@ -1116,18 +1176,20 @@ private fun TypeSpec.Builder.maybeAddApplyArgumentStringsFun(
     }
     val compilerArgumentsClass = level.getCompilerArgumentsClassName()
 
-    function("applyArgumentStrings") {
+    function("applyCommandLineArguments") {
+        addAnnotation(ANNOTATION_DELICATE_BUILDTOOLS_API)
         addModifiers(KModifier.OVERRIDE)
-        if (parentClass == null) {
-            addModifiers(KModifier.OPEN)
-        }
         addParameter("arguments", listTypeNameOf<String>())
-        addStatement(
-            "val compilerArgs: %T = %M(arguments)",
-            compilerArgumentsClass,
-            MemberName("org.jetbrains.kotlin.cli.common.arguments", "parseCommandLineArguments")
-        )
         if (!generateCompatLayer) {
+            addStatement("val compilerArgs = toCompilerArguments()")
+            addStatement(
+                "%M(arguments, compilerArgs, false)",
+                MemberName("org.jetbrains.kotlin.cli.common.arguments", "parseCommandLineArguments")
+            )
+            addStatement(
+                "%M(this, compilerArgs)",
+                MemberName("org.jetbrains.kotlin.buildtools.internal.arguments", "handleCustomPluginArguments")
+            )
             addStatement("collectRestrictedArgViolations(compilerArgs, %T())", compilerArgumentsClass)
             addStatement(
                 "%M(compilerArgs.errors).forEach { _argumentValidationErrors.add(it) }",
@@ -1136,14 +1198,10 @@ private fun TypeSpec.Builder.maybeAddApplyArgumentStringsFun(
             // has to run before the values are applied, so that values previously set through the typed argument API
             // are still observable
             addStatement("argumentParseDiagnostics.record(compilerArgs, arguments) { toCompilerArguments() }")
+            addStatement("applyCompilerArguments(compilerArgs)")
         } else {
-            addStatement(
-                "%M(compilerArgs.errors)?.let { throw %M(it) }",
-                MemberName("org.jetbrains.kotlin.cli.common.arguments", "validateArguments"),
-                MemberName("org.jetbrains.kotlin.buildtools.api", "CompilerArgumentsParseException"),
-            )
+            addStatement("error(\"Will never be called, it's handled in JvmCompilerArgumentsImplV1Adapter\")")
         }
-        addStatement("applyCompilerArguments(compilerArgs)")
     }
 }
 

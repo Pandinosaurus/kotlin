@@ -5,11 +5,10 @@
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
+    id("test-coverage-convention")
     id("require-explicit-types")
 }
 
@@ -33,16 +32,11 @@ dependencies {
     testFixturesApi(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
 
     testCompileOnly(kotlinTest("junit"))
-
-    testFixturesCompileOnly(intellijCore())
 }
 
 sourceSets {
     "main" { projectDefault() }
-    "test" {
-        projectDefault()
-        generatedTestDir()
-    }
+    "test" { projectDefault() }
     "testFixtures" { projectDefault() }
 }
 
@@ -57,11 +51,11 @@ kotlin {
 }
 
 projectTests {
-    testTask {
-        workingDir = rootDir
-    }
+    testTask()
 
-    testGenerator("org.jetbrains.kotlin.fir.builder.TestGeneratorForPsi2FirKt")
+    testGenerator("org.jetbrains.kotlin.fir.builder.TestGeneratorForPsi2FirKt", generateTestsInBuildDirectory = true)
+
+    testData(project(":compiler:fir:raw-fir").isolated, "testData")
+    testData(project(":compiler").isolated, "testData")
 }
 
-testsJar()

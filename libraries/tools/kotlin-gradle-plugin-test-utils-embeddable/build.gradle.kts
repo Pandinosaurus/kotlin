@@ -7,16 +7,12 @@ description = "Shaded test jars from compiler for Gradle integration tests"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     `java-library`
 }
 
-val projectsToInclude = listOf(
-    ":compiler:incremental-compilation-impl",
-)
-
 val fixturesToInclude = listOf(
+    ":compiler:incremental-compilation-impl",
     ":compiler:test-infrastructure-utils",
     ":compiler:tests-common",
     ":compiler:tests-compiler-utils",
@@ -30,11 +26,6 @@ fun Dependency.unsetTransitive() {
 }
 
 dependencies {
-    for (projectName in projectsToInclude) {
-        api(projectTests(projectName)) { unsetTransitive() }
-        embedded(projectTests(projectName)) { unsetTransitive() }
-    }
-
     for (projectName in fixturesToInclude) {
         api(testFixtures(project(projectName))) { unsetTransitive() }
         embedded(testFixtures(project(projectName))) { unsetTransitive() }

@@ -5,8 +5,6 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.api
 
-import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
-import org.jetbrains.kotlin.analysis.api.impl.base.util.unexpectedElementError
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
 import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.llFirModuleData
@@ -21,12 +19,10 @@ import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.synthetic.FirSyntheticProperty
 import org.jetbrains.kotlin.fir.declarations.synthetic.FirSyntheticPropertyAccessor
-import org.jetbrains.kotlin.fir.declarations.utils.replExpressionReference
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirReplSnippetSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirScriptSymbol
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.name.ClassId
@@ -35,10 +31,7 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtScript
 import org.jetbrains.kotlin.utils.SmartList
-import org.jetbrains.kotlin.utils.exceptions.ExceptionAttachmentBuilder
-import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
-import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
-import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.*
 
 /**
  * This class describes where locates [target] element and its essential [path].
@@ -47,14 +40,13 @@ import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
  *
  * @see org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.LLFirResolveTarget
  */
-@KaImplementationDetail
-class FirDesignation(
+internal class FirDesignation(
     /**
      * The path to [target] element.
      *
      * ### Contracts:
      * * Can contain [FirFile] only in the first position
-     * * Can contain [FirScript]/[FirReplSnippet] only in the first or second position
+     * * Can contain [FirScript] only in the first or second position
      *
      * @see file
      * @see fileOrNull
@@ -76,7 +68,7 @@ class FirDesignation(
                     withFirDesignationEntry("designation", this@FirDesignation)
                 }
 
-                is FirScript, is FirReplSnippet -> requireWithAttachment(
+                is FirScript -> requireWithAttachment(
                     index == 0 || index == 1 && path.first() is FirFile,
                     { "${declaration::class.simpleName} can be only in the first or second position of the path, but actual is '$index'" },
                 ) {
@@ -105,21 +97,12 @@ class FirDesignation(
 
     val scriptOrNull: FirScript? get() = path.getOrNull(0) as? FirScript ?: path.getOrNull(1) as? FirScript ?: target as? FirScript
 
-    val replSnippet: FirReplSnippet
-        get() = replSnippetOrNull ?: errorWithAttachment("Repl snippet is not found") {
-            withFirDesignationEntry("designation", this@FirDesignation)
-        }
-
-    val replSnippetOrNull: FirReplSnippet?
-        get() = path.getOrNull(0) as? FirReplSnippet ?: path.getOrNull(1) as? FirReplSnippet ?: target as? FirReplSnippet
-
     override fun toString(): String = path.plus(target).joinToString(separator = " -> ") {
         it::class.simpleName ?: it.toString()
     }
 }
 
-@KaImplementationDetail
-fun ExceptionAttachmentBuilder.withFirDesignationEntry(name: String, designation: FirDesignation) {
+internal fun ExceptionAttachmentBuilder.withFirDesignationEntry(name: String, designation: FirDesignation) {
     withEntryGroup(name) {
         for ([index, declaration] in designation.path.withIndex()) {
             withFirEntry("path$index", declaration)
@@ -127,12 +110,6 @@ fun ExceptionAttachmentBuilder.withFirDesignationEntry(name: String, designation
 
         withFirEntry("target", designation.target)
     }
-}
-
-@KaImplementationDetail
-fun FirDesignation.toSequence(includeTarget: Boolean): Sequence<FirElementWithResolveState> = sequence {
-    yieldAll(path)
-    if (includeTarget) yield(target)
 }
 
 private fun tryCollectDesignation(providedFile: FirFile?, target: FirElementWithResolveState): FirDesignation? {
@@ -191,8 +168,12 @@ private fun tryCollectDesignation(providedFile: FirFile?, target: FirElementWith
         }
 
         is FirFile -> FirDesignation(target)
-        is FirScript, is FirCodeFragment, is FirReplSnippet -> {
+        is FirScript, is FirCodeFragment -> {
             collectDesignationPathWithContainingClass(providedFile, target, containingClassId = null)
+        }
+
+        is FirReplSnippet -> errorWithAttachment("${FirReplSnippet::class.simpleName} is not supported") {
+            withFirEntry("target", target)
         }
     }
 }
@@ -222,8 +203,8 @@ private fun collectDesignationPathWithContainingClass(
 
     val fallbackClassPath = containingClassId?.let { collectDesignationPathWithContainingClassFallback(target, it) }.orEmpty()
     val fallbackFile = providedFile ?: fallbackClassPath.lastOrNull()?.getContainingFile() ?: file
-    val fallbackScriptOrReplSnippet = fallbackFile?.scriptOrReplSnippet
-    val fallbackPath = listOfNotNull(fallbackFile, fallbackScriptOrReplSnippet) + fallbackClassPath
+    val fallbackScript = fallbackFile?.script
+    val fallbackPath = listOfNotNull(fallbackFile, fallbackScript) + fallbackClassPath
     val patchedPath = patchDesignationPathIfNeeded(target, fallbackPath)
     return FirDesignation(patchedPath, target)
 }
@@ -381,8 +362,7 @@ internal fun FirElementWithResolveState.collectDesignation(providedFile: FirFile
  * @see collectDesignation
  * @see tryCollectDesignation
  */
-@KaImplementationDetail
-fun FirElementWithResolveState.tryCollectDesignationWithOptionalFile(providedFile: FirFile? = null): FirDesignation? =
+internal fun FirElementWithResolveState.tryCollectDesignationWithOptionalFile(providedFile: FirFile? = null): FirDesignation? =
     tryCollectDesignation(providedFile = providedFile, target = this)
 
 /**
@@ -412,10 +392,6 @@ private fun patchDesignationPathForCopy(target: FirElementWithResolveState, targ
 
     val contextModule = targetModule.contextModule
     val contextResolutionFacade = contextModule.getResolutionFacade(contextModule.project)
-    val targetIsPartOfReplSnippet = target is FirReplSnippet ||
-            target is FirRegularClass && target.origin == FirDeclarationOrigin.Synthetic.ReplContainerClass ||
-            target is FirNamedFunction && target.origin == FirDeclarationOrigin.Synthetic.ReplEvalFunction ||
-            target is FirProperty && target.replExpressionReference != null
 
     return buildList {
         for (targetPathDeclaration in targetPath) {
@@ -427,21 +403,7 @@ private fun patchDesignationPathForCopy(target: FirElementWithResolveState, targ
             val originalPathPsi = targetPathPsi.unwrapCopy(targetPsiFile) ?: return null
             val originalPathDeclaration = when (originalPathPsi) {
                 is KtClassOrObject -> originalPathPsi.resolveToFirSymbolOfTypeSafe<FirRegularClassSymbol>(contextResolutionFacade)
-
-                // Repl snippet consists of a few unsplittable parts, so it cannot be patched partially in such cases
-                is KtScript if targetIsPartOfReplSnippet -> targetPathDeclaration.symbol
-                is KtScript -> when (targetPathDeclaration) {
-                    is FirScript -> originalPathPsi.resolveToFirSymbolOfTypeSafe<FirScriptSymbol>(contextResolutionFacade)
-                    else -> {
-                        val replSnippet = originalPathPsi.resolveToFirSymbolOfTypeSafe<FirReplSnippetSymbol>(contextResolutionFacade)
-                        if (targetPathDeclaration is FirReplSnippet) {
-                            replSnippet
-                        } else {
-                            replSnippet?.snippetClassSymbol
-                        }
-                    }
-                }
-
+                is KtScript -> originalPathPsi.resolveToFirSymbolOfTypeSafe<FirScriptSymbol>(contextResolutionFacade)
                 is KtFile -> originalPathPsi.getOrBuildFirFile(contextResolutionFacade).symbol
                 else -> null
             } ?: return null

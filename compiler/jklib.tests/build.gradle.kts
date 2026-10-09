@@ -1,9 +1,9 @@
+import TestCompilePaths.KOTLIN_JKLIB_STDLIB_PATH
+
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("test-inputs-check")
     id("java-test-fixtures")
 }
@@ -44,7 +44,7 @@ projectTests {
         defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_1_8, JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_17_0)
     ) {
         val klibProvider = objects.newInstance<SystemPropertyClasspathProvider>().apply {
-            property.set("kotlin.stdlib.jklib.for.test")
+            property.set(KOTLIN_JKLIB_STDLIB_PATH)
             classpath.from(stdlibJvmIr.elements.map { it.filter { it.asFile.name.endsWith(".klib") } })
         }
         jvmArgumentProviders.add(klibProvider)

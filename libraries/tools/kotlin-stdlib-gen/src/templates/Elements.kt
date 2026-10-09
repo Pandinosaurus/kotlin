@@ -507,6 +507,7 @@ object Elements : TemplateGroupBase() {
         }
         doc { "Returns the first ${f.element}." }
         throws("NoSuchElementException", "if the ${f.collection} is empty.")
+        sample("${f.sampleClass}.first")
         returns("T")
         body {
             """
@@ -607,6 +608,7 @@ object Elements : TemplateGroupBase() {
 
         doc { """Returns the first ${f.element} matching the given [predicate].
         @throws [NoSuchElementException] if no such ${f.element} is found.""" }
+        sample("${f.sampleClass}.first")
         returns("T")
 
         body {
@@ -1031,7 +1033,7 @@ object Elements : TemplateGroupBase() {
             """
             Returns a random ${f.element} from this ${f.collection}.
 
-            @throws ${if (f == RangesOfPrimitives) "IllegalArgumentException" else "NoSuchElementException"} if this ${f.collection} is empty.
+            @throws NoSuchElementException if this ${f.collection} is empty.
             """
         }
         body {
@@ -1064,7 +1066,7 @@ object Elements : TemplateGroupBase() {
             """
             Returns a random ${f.element} from this ${f.collection} using the specified source of randomness.
 
-            @throws ${if (f == RangesOfPrimitives) "IllegalArgumentException" else "NoSuchElementException"} if this ${f.collection} is empty.
+            @throws NoSuchElementException if this ${f.collection} is empty.
             """
         }
         body {

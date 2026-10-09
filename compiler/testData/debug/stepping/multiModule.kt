@@ -1,7 +1,7 @@
-// WASM_IGNORE_FOR: mode=single-module
-// ^^^ KT-88234
 // MODULE: lib
 // FILE: a.kt
+
+
 
 fun a() = "a"
 
@@ -17,7 +17,7 @@ fun box() {
     b()
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:16 box
 // a.kt:6 a
 // test.kt:16 box

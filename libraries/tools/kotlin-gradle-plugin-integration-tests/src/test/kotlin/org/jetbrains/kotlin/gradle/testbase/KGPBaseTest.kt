@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.gradle.testbase
 import com.intellij.testFramework.TestDataPath
 import org.jetbrains.kotlin.gradle.BrokenMacosTestInterceptor
 import org.jetbrains.kotlin.gradle.util.isTeamCityRun
-import org.jetbrains.kotlin.test.WithMuteInDatabase
+import org.jetbrains.kotlin.test.mutes.WithMuteInDatabase
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
@@ -41,7 +41,7 @@ abstract class KGPBaseTest {
     open val defaultBuildOptions = BuildOptions(fusReportDirectory = { workingDir.resolve("fus-report") })
 
     @TempDir
-    lateinit var workingDir: Path
+    open lateinit var workingDir: Path
 
     @AfterEach
     fun checkThatDefaultKonanHasNotBeenCreated() {

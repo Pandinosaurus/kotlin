@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLI
 import org.jetbrains.kotlin.gradle.plugin.ide.IdeDependencyResolver
 import org.jetbrains.kotlin.gradle.plugin.ide.IdeMultiplatformImport
 import org.jetbrains.kotlin.gradle.plugin.ide.IdeMultiplatformImportImpl
+import org.jetbrains.kotlin.gradle.plugin.ide.IdeMultiplatformImportLogger
 import org.jetbrains.kotlin.gradle.plugin.ide.kotlinIdeMultiplatformImport
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testbase.TestVersions.AgpCompatibilityMatrix
@@ -156,7 +157,7 @@ class MppIdeDependencyResolutionIT : KGPBaseTest() {
                     }
 
                     val nativeMainTarget = CommonizerTarget(
-                        LINUX_X64, LINUX_ARM64, MACOS_X64, MACOS_ARM64, IOS_X64, IOS_ARM64, IOS_SIMULATOR_ARM64, MINGW_X64
+                        LINUX_X64, LINUX_ARM64, MACOS_ARM64, IOS_X64, IOS_ARM64, IOS_SIMULATOR_ARM64, MINGW_X64
                     )
 
                     nativeMainDependencies.forEach { dependency ->
@@ -674,7 +675,7 @@ class MppIdeDependencyResolutionIT : KGPBaseTest() {
                         jvm()
                         linuxX64()
                         linuxArm64()
-                        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                        @Suppress("DEPRECATION_ERROR") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
                         iosX64()
                     }
                 }
@@ -685,7 +686,7 @@ class MppIdeDependencyResolutionIT : KGPBaseTest() {
                     jvm()
                     linuxX64()
                     linuxArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    @Suppress("DEPRECATION_ERROR") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
                     iosX64()
 
                     sourceSets.commonTest.dependencies {
@@ -752,8 +753,11 @@ class MppIdeDependencyResolutionIT : KGPBaseTest() {
         assertThrows<Exception> { project.resolveIdeDependencies(strictMode = true) {} }
 
         val events =
-            project.catchBuildFailures<org.jetbrains.kotlin.gradle.plugin.ide.IdeMultiplatformImportLogger.Events>().buildAndReturn(
-                ":resolveIdeDependencies", "-P${KOTLIN_KMP_STRICT_RESOLVE_IDE_DEPENDENCIES}=true"
+            project.catchBuildFailures<IdeMultiplatformImportLogger.Events>().buildAndReturn(
+                ":resolveIdeDependencies", "-P${KOTLIN_KMP_STRICT_RESOLVE_IDE_DEPENDENCIES}=true",
+                // Important: use the same build options configuration for this invocation of :resolveIdeDependencies
+                // as the one used by resolveIdeDependencies().
+                deriveBuildOptions = { buildOptions.disableConfigurationCache_KT70416() }
             ).unwrap().single()
         assertEquals<List<Class<*>>>(
             listOf(
@@ -847,7 +851,7 @@ class MppIdeDependencyResolutionIT : KGPBaseTest() {
             project.applyMultiplatform {
                 jvm()
                 js().browser()
-                @OptIn(ExperimentalWasmDsl::class) wasmJs()
+                wasmJs()
                 linuxX64()
                 linuxArm64()
             }

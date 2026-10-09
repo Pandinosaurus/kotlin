@@ -326,7 +326,8 @@ private fun AbstractNativeSimpleTest.compileToLibrary(
     return compilation.result.assertSuccess()
 }
 
-private fun AbstractNativeSimpleTest.compileToExecutableInOneStage(
+// Unlike other overloads, this one does not assert that the compilation has succeeded.
+internal fun AbstractNativeSimpleTest.compileToExecutableInOneStage(
     testCase: TestCase,
     tryPassSystemCacheDirectory: Boolean,
     dependencies: List<TestCompilationDependency<*>>
@@ -346,7 +347,7 @@ private fun AbstractNativeSimpleTest.compileToExecutableInOneStage(
 fun getLibraryArtifact(testCase: TestCase, outputDir: File, packed: Boolean = true) =
     TestCompilationArtifact.KLIB(outputDir.resolve(testCase.modules.first().name + if (packed) ".klib" else ""))
 
-private fun AbstractNativeSimpleTest.getExecutableArtifact() =
+fun AbstractNativeSimpleTest.getExecutableArtifact() =
     TestCompilationArtifact.Executable(buildDir.resolve("app." + testRunSettings.get<KotlinNativeTargets>().testTarget.family.exeSuffix))
 
 private fun directiveValues(testDataFileContents: String, directive: String) =

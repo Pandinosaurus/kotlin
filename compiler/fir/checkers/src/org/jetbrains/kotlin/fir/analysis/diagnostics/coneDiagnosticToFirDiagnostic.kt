@@ -47,6 +47,7 @@ import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability
 import org.jetbrains.kotlin.resolve.calls.tower.isSuccess
 import org.jetbrains.kotlin.types.EmptyIntersectionTypeKind
 import org.jetbrains.kotlin.types.model.K2Only
+import org.jetbrains.kotlin.util.ArrayLiteralResolution
 import org.jetbrains.kotlin.util.getPreviousSibling
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
@@ -186,6 +187,7 @@ private fun ConeInapplicableCandidateError.mapInapplicableCandidateError(
             // see EagerResolveOfCallableReferences
             is UnsuccessfulCallableReferenceArgument -> null
             is UnsuccessfulCollectionLiteralArgument -> null
+            is UnsuccessfulContextSensitiveResolutionArgument -> null
 
             is MultipleContextReceiversApplicableForExtensionReceivers ->
                 FirErrors.AMBIGUOUS_CALL_WITH_IMPLICIT_CONTEXT_RECEIVER.createOn(qualifiedAccessSource ?: source, session)
@@ -271,7 +273,7 @@ private fun ConeInapplicableCandidateError.mapInapplicableCandidateError(
                 session
             )
 
-            is InapplicableNullableReceiver -> inapplicableNullableReceiver(
+            is InapplicableUnsafeReceiver -> inapplicableNullableReceiver(
                 candidate,
                 rootCause,
                 source,
@@ -513,7 +515,7 @@ private fun ConeAmbiguityError.mapConeAmbiguityError(
         )
         applicability == CandidateApplicability.UNSAFE_CALL -> {
             val diagnosticAndCandidate = candidates.firstNotNullOfOrNull {
-                (it as? AbstractCallCandidate<*>)?.diagnostics?.firstIsInstanceOrNull<InapplicableNullableReceiver>()?.to(it)
+                (it as? AbstractCallCandidate<*>)?.diagnostics?.firstIsInstanceOrNull<InapplicableUnsafeReceiver>()?.to(it)
             }
             if (diagnosticAndCandidate != null) {
                 listOfNotNull(
@@ -684,6 +686,7 @@ private fun ConeDiagnostic.mapOtherDiagnostic(
     is ConeIntermediateDiagnostic -> null // At least some usages are accounted in FirMissingDependencyClassChecker
     is ConeContractDescriptionError -> FirErrors.ERROR_IN_CONTRACT_DESCRIPTION.createOn(source, this.reason, session)
     is ConeTypeParameterSupertype -> FirErrors.SUPERTYPE_NOT_A_CLASS_OR_INTERFACE.createOn(source, this.reason, session)
+    is ConeUnionTypeInSupertype -> FirErrors.SUPERTYPE_NOT_A_CLASS_OR_INTERFACE.createOn(source, this.reason, session)
     is ConeTypeParameterInQualifiedAccess -> runIf(forNoneApplicable) { // when not for NONE_APPLICABLE, reported in various checkers
         FirErrors.TYPE_PARAMETER_IS_NOT_AN_EXPRESSION.createOn(source, this.symbol, session)
     }
@@ -726,7 +729,7 @@ private fun ConeDiagnostic.mapOtherDiagnostic(
 
 private fun inapplicableNullableReceiver(
     candidate: AbstractCallCandidate<*>,
-    rootCause: InapplicableNullableReceiver,
+    rootCause: InapplicableUnsafeReceiver,
     source: KtSourceElement?,
     qualifiedAccessSource: KtSourceElement?,
     session: FirSession,
@@ -785,7 +788,7 @@ private fun inapplicableNullableReceiver(
     }
 }
 
-private fun unexpectedTrailingLambdaOnNewLineOrNull(argument: FirExpression, session: FirSession): KtSimpleDiagnostic? {
+private fun unexpectedTrailingLambdaOnNewLineOrNull(argument: FirExpression, session: FirSession): KtDiagnostic? {
     fun KtLightSourceElement.isTrailingLambdaOnNewLine(): Boolean {
         var parent = treeStructure.getParent(this.lighterASTNode) ?: return false
         if (parent.tokenType == KtNodeTypes.LABELED_EXPRESSION) {
@@ -913,7 +916,7 @@ private fun ConstraintSystemError.mapConstraintSystemError(
     //  see KT-82684)
     fun isUnreportedNotEnoughInformationForTypeParameter(): Boolean {
         return candidate.symbol is FirConstructorSymbol && candidate.callInfo.callSite is FirDelegatedConstructorCall
-                || source?.kind == KtFakeSourceElementKind.ErrorExpressionForTransformedArrayOf
+                || source?.kind == @OptIn(ArrayLiteralResolution::class) KtFakeSourceElementKind.ErrorExpressionForTransformedArrayOf
     }
 
     val typeContext = session.typeContext
@@ -1139,9 +1142,13 @@ private fun ConeSimpleDiagnostic.getFactory(source: KtSourceElement?): KtDiagnos
         DiagnosticKind.AnnotationInWhereClause -> FirErrors.ANNOTATION_IN_WHERE_CLAUSE_ERROR
         DiagnosticKind.MultipleAnnotationWithAllTarget -> FirErrors.INAPPLICABLE_ALL_TARGET_IN_MULTI_ANNOTATION
         DiagnosticKind.UnderscoreWithoutRenamingInDestructuring -> FirErrors.NAME_BASED_DESTRUCTURING_UNDERSCORE_WITHOUT_RENAMING
+        DiagnosticKind.NullableErrorComponentInUnionType -> FirErrors.NULLABLE_ERROR_COMPONENT_IN_UNION_TYPE
+        DiagnosticKind.NullableNestedUnionType -> FirErrors.NULLABLE_NESTED_UNION_TYPE
+        DiagnosticKind.NonErrorComponentInNestedUnionType -> FirErrors.NON_ERROR_COMPONENT_IN_NESTED_UNION_TYPE
+        DiagnosticKind.NonErrorComponentWrongPositionInUnionType -> FirErrors.NON_ERROR_COMPONENT_WRONG_POSITION_IN_UNION_TYPE
         DiagnosticKind.UnresolvedSupertype,
         DiagnosticKind.UnresolvedExpandedType,
-        DiagnosticKind.Other
+        DiagnosticKind.Other,
             -> FirErrors.OTHER_ERROR
     }
 }
@@ -1163,8 +1170,8 @@ internal fun KtDiagnosticFactory0.createOn(
     element: KtSourceElement?,
     session: FirSession,
     positioningStrategy: AbstractSourceElementPositioningStrategy? = null,
-): KtSimpleDiagnostic? {
-    return on(element.requireNotNull(), positioningStrategy, session.toDiagnosticContext())
+): KtDiagnostic? {
+    return onOrFallback(element, positioningStrategy, session.toDiagnosticContext())
 }
 
 @OptIn(InternalDiagnosticFactoryMethod::class)
@@ -1173,8 +1180,8 @@ internal fun <A> KtDiagnosticFactory1<A>.createOn(
     a: A,
     session: FirSession,
     positioningStrategy: AbstractSourceElementPositioningStrategy? = null,
-): KtDiagnosticWithParameters1<A>? {
-    return on(element.requireNotNull(), a, positioningStrategy, session.toDiagnosticContext())
+): KtDiagnostic? {
+    return onOrFallback(element, a, positioningStrategy, session.toDiagnosticContext())
 }
 
 @OptIn(InternalDiagnosticFactoryMethod::class)
@@ -1184,8 +1191,8 @@ internal fun <A, B> KtDiagnosticFactory2<A, B>.createOn(
     b: B,
     session: FirSession,
     positioningStrategy: AbstractSourceElementPositioningStrategy? = null,
-): KtDiagnosticWithParameters2<A, B>? {
-    return on(element.requireNotNull(), a, b, positioningStrategy, session.toDiagnosticContext())
+): KtDiagnostic? {
+    return onOrFallback(element, a, b, positioningStrategy, session.toDiagnosticContext())
 }
 
 @OptIn(InternalDiagnosticFactoryMethod::class)
@@ -1196,8 +1203,8 @@ internal fun <A, B, C> KtDiagnosticFactory3<A, B, C>.createOn(
     c: C,
     session: FirSession,
     positioningStrategy: AbstractSourceElementPositioningStrategy? = null,
-): KtDiagnosticWithParameters3<A, B, C>? {
-    return on(element.requireNotNull(), a, b, c, positioningStrategy, session.toDiagnosticContext())
+): KtDiagnostic? {
+    return onOrFallback(element, a, b, c, positioningStrategy, session.toDiagnosticContext())
 }
 
 @OptIn(InternalDiagnosticFactoryMethod::class)
@@ -1209,6 +1216,6 @@ internal fun <A, B, C, D> KtDiagnosticFactory4<A, B, C, D>.createOn(
     d: D,
     session: FirSession,
     positioningStrategy: AbstractSourceElementPositioningStrategy? = null,
-): KtDiagnosticWithParameters4<A, B, C, D>? {
-    return on(element.requireNotNull(), a, b, c, d, positioningStrategy, session.toDiagnosticContext())
+): KtDiagnostic? {
+    return onOrFallback(element, a, b, c, d, positioningStrategy, session.toDiagnosticContext())
 }

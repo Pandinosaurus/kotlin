@@ -23,6 +23,7 @@ import com.intellij.psi.search.LocalSearchScope
  * // The entire `for` block from `outer@` to `}`
  * ```
  */
+@OptIn(KtImplementationDetail::class)
 class KtLabeledExpression : KtExpressionWithLabel, PsiNameIdentifierOwner {
     @KtImplementationDetail
     constructor(node: ASTNode) : super(node)
@@ -38,8 +39,12 @@ class KtLabeledExpression : KtExpressionWithLabel, PsiNameIdentifierOwner {
 
     override fun getName() = getLabelName()
 
-    @OptIn(KtNonPublicApi::class)
-    override fun setName(name: String): PsiElement = KtPsiMutationService.getInstance().setLabeledExpressionName(this, name)
+    @OptIn(KtIdeApi::class)
+    override fun setName(name: String): PsiElement {
+        KtPsiMutationService.getInstanceOrNull()?.let { return it.setLabeledExpressionName(this, name) }
+        getTargetLabel()?.replace(KtPsiFactory(project).createLabeledExpression(name).getTargetLabel()!!)
+        return this
+    }
 
     override fun getNameIdentifier() = getTargetLabel()?.getIdentifier()
 

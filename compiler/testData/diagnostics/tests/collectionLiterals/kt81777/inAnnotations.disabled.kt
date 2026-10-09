@@ -1,8 +1,8 @@
 // RUN_PIPELINE_TILL: FRONTEND
 // ISSUE: KT-81777, KT-76150
-// IGNORE_PHASE_VERIFICATION: invalid code inside annotations
 // WITH_STDLIB
-// LANGUAGE_FEATURE_TOGGLED: CollectionLiterals
+// LANGUAGE: -CollectionLiterals
+// LANGUAGE_FEATURE_TOGGLED: CollectionLiteralsBasedAnnotationResolution
 
 @Repeatable
 annotation class AnnoString(val args: Array<String>)

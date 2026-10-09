@@ -1,12 +1,18 @@
 import org.gradle.jvm.tasks.Jar
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinCommonCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.GenerateProjectStructureMetadata
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
+import org.jetbrains.kotlin.gradle.targets.js.KotlinJsPlatformTestRun
 import org.jetbrains.kotlin.gradle.targets.js.KotlinWasmTargetType
+import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBinaryMode
+import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsSubTargetDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTargetDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinTargetWithNodeJsDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinWasmTargetDsl
@@ -14,6 +20,8 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinWasmWasiTargetDsl
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrLink
 import org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompileCommon
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jetbrains.kotlin.gradle.tasks.UsesKotlinJavaToolchain
 import org.jetbrains.kotlin.library.KOTLIN_JS_STDLIB_NAME
 import org.jetbrains.kotlin.library.KOTLIN_WASM_STDLIB_NAME
@@ -25,7 +33,6 @@ import kotlin.io.path.copyTo
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
     `maven-publish`
@@ -37,8 +44,7 @@ plugins {
 }
 
 description = "Kotlin Standard Library"
-
-configureJvmToolchain(JdkMajorVersion.JDK_1_8)
+val buildFeatures = serviceOf<BuildFeatures>()
 
 fun KotlinCommonCompilerOptions.mainCompilationOptions() {
     // Use this to override language and API versions for stdlib compared to the version used to build the whole Kotlin
@@ -46,29 +52,14 @@ fun KotlinCommonCompilerOptions.mainCompilationOptions() {
     // apiVersion = KotlinVersion.KOTLIN_...
     freeCompilerArgs.add("-Xstdlib-compilation")
     freeCompilerArgs.add("-Xdont-warn-on-error-suppression")
-    freeCompilerArgs.add("-Xcontext-parameters")
-    freeCompilerArgs.add("-Xname-based-destructuring=complete")
-    freeCompilerArgs.add("-Xcollection-literals")
+    freeCompilerArgs.addAll(dogfoodedExperimentalFeatures)
+    freeCompilerArgs.add("-Xreturn-value-checker=full")
+    freeCompilerArgs.add("-Xcompanion-blocks")
     if (!kotlinBuildProperties.disableWerror) allWarningsAsErrors = true
 
     if (this is KotlinJvmCompilerOptions) {
-        suppressRedundantCliArgumentWarning()
+        freeCompilerArgs.add(redundantCliArgWarningSuppression)
     }
-}
-
-fun KotlinCommonCompilerOptions.addReturnValueCheckerInfo() {
-    freeCompilerArgs.add("-Xreturn-value-checker=full")
-}
-
-/**
- * Between making a language feature stable and the next bootstrap, we need to keep providing the compiler argument.
- * But this produces a warning
- * "The argument ... is redundant for the current language version ..."
- * in the bootstrap test and fails because of -Werror.
- * To work around it, we suppress the warning.
- */
-fun KotlinCommonCompilerOptions.suppressRedundantCliArgumentWarning() {
-    freeCompilerArgs.add("-Xwarning-level=REDUNDANT_CLI_ARG:disabled")
 }
 
 val jvmBuiltinsRelativeDir = "libraries/stdlib/jvm/builtins"
@@ -96,23 +87,35 @@ kotlin {
 
     explicitApi()
 
+    compilerOptions {
+        // Some main compilations use freeCompilerArgs.set instead of .addAll,
+        // so these options may be duplicated there as well.
+        // Here it mainly serves the purpose to set up test compilations/source sets
+        // and especially commonTest in IDE since there is no separate metadata compilation for it.
+        freeCompilerArgs.add("-Xreturn-value-checker=full")
+        freeCompilerArgs.add("-Xcompanion-blocks")
+        freeCompilerArgs.addAll(dogfoodedExperimentalFeatures)
+        freeCompilerArgs.add("-Xallow-kotlin-package")
+    }
+
     metadata {
         compilations {
             all {
                 compileTaskProvider.configure {
+                    this as KotlinCompileCommon
+                    @Suppress("DEPRECATION")
+                    moduleName = "kotlin-stdlib-common"
                     compilerOptions {
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xallow-kotlin-package",
-                                "-module-name", "kotlin-stdlib-common",
                                 "-Xexpect-actual-classes",
                                 "-Xexplicit-api=strict",
                                 diagnosticNamesArg,
+                                redundantCliArgWarningSuppression,
                             )
                         )
                         mainCompilationOptions()
-                        addReturnValueCheckerInfo()
-                        suppressRedundantCliArgumentWarning()
                     }
                 }
             }
@@ -127,10 +130,13 @@ kotlin {
                             listOfNotNull(
                                 "-Xallow-kotlin-package",
                                 "-Xsuppress-missing-builtins-error",
-                                diagnosticNamesArg
+                                diagnosticNamesArg,
+                                *dogfoodedExperimentalFeatures.toTypedArray(),
+                                "-Xreturn-value-checker=full",
+                                "-Xcompanion-blocks",
+                                redundantCliArgWarningSuppression,
                             )
                         )
-                        suppressRedundantCliArgumentWarning()
                     }
                 }
             }
@@ -147,11 +153,11 @@ kotlin {
                     compilerOptions {
                         moduleName = "kotlin-stdlib"
                         jvmTarget = JvmTarget.JVM_1_8
+                        jvmDefault = JvmDefaultMode.DISABLE
                         // providing exhaustive list of args here
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xjdk-release=6",
-                                "-jvm-default=disable",
                                 "-Xallow-kotlin-package",
                                 "-Xexpect-actual-classes",
                                 "-Xmultifile-parts-inherit",
@@ -162,7 +168,6 @@ kotlin {
                             )
                         )
                         mainCompilationOptions()
-                        addReturnValueCheckerInfo()
                     }
                 }
                 defaultSourceSet {
@@ -179,10 +184,10 @@ kotlin {
                     compilerOptions {
                         moduleName = "kotlin-stdlib-jdk7"
                         jvmTarget = JvmTarget.JVM_1_8
+                        jvmDefault = JvmDefaultMode.DISABLE
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xjdk-release=7",
-                                "-jvm-default=disable",
                                 "-Xallow-kotlin-package",
                                 "-Xexpect-actual-classes",
                                 "-Xmultifile-parts-inherit",
@@ -192,7 +197,6 @@ kotlin {
                             )
                         )
                         mainCompilationOptions()
-                        addReturnValueCheckerInfo()
                     }
                 }
             }
@@ -202,10 +206,10 @@ kotlin {
                 compileTaskProvider.configure {
                     compilerOptions {
                         moduleName = "kotlin-stdlib-jdk8"
+                        jvmDefault = JvmDefaultMode.DISABLE
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xallow-kotlin-package",
-                                "-jvm-default=disable",
                                 "-Xmultifile-parts-inherit",
                                 "-Xno-new-java-annotation-targets",
                                 "-Xexplicit-api=strict",
@@ -213,7 +217,6 @@ kotlin {
                             )
                         )
                         mainCompilationOptions()
-                        addReturnValueCheckerInfo()
                     }
                 }
             }
@@ -254,13 +257,67 @@ kotlin {
         }
     }
     js {
-        if (!kotlinBuildProperties.isTeamcityBuild.get()) {
-            browser {}
+        val testCompilation = compilations.getByName("test")
+        val mainCompilation = compilations.getByName("main") {
+            compileTaskProvider.configure {
+                compilerOptions.mainCompilationOptions()
+                compilerOptions.freeCompilerArgs.addAll(
+                    listOfNotNull(
+                        "-Xir-module-name=$KOTLIN_JS_STDLIB_NAME",
+                        diagnosticNamesArg,
+                    )
+                )
+            }
         }
-        nodejs {
-            testTask {
-                useMocha {
-                    timeout = "10s"
+
+        val latestJsCompilation = compilations.create("latestJsTest") {
+            associateWith(mainCompilation)
+            // Sources are configured in the `sourceSets` block below (see `jsLatestJsTest`).
+            // Don't `dependsOn(jsTest)` here: that would make `jsTest` a shared (non-leaf) source set
+            // and break its dependency resolution (e.g., kotlin.test) in the IDE.
+            binaries.executable(this)
+            binaries.configureEach {
+                linkTask.configure {
+                    compilerOptions {
+                        target.set("es2020")
+                        moduleKind.set(JsModuleKind.MODULE_COMMONJS) // Mocha adapter doesn't support ES modules yet
+                    }
+                }
+            }
+        }
+
+        fun KotlinJsSubTargetDsl.latestTargetRunRegistering(): KotlinJsPlatformTestRun {
+            return testRuns.create("latestTarget") {
+                setExecutionSourceFrom(latestJsCompilation)
+                executionTask.configure {
+                    val devBinary = latestJsCompilation.binaries
+                        .matching { it.mode == KotlinJsBinaryMode.DEVELOPMENT }
+                        .single()
+
+                    inputFileProperty.set(devBinary.mainFileSyncPath)
+                }
+            }
+        }
+
+
+        if(!buildFeatures.isolatedProjects.active.get()) {
+            if (!kotlinBuildProperties.isTeamcityBuild.get()) {
+                browser {
+                    val latestJsRun = latestTargetRunRegistering()
+
+                    testTask {
+                        dependsOn(latestJsRun.executionTask)
+                    }
+                }
+            }
+            nodejs {
+                val latestJsRun = latestTargetRunRegistering()
+
+                testTask {
+                    dependsOn(latestJsRun.executionTask)
+                    useMocha {
+                        timeout = "10s"
+                    }
                 }
             }
         }
@@ -274,20 +331,6 @@ kotlin {
             )
         }
 
-        compilations {
-            val main = getByName("main") {
-                compileTaskProvider.configure {
-                    compilerOptions.mainCompilationOptions()
-                    compilerOptions.freeCompilerArgs.addAll(
-                        listOfNotNull(
-                            "-Xir-module-name=$KOTLIN_JS_STDLIB_NAME",
-                            diagnosticNamesArg,
-                        )
-                    )
-                    compilerOptions.addReturnValueCheckerInfo()
-                }
-            }
-        }
     }
 
     fun <T> T.commonWasmTargetConfiguration()
@@ -298,7 +341,9 @@ kotlin {
         // KT-85971
         this as KotlinJsTargetDsl
         if (this.wasmTargetType == KotlinWasmTargetType.JS) {
-            nodejs()
+            if(!buildFeatures.isolatedProjects.active.get()) {
+                nodejs()
+            }
         } else {
             this as KotlinWasmWasiTargetDsl
             @OptIn(ExperimentalWasmDsl::class)
@@ -319,7 +364,6 @@ kotlin {
             val main = getByName("main") {
                 compileTaskProvider.configure {
                     compilerOptions.mainCompilationOptions()
-                    compilerOptions.addReturnValueCheckerInfo()
                     compilerOptions.freeCompilerArgs.add("-Xir-module-name=$KOTLIN_WASM_STDLIB_NAME")
                 }
             }
@@ -340,7 +384,7 @@ kotlin {
         val hostOs = System.getProperty("os.name")
         val isMingwX64 = hostOs.startsWith("Windows")
         val nativeTarget = when {
-            hostOs == "Mac OS X" -> @Suppress("DEPRECATION") macosX64("native")
+            hostOs == "Mac OS X" -> @Suppress("DEPRECATION", "DEPRECATION_ERROR") macosX64("native")
             hostOs == "Linux" -> linuxX64("native")
             isMingwX64 -> mingwX64("native")
             else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
@@ -353,9 +397,6 @@ kotlin {
                     "-nostdlib",
                 )
             )
-        }
-        nativeTarget.compilations["main"].compileTaskProvider.configure {
-            compilerOptions.addReturnValueCheckerInfo()
         }
     }
 
@@ -487,6 +528,11 @@ kotlin {
             kotlin.srcDir("${jsDir}/test")
         }
 
+        named("jsLatestJsTest") {
+            dependsOn(commonTest.get())
+            kotlin.srcDirs(jsTest.kotlin.srcDirs)
+        }
+
         val nativeWasmMain = create("nativeWasmMain") {
             dependsOn(commonNonJvmMain)
             kotlin.srcDir("native-wasm/src")
@@ -569,6 +615,7 @@ kotlin {
             }
             languageSettings {
                 optIn("kotlin.wasm.unsafe.UnsafeWasmMemoryApi")
+                optIn("kotlin.wasm.ExperimentalWasmInterop")
             }
         }
         val wasmWasiTest = getByName("wasmWasiTest") {
@@ -631,8 +678,6 @@ kotlin {
                     commonTestOptIns.forEach { optIn(it) }
                 }
             }
-            compilerOptions.freeCompilerArgs.add("-Xname-based-destructuring=complete")
-            compilerOptions.freeCompilerArgs.add("-Xcollection-literals")
         }
     }
 }
@@ -813,6 +858,7 @@ tasks {
         val distWasmWasiKlib = configurations.create("distWasmWasiKlib")
         val commonMainMetadataElements = configurations.create("commonMainMetadataElements")
         val webMainMetadataElements = configurations.create("webMainMetadataElements")
+        val jsIrMainSources = configurations.create("jsIrMainSources")
 
         add(distJsSourcesJar.name, jsSourcesJar)
         add(distJsKlib.name, jsJar)
@@ -820,6 +866,7 @@ tasks {
         add(distWasmWasiKlib.name, wasmWasiJar)
         add(webMainMetadataElements.name, webMetadataJar)
         add(commonMainMetadataElements.name, commonMetadataJar)
+        add(jsIrMainSources.name, project.tasks.named("prepareJsIrMainSources"))
     }
 
 
@@ -857,11 +904,14 @@ tasks {
             exclude("generated/minmax/*")
             exclude("collections/MapTest.kt")
         }
-        named("compileTestDevelopmentExecutableKotlinWasm$wasmTarget", KotlinJsIrLink::class) {
-            compilerOptions.freeCompilerArgs.add("-Xwasm-enable-array-range-checks")
-        }
-        named("compileTestProductionExecutableKotlinWasm$wasmTarget", KotlinJsIrLink::class) {
-            enabled = false  // Causes out-of-memory in CI: KTI-2150
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            named("compileTestDevelopmentExecutableKotlinWasm$wasmTarget", KotlinJsIrLink::class) {
+                compilerOptions.freeCompilerArgs.add("-Xwasm-enable-array-range-checks")
+                compilerOptions.freeCompilerArgs.add("-Xwasm-enable-asserts")
+            }
+            named("compileTestProductionExecutableKotlinWasm$wasmTarget", KotlinJsIrLink::class) {
+                enabled = false  // Causes out-of-memory in CI: KTI-2150
+            }
         }
     }
 
@@ -1050,4 +1100,40 @@ for (name in listOf("sources", "distSources")) {
 // Disabling IC for JS tasks as they may produce false-positive compilation failure
 tasks.withType<Kotlin2JsCompile>().configureEach {
     incremental = false
+}
+
+tasks.withType<KotlinCompilationTask<*>>().configureEach {
+    val problems = serviceOf<Problems>()
+    val expectedRvcMode = "full"
+    doFirst("ensure return-value-checker is enabled") {
+        val reporter = problems.reporter
+
+        val rvcModes = compilerOptions.freeCompilerArgs.orNull.orEmpty().filter { "return-value-checker" in it }
+        val rvcMode = rvcModes.singleOrNull()
+
+        if (rvcMode == null) {
+            reporter.report(
+                ProblemId.create(
+                    "missing-rvc-mode",
+                    "return-value-checker not set",
+                    ProblemGroup.create("return-value-checker", "return-value-checker")
+                )
+            ) {
+                details("$path has invalid return-value-checker mode. All values: $rvcModes")
+                solution("""Enable return-value-checker""")
+            }
+        } else if (!rvcMode.endsWith("=$expectedRvcMode", ignoreCase = true)) {
+            logger.warn("$path has incorrect return-value-checker mode. Expected: $expectedRvcMode, but actual arg is: $rvcMode")
+            reporter.report(
+                ProblemId.create(
+                    "incorrect-rvc-mode",
+                    "incorrect return-value-checker mode",
+                    ProblemGroup.create("return-value-checker", "return-value-checker")
+                )
+            ) {
+                details("$path has incorrect return-value-checker mode. Expected: $expectedRvcMode, but actual arg is: $rvcMode")
+                solution("""Enable return-value-checker=$expectedRvcMode""")
+            }
+        }
+    }
 }

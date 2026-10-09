@@ -1,9 +1,9 @@
 // ISSUE: KT-84618
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LANGUAGE: +UnnamedLocalVariables +NameBasedDestructuring
 // LATEST_LV_DIFFERENCE
 
-// FILE: JavaUtils.java
+// FILE: test/JavaUtils.java
 
 package test;
 

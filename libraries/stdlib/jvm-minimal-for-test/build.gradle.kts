@@ -2,13 +2,14 @@ description = "Kotlin Mock Runtime for Tests"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
     `maven-publish`
 }
 
-project.configureJvmToolchain(JdkMajorVersion.JDK_1_8)
+jvmToolchains {
+    targetBytecodeVersion = JdkMajorVersion.JDK_1_8
+}
 
 val stdlibProjectDir = file("$rootDir/libraries/stdlib")
 
@@ -38,6 +39,7 @@ val copyCommonSources = tasks.register<Sync>("copyCommonSources") {
             "kotlin/Nothing.kt",
             "kotlin/Number.kt",
             "kotlin/Primitives.kt",
+            "kotlin/RichError.kt",
             "kotlin/String.kt",
             "kotlin/Throwable.kt",
             "kotlin/Unit.kt",
@@ -110,14 +112,10 @@ kotlin {
                                 "-Xdont-warn-on-error-suppression",
                                 "-opt-in=kotlin.contracts.ExperimentalContracts",
                                 "-opt-in=kotlin.ExperimentalMultiplatform",
-                                "-Xcontext-parameters",
+                                *dogfoodedExperimentalFeatures.toTypedArray(),
+                                redundantCliArgWarningSuppression,
                                 "-Xreturn-value-checker=full",
-                                // Between making a language feature stable and the next bootstrap, we need to keep providing the compiler argument.
-                                // But this produces a warning
-                                // "The argument ... is redundant for the current language version ..."
-                                // in the bootstrap test and fails because of -Werror.
-                                // To work around it, we suppress the warning.
-                                "-Xwarning-level=REDUNDANT_CLI_ARG:disabled",
+                                "-Xcompanion-blocks",
                             )
                         )
                     }

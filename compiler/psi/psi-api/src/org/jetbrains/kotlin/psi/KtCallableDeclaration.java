@@ -1,12 +1,14 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.psi.PsiElement;
+import kotlin.DeprecationLevel;
 import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,6 +34,7 @@ import java.util.List;
  * @see KtProperty
  * @see KtParameter
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public interface KtCallableDeclaration extends KtNamedDeclaration, KtDeclarationWithReturnType, KtTypeParameterListOwner {
     /** Returns the parenthesized list of value parameters, or {@code null} if this callable has none (for example, a property). */
     @Nullable
@@ -121,7 +124,8 @@ public interface KtCallableDeclaration extends KtNamedDeclaration, KtDeclaration
             replaceWith = @ReplaceWith(
                     expression = "this.setCallableTypeReference(null, typeRef)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.setCallableTypeReference"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     @Nullable

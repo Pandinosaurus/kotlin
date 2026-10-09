@@ -7,7 +7,9 @@ package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
+import kotlin.DeprecationLevel;
 import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;
@@ -32,6 +34,7 @@ import java.util.List;
  * // ^_______________________^
  * }</pre>
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtPackageDirective extends KtModifierListOwnerStub<KotlinPlaceHolderStub<KtPackageDirective>> {
     private String qualifiedNameCache = null;
 
@@ -145,7 +148,8 @@ public class KtPackageDirective extends KtModifierListOwnerStub<KotlinPlaceHolde
             replaceWith = @ReplaceWith(
                     expression = "this.setPackageFqName(fqName)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.setPackageFqName"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     public void setFqName(@NotNull FqName fqName) {

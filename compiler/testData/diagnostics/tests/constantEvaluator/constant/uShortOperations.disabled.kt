@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LANGUAGE_FEATURE_TOGGLED: IntrinsicConstEvaluation
 // DIAGNOSTICS: -REDUNDANT_CALL_OF_CONVERSION_METHOD
 // WITH_STDLIB
@@ -108,10 +108,10 @@ const val convert12 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>shortVal.toUShort(
 const val convert13 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>intVal.toUShort()<!>
 const val convert14 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>longVal.toUShort()<!>
 
-const val equals1 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>oneVal == twoVal<!>
-const val equals2 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>twoVal == twoVal<!>
-const val equals3 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>threeVal == twoVal<!>
-const val equals4 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>fourVal == twoVal<!>
+const val equals1 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>oneVal<!> == twoVal
+const val equals2 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>twoVal<!> == twoVal
+const val equals3 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>threeVal<!> == twoVal
+const val equals4 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>fourVal<!> == twoVal
 
 const val toString1 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>oneVal.toString()<!>
 const val toString2 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>twoVal.toString()<!>

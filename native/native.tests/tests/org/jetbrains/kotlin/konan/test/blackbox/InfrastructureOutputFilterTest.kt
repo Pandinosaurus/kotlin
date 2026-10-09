@@ -38,7 +38,7 @@ class InfrastructureOutputFilterTest {
         val (filteredOutput, testReport) = TCTestOutputFilter.filter(testOutput)
         testReport ?: throw AssertionError("Test report expected")
 
-        assertTrue(testReport.isEmpty())
+        assertTrue(testReport.tests.isEmpty())
         assertTrue(testOutput == filteredOutput)
     }
 
@@ -88,18 +88,18 @@ class InfrastructureOutputFilterTest {
         val (filteredOutput, testReport) = TCTestOutputFilter.filter(testOutput)
         testReport ?: throw AssertionError("Test report expected")
 
-        assertTrue(!testReport.isEmpty())
+        assertTrue(!testReport.tests.isEmpty())
         assertEquals(
             listOf("sample.test.Foo.passed", "sample.test.Baz.passed"),
-            testReport.passedTests.map(TestName::toString)
+            testReport.tests.passedTests.map(TestName::toString)
         )
         assertEquals(
             listOf("sample.test.Foo.failed", "sample.test.Baz.failed"),
-            testReport.failedTests.map(TestName::toString)
+            testReport.tests.failedTests.map(TestName::toString)
         )
         assertEquals(
             listOf("sample.test.Foo.ignored", "sample.test.Baz.ignored"),
-            testReport.ignoredTests.map(TestName::toString)
+            testReport.tests.ignoredTests.map(TestName::toString)
         )
 
         assertEquals(
@@ -132,6 +132,24 @@ class InfrastructureOutputFilterTest {
     }
 
     @Test
+    fun repeatedTCOutcomeRetainsItsCountSeparatelyFromDistinctTestNames() {
+        val testOutput = """
+            ##teamcity[testSuiteStarted name='sample.test.Foo']
+            ##teamcity[testStarted name='repeated']
+            ##teamcity[testFinished name='repeated']
+            ##teamcity[testStarted name='repeated']
+            ##teamcity[testFinished name='repeated']
+            ##teamcity[testSuiteFinished name='sample.test.Foo']
+        """.trimIndent()
+
+        val filteredOutput = TCTestOutputFilter.filter(testOutput)
+        val testReport = filteredOutput.testReport ?: throw AssertionError("Test report expected")
+
+        assertEquals(2, testReport.reportedOutcomeCount)
+        assertEquals(listOf("sample.test.Foo.repeated"), testReport.tests.passedTests.map(TestName::toString))
+    }
+
+    @Test
     fun interruptedTestTCMessage() {
         val testOutput = """
             1
@@ -149,10 +167,10 @@ class InfrastructureOutputFilterTest {
         val (filteredOutput, testReport) = TCTestOutputFilter.filter(testOutput)
         testReport ?: throw AssertionError("Test report expected")
 
-        assertTrue(!testReport.isEmpty())
-        assertEquals(listOf("sample.test.Foo.passed"), testReport.passedTests.map(TestName::toString))
-        assertEquals(listOf("sample.test.Foo.failed"), testReport.failedTests.map(TestName::toString))
-        assertTrue(testReport.ignoredTests.isEmpty())
+        assertTrue(!testReport.tests.isEmpty())
+        assertEquals(listOf("sample.test.Foo.passed"), testReport.tests.passedTests.map(TestName::toString))
+        assertEquals(listOf("sample.test.Foo.failed"), testReport.tests.failedTests.map(TestName::toString))
+        assertTrue(testReport.tests.ignoredTests.isEmpty())
 
         assertEquals(
             """
@@ -161,6 +179,47 @@ class InfrastructureOutputFilterTest {
                 |3
                 |4
                 |5
+                |
+            """.trimMargin(),
+            filteredOutput
+        )
+    }
+
+    /**
+     * If the test process terminates abnormally, the test runner may relaunch the whole test suite.
+     * For example, `xcodebuild` does this and prints "Restarting after unexpected exit, crash, or test timeout".
+     * The interrupted test must be reported as failed, and the output of the relaunched suite must still be parsed.
+     */
+    @Test
+    fun relaunchedTestSuiteTCMessages() {
+        val testOutput = """
+            1
+            ##teamcity[testSuiteStarted name='sample.test.Foo']
+            2
+            ##teamcity[testStarted name='crashed']
+            3
+            ##teamcity[testSuiteStarted name='sample.test.Foo']
+            ##teamcity[testStarted name='passed']
+            ##teamcity[testFinished name='passed']
+            ##teamcity[testSuiteFinished name='sample.test.Foo']
+            4
+            
+        """.trimIndent()
+
+        val (filteredOutput, testReport) = TCTestOutputFilter.filter(testOutput)
+        testReport ?: throw AssertionError("Test report expected")
+
+        assertTrue(!testReport.tests.isEmpty())
+        assertEquals(listOf("sample.test.Foo.passed"), testReport.tests.passedTests.map(TestName::toString))
+        assertEquals(listOf("sample.test.Foo.crashed"), testReport.tests.failedTests.map(TestName::toString))
+        assertTrue(testReport.tests.ignoredTests.isEmpty())
+
+        assertEquals(
+            """
+                |1
+                |2
+                |3
+                |4
                 |
             """.trimMargin(),
             filteredOutput

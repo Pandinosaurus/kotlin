@@ -503,6 +503,24 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
   }
 
   @Test
+  @TestMetadata("lambdaInsideAnnotationArgument.kt")
+  public void testLambdaInsideAnnotationArgument() {
+    run("lambdaInsideAnnotationArgument.kt");
+  }
+
+  @Test
+  @TestMetadata("lambdaInsideForeignTypeAnnotation.kt")
+  public void testLambdaInsideForeignTypeAnnotation() {
+    run("lambdaInsideForeignTypeAnnotation.kt");
+  }
+
+  @Test
+  @TestMetadata("lambdaInsideLocalForeignTypeAnnotation.kt")
+  public void testLambdaInsideLocalForeignTypeAnnotation() {
+    run("lambdaInsideLocalForeignTypeAnnotation.kt");
+  }
+
+  @Test
   @TestMetadata("lazyProperty.kt")
   public void testLazyProperty() {
     run("lazyProperty.kt");
@@ -560,6 +578,18 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
   @TestMetadata("localParameterInsideSuperEntryCall.kt")
   public void testLocalParameterInsideSuperEntryCall() {
     run("localParameterInsideSuperEntryCall.kt");
+  }
+
+  @Test
+  @TestMetadata("namedFunctionInsideClassAnnotation.kt")
+  public void testNamedFunctionInsideClassAnnotation() {
+    run("namedFunctionInsideClassAnnotation.kt");
+  }
+
+  @Test
+  @TestMetadata("namedFunctionInsideFileAnnotation.kt")
+  public void testNamedFunctionInsideFileAnnotation() {
+    run("namedFunctionInsideFileAnnotation.kt");
   }
 
   @Test
@@ -828,6 +858,12 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
     }
 
     @Test
+    @TestMetadata("compilerRequiredAliased.kt")
+    public void testCompilerRequiredAliased() {
+      run("compilerRequiredAliased.kt");
+    }
+
+    @Test
     @TestMetadata("constructorProperty_all.kt")
     public void testConstructorProperty_all() {
       run("constructorProperty_all.kt");
@@ -867,6 +903,12 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
     @TestMetadata("intrinsicConstOnIncorrectProperty.kt")
     public void testIntrinsicConstOnIncorrectProperty() {
       run("intrinsicConstOnIncorrectProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("targetWithContextSensitive.kt")
+    public void testTargetWithContextSensitive() {
+      run("targetWithContextSensitive.kt");
     }
 
     @Test
@@ -1328,6 +1370,164 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
         run("propertyTypeCollision.kt");
       }
     }
+
+    @Nested
+    @TestMetadata("analysis/low-level-api-fir/testData/lazyResolve/classes/fullValueClasses")
+    @TestDataPath("$PROJECT_ROOT")
+    public class FullValueClasses {
+      private void run(String fileName) {
+        runTest("analysis/low-level-api-fir/testData/lazyResolve/classes/fullValueClasses/" + fileName);
+      }
+
+      @Test
+      public void testAllFilesPresentInFullValueClasses() {
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/lazyResolve/classes/fullValueClasses"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+      }
+
+      @Test
+      @TestMetadata("fullValueClass.kt")
+      public void testFullValueClass() {
+        run("fullValueClass.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassAbstract.kt")
+      public void testFullValueClassAbstract() {
+        run("fullValueClassAbstract.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassBodyProperty.kt")
+      public void testFullValueClassBodyProperty() {
+        run("fullValueClassBodyProperty.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassCustomEquals.kt")
+      public void testFullValueClassCustomEquals() {
+        run("fullValueClassCustomEquals.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassFeatureDisabled.kt")
+      public void testFullValueClassFeatureDisabled() {
+        run("fullValueClassFeatureDisabled.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassGeneric.kt")
+      public void testFullValueClassGeneric() {
+        run("fullValueClassGeneric.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassMemberFunction.kt")
+      public void testFullValueClassMemberFunction() {
+        run("fullValueClassMemberFunction.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassNoFields.kt")
+      public void testFullValueClassNoFields() {
+        run("fullValueClassNoFields.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassParameterTypeCollision.kt")
+      public void testFullValueClassParameterTypeCollision() {
+        run("fullValueClassParameterTypeCollision.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassRecursive.kt")
+      public void testFullValueClassRecursive() {
+        run("fullValueClassRecursive.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassRecursive2.kt")
+      public void testFullValueClassRecursive2() {
+        run("fullValueClassRecursive2.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassSealed.kt")
+      public void testFullValueClassSealed() {
+        run("fullValueClassSealed.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassSecondaryConstructor.kt")
+      public void testFullValueClassSecondaryConstructor() {
+        run("fullValueClassSecondaryConstructor.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassSyntheticEquals.kt")
+      public void testFullValueClassSyntheticEquals() {
+        run("fullValueClassSyntheticEquals.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassSyntheticHashCode.kt")
+      public void testFullValueClassSyntheticHashCode() {
+        run("fullValueClassSyntheticHashCode.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassSyntheticToString.kt")
+      public void testFullValueClassSyntheticToString() {
+        run("fullValueClassSyntheticToString.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassWithAnotherFullValueClass.kt")
+      public void testFullValueClassWithAnotherFullValueClass() {
+        run("fullValueClassWithAnotherFullValueClass.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassWithDelegation.kt")
+      public void testFullValueClassWithDelegation() {
+        run("fullValueClassWithDelegation.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassWithInit.kt")
+      public void testFullValueClassWithInit() {
+        run("fullValueClassWithInit.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassWithInlineClassProperty.kt")
+      public void testFullValueClassWithInlineClassProperty() {
+        run("fullValueClassWithInlineClassProperty.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassWithSuperClass.kt")
+      public void testFullValueClassWithSuperClass() {
+        run("fullValueClassWithSuperClass.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassWithTypeAlias.kt")
+      public void testFullValueClassWithTypeAlias() {
+        run("fullValueClassWithTypeAlias.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueObject.kt")
+      public void testFullValueObject() {
+        run("fullValueObject.kt");
+      }
+
+      @Test
+      @TestMetadata("inlineClassWithFullValueClassesEnabled.kt")
+      public void testInlineClassWithFullValueClassesEnabled() {
+        run("inlineClassWithFullValueClassesEnabled.kt");
+      }
+    }
   }
 
   @Nested
@@ -1445,6 +1645,12 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
       }
 
       @Test
+      @TestMetadata("fullValueClassSyntheticEquals.kt")
+      public void testFullValueClassSyntheticEquals() {
+        run("fullValueClassSyntheticEquals.kt");
+      }
+
+      @Test
       @TestMetadata("functionInsideUnnamedObject.kt")
       public void testFunctionInsideUnnamedObject() {
         run("functionInsideUnnamedObject.kt");
@@ -1492,6 +1698,12 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
       @TestMetadata("changePackage.kt")
       public void testChangePackage() {
         run("changePackage.kt");
+      }
+
+      @Test
+      @TestMetadata("fullValueClassSyntheticEquals.kt")
+      public void testFullValueClassSyntheticEquals() {
+        run("fullValueClassSyntheticEquals.kt");
       }
 
       @Test
@@ -2128,6 +2340,12 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
     }
 
     @Test
+    @TestMetadata("explicitBackingFieldWithImplicitType.kt")
+    public void testExplicitBackingFieldWithImplicitType() {
+      run("explicitBackingFieldWithImplicitType.kt");
+    }
+
+    @Test
     @TestMetadata("finalPropertyInInterface.kt")
     public void testFinalPropertyInInterface() {
       run("finalPropertyInInterface.kt");
@@ -2275,20 +2493,6 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
     @TestMetadata("unresolvedAnnotationOnPropertyType.kt")
     public void testUnresolvedAnnotationOnPropertyType() {
       run("unresolvedAnnotationOnPropertyType.kt");
-    }
-  }
-
-  @Nested
-  @TestMetadata("analysis/low-level-api-fir/testData/lazyResolve/repl")
-  @TestDataPath("$PROJECT_ROOT")
-  public class Repl {
-    private void run(String fileName) {
-      runTest("analysis/low-level-api-fir/testData/lazyResolve/repl/" + fileName);
-    }
-
-    @Test
-    public void testAllFilesPresentInRepl() {
-      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/lazyResolve/repl"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
     }
   }
 
@@ -2770,6 +2974,12 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
     }
 
     @Test
+    @TestMetadata("fullValueClassWithSuper.kt")
+    public void testFullValueClassWithSuper() {
+      run("fullValueClassWithSuper.kt");
+    }
+
+    @Test
     @TestMetadata("nonEmptyClassWithSuper.kt")
     public void testNonEmptyClassWithSuper() {
       run("nonEmptyClassWithSuper.kt");
@@ -2841,6 +3051,12 @@ public class FirOutOfContentRootWithDependenciesLazyDeclarationResolveTestGenera
     @TestMetadata("annotation.kt")
     public void testAnnotation() {
       run("annotation.kt");
+    }
+
+    @Test
+    @TestMetadata("cyclicAliasedAnnotation.kt")
+    public void testCyclicAliasedAnnotation() {
+      run("cyclicAliasedAnnotation.kt");
     }
 
     @Test

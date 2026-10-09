@@ -1,13 +1,12 @@
-import gradle.GradlePluginVariant
-
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     id("gradle-plugin-dependency-configuration")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
     id("gradle-plugin-api-reference")
     id("generated-sources")
+    id("kgp-jacoco-on-the-fly")
+    id("kgp-jacoco-instrumenter")
 }
 
 pluginApiReference {
@@ -53,11 +52,6 @@ tasks {
         inputJar.value(jar.flatMap { it.archiveFile })
     }
 }
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_MIN,
-    GradlePluginVariant.GRADLE_88,
-)
 
 generatedSourcesTask(
     taskName = "generateKotlinVersionConstant",

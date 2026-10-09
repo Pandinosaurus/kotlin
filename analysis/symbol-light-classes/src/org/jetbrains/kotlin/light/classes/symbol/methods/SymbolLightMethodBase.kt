@@ -12,8 +12,10 @@ import com.intellij.psi.impl.light.LightReferenceListBuilder
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.MethodSignature
 import com.intellij.psi.util.MethodSignatureBackedByPsiMethod
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.javaInterop.isPrimitiveBacked
+import org.jetbrains.kotlin.analysis.api.javaInterop.javaMethodName
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
@@ -23,17 +25,34 @@ import org.jetbrains.kotlin.asJava.classes.KotlinLightReferenceListBuilder
 import org.jetbrains.kotlin.asJava.classes.cannotModify
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.asJava.elements.KtLightMethod
+import org.jetbrains.kotlin.analysis.api.javaInterop.KaSymbolJavaView
 import org.jetbrains.kotlin.light.classes.symbol.SymbolLightMemberBase
-import org.jetbrains.kotlin.light.classes.symbol.annotations.*
+import org.jetbrains.kotlin.light.classes.symbol.annotations.AlwaysAllowedAnnotationFilter
+import org.jetbrains.kotlin.light.classes.symbol.annotations.AnnotationFilter
+import org.jetbrains.kotlin.light.classes.symbol.annotations.ExcludeAnnotationFilter
+import org.jetbrains.kotlin.light.classes.symbol.annotations.getJvmExposeBoxedNameFromAnnotation
 import org.jetbrains.kotlin.light.classes.symbol.classes.SymbolLightClassBase
-import org.jetbrains.kotlin.light.classes.symbol.classes.typeForValueClass
+import org.jetbrains.kotlin.light.classes.symbol.classes.computeJavaMethodName
+import org.jetbrains.kotlin.light.classes.symbol.classes.jvmNameFromAnnotation
+import org.jetbrains.kotlin.light.classes.symbol.classes.typeForInlineClass
 
-internal abstract class SymbolLightMethodBase(
+/**
+ * Typealias to [SymbolLightMethodBaseImpl] that can be used to avoid constantly specifying the required type argument.
+ */
+internal typealias SymbolLightMethodBase = SymbolLightMethodBaseImpl<KaSymbol>
+
+@OptIn(KaImplementationDetail::class)
+internal abstract class SymbolLightMethodBaseImpl<out SType : KaSymbol>(
     lightMemberOrigin: LightMemberOrigin?,
     containingClass: SymbolLightClassBase,
     protected val methodIndex: Int,
-    val isJvmExposedBoxed: Boolean,
-) : SymbolLightMemberBase<PsiMethod>(lightMemberOrigin, containingClass), KtLightMethod {
+    val generationMode: MethodGenerationMode,
+) : SymbolLightMemberBase<PsiMethod>(lightMemberOrigin, containingClass), KtLightMethod, KaSymbolJavaView<SType> {
+    /**
+     * Whether this method is the Java-facing declaration whose inline-class types are boxed.
+     */
+    val isJvmExposeBoxed: Boolean get() = generationMode is MethodGenerationMode.Boxed
+
     override fun getBody(): PsiCodeBlock? = null
 
     override fun getReturnTypeElement(): PsiTypeElement? = null
@@ -110,17 +129,46 @@ internal abstract class SymbolLightMethodBase(
 
     override fun getDefaultValue(): PsiAnnotationMemberValue? = null
 
-    protected fun computeJvmExposeBoxedMethodName(
-        symbol: KaCallableSymbol,
-        defaultName: String,
-    ): String = symbol.getJvmExposeBoxedNameFromAnnotation() ?: symbol.getJvmNameFromAnnotation() ?: defaultName
+    /**
+     * Computes the Java name of [symbol] for the declaration represented by this light method.
+     *
+     * Regular JVM naming applies in [MethodGenerationMode.Regular]. An explicit [JvmExposeBoxed] name takes precedence in
+     * [MethodGenerationMode.Boxed]. For a regular method
+     * [affected by JvmExposeBoxed][MethodGenerationMode.Regular.isAffectedByJvmExposeBoxed], [JvmName] takes precedence over
+     * [JvmExposeBoxed].
+     *
+     * Names supplied by either annotation are not subject to `internal` mangling.
+     */
+    context(_: KaSession)
+    protected fun computeMethodName(symbol: KaFunctionSymbol, defaultName: String): String {
+        val methodName = when (generationMode) {
+            is MethodGenerationMode.Regular -> {
+                if (generationMode.isAffectedByJvmExposeBoxed) {
+                    symbol.jvmNameFromAnnotation ?: symbol.getJvmExposeBoxedNameFromAnnotation() ?: symbol.javaMethodName
+                } else {
+                    symbol.javaMethodName
+                }
+            }
+            is MethodGenerationMode.Boxed -> {
+                symbol.getJvmExposeBoxedNameFromAnnotation()
+                    ?: computeJavaMethodName(symbol, defaultName, ignoreInlineClassMangling = true)
+            }
+        }
+
+        return methodName ?: defaultName
+    }
 
     abstract fun isOverride(): Boolean
 
     internal open fun suppressWildcards(): Boolean? = null
 
     protected val jvmExposeBoxedAwareAnnotationFilter: AnnotationFilter
-        get() = if (isJvmExposedBoxed) ExcludeAnnotationFilter.JvmName else ExcludeAnnotationFilter.JvmExposeBoxed
+        get() = when (generationMode) {
+            is MethodGenerationMode.Regular -> {
+                if (generationMode.isAffectedByJvmExposeBoxed) AlwaysAllowedAnnotationFilter else ExcludeAnnotationFilter.JvmExposeBoxed
+            }
+            is MethodGenerationMode.Boxed -> ExcludeAnnotationFilter.JvmName
+        }
 
     // Inspired by KotlinTypeMapper#forceBoxedReturnType
     context(session: KaSession)
@@ -131,7 +179,7 @@ internal abstract class SymbolLightMethodBase(
             // implicitly override generic 'invoke' from a corresponding base class.
             symbol is KaNamedFunctionSymbol && symbol.isBuiltinFunctionInvoke && isInlineClassType(returnType) -> true
 
-            isJvmExposedBoxed && typeForValueClass(returnType) -> true
+            isJvmExposeBoxed && typeForInlineClass(returnType) -> true
 
             returnType.isPrimitiveBacked -> {
                 if (symbol.origin == KaSymbolOrigin.DELEGATED) {

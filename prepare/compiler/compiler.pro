@@ -55,7 +55,6 @@
 -dontwarn org.imgscalr.Scalr**
 -dontwarn org.iq80.snappy.HadoopSnappyCodec$SnappyCompressionInputStream
 -dontwarn org.iq80.snappy.HadoopSnappyCodec$SnappyCompressionOutputStream
--dontwarn org.jline.builtins.Nano$Buffer
 -dontwarn org.objectweb.asm.** # this is ASM3, the old version that we do not use
 -dontwarn org.w3c.dom.ElementTraversal
 -dontwarn org.xerial.snappy.SnappyBundleActivator
@@ -331,17 +330,6 @@
     public void registerExtensionPoint(java.lang.String, java.lang.String, com.intellij.openapi.extensions.ExtensionPoint$Kind);
 }
 
-# used in REPL
-# TODO: pack jline directly to scripting-compiler jars instead
--keep class org.jline.reader.LineReaderBuilder { *; }
--keep class org.jline.reader.LineReader { *; }
--keep class org.jline.reader.History { *; }
--keep class org.jline.reader.EndOfFileException { *; }
--keep class org.jline.reader.UserInterruptException { *; }
--keep class org.jline.terminal.TerminalBuilder { *; }
--keep class org.jline.terminal.impl.jna.JnaSupportImpl  { *; }
--keep class org.jline.terminal.impl.jansi.JansiSupportImpl  { *; }
-
 # Keep rules for serializable classes (see https://www.guardsquare.com/manual/configuration/examples#serializable)
 -keepclassmembers class * implements java.io.Serializable {
         static final long serialVersionUID;
@@ -447,3 +435,14 @@
 -dontwarn kotlinx.coroutines.internal.intellij.IntellijCoroutines
 
 -dontwarn org.jetbrains.kotlin.buildtools.internal.cri.**
+
+# Multiplatform parsing section
+# It seems that proguard cannot work with MPP libs properly
+# Currently mentioned classes are effectively unused,
+# as we need only multiplatform-parsing:jvmMain and not :common
+# TODO: recheck that everything works properly after KT-86282 done
+-dontwarn fleet.com.intellij.multiplatform.util.fastutil.ints.**
+-dontwarn org.jetbrains.kotlin.kmp.parser.utils.**
+-keep class com.intellij.platform.syntax.parser.SyntaxTreeBuilder {
+    public *;
+}

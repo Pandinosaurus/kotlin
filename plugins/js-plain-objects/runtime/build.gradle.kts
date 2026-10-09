@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.support.serviceOf
 import plugins.configureDefaultPublishing
 import plugins.configureKotlinPomAttributes
 
@@ -5,7 +6,6 @@ description = "Runtime library for the JS Plain Objects compiler plugin"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
     `maven-publish`
@@ -14,10 +14,14 @@ plugins {
 
 group = "org.jetbrains.kotlin"
 
+val buildFeatures = serviceOf<BuildFeatures>()
+
 kotlin {
     js {
-        browser()
-        nodejs()
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            browser()
+            nodejs()
+        }
     }
 
     sourceSets {

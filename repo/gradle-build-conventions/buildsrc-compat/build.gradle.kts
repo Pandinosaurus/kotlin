@@ -45,6 +45,7 @@ plugins {
 kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalBuildToolsApi::class)
     compilerVersion = embeddedKotlinVersion
+    @Suppress("DEPRECATION")
     coreLibrariesVersion = embeddedKotlinVersion
     jvmToolchain(17)
 
@@ -97,6 +98,9 @@ dependencies {
     implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
 
     implementation(project(":test-federation-convention")) {
+        isTransitive = false
+    }
+    implementation(project(":jvm-toolchains-convention")) {
         isTransitive = false
     }
 

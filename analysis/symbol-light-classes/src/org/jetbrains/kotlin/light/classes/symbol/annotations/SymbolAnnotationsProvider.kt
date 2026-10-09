@@ -10,30 +10,33 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KaAnnotatedSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
-import org.jetbrains.kotlin.light.classes.symbol.withSymbol
+import org.jetbrains.kotlin.light.classes.symbol.utils.withSymbol
 import org.jetbrains.kotlin.name.ClassId
 
 internal class SymbolAnnotationsProvider<T : KaAnnotatedSymbol>(
-    private val ktModule: KaModule,
+    private val useSiteModule: KaModule,
     private val annotatedSymbolPointer: KaSymbolPointer<T>,
 ) : AnnotationsProvider {
     private inline fun <T> withAnnotatedSymbol(crossinline action: context(KaSession) (KaAnnotatedSymbol) -> T): T =
-        annotatedSymbolPointer.withSymbol(ktModule, action)
+        annotatedSymbolPointer.withSymbol(useSiteModule, action)
 
     override fun annotationInfos(): List<AnnotationApplication> = withAnnotatedSymbol { annotatedSymbol ->
-        val indices = mutableMapOf<ClassId?, Int>()
-        annotatedSymbol.annotations.map { annotation ->
+        val indices = mutableMapOf<ClassId, Int>()
+        annotatedSymbol.annotations.mapNotNull { annotation ->
+            // Unresolved annotations have no ClassId, so they cannot be represented in a light class
+            val classId = annotation.classId ?: return@mapNotNull null
+
             // to preserve the initial annotations order
-            val index = indices.merge(annotation.classId, 0) { old, _ -> old + 1 }!!
-            annotation.toDumbLightClassAnnotationApplication(index, ktModule)
+            val index = indices.merge(classId, 0) { old, _ -> old + 1 }!!
+            annotation.toDumbLightClassAnnotationApplication(index, useSiteModule)
         }
     }
 
     override fun get(classId: ClassId): List<AnnotationApplication> = withAnnotatedSymbol { annotatedSymbol ->
-        annotatedSymbol.annotations[classId].mapIndexed { index, annotation ->
+        annotatedSymbol.annotations[classId].mapIndexedNotNull { index, annotation ->
             annotation.toLightClassAnnotationApplication(
                 index,
-                ktModule
+                useSiteModule
             )
         }
     }
@@ -44,7 +47,7 @@ internal class SymbolAnnotationsProvider<T : KaAnnotatedSymbol>(
 
     override fun equals(other: Any?): Boolean = other === this ||
             other is SymbolAnnotationsProvider<*> &&
-            other.ktModule == ktModule &&
+            other.useSiteModule == useSiteModule &&
             annotatedSymbolPointer.pointsToTheSameSymbolAs(other.annotatedSymbolPointer)
 
     override fun hashCode(): Int = annotatedSymbolPointer.hashCode()

@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.fir.types.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.types.ConeIntersectionType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeReceiverInfo
+import org.jetbrains.kotlin.fir.types.ConeUnionType
 import org.jetbrains.kotlin.fir.types.forEachType
 import org.jetbrains.kotlin.fir.types.getConstructor
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
@@ -53,7 +54,7 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
                 it.forEachType { typeWithinIt ->
                     val lowerBound = typeWithinIt.lowerBoundIfFlexible()
 
-                    if (lowerBound !is ConeIntersectionType) {
+                    if (lowerBound !is ConeIntersectionType && lowerBound !is ConeUnionType) {
                         add(lowerBound.getConstructor())
                     }
                 }
@@ -98,14 +99,14 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
 
             if (isClassLike) {
                 if (isAmbiguous) {
-                    append(if (classId.packageFqName.isRoot) "<root>" else classId.packageFqName.asString())
+                    appendSafe(if (classId.packageFqName.isRoot) "<root>" else classId.packageFqName.asString())
                     append(".")
                 }
 
                 val symbol = toSymbol(session) ?: return null
                 appendClassLikeTemplate(symbol)
             } else {
-                append(representation)
+                appendSafe(representation)
             }
 
             if (!isClassLike && !isError && isAmbiguous) {
@@ -127,8 +128,8 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
 
             if (typeParameterSymbol != null) {
                 append(" (of ")
-                append(FirDiagnosticRenderers.TYPE_PARAMETER_OWNER_SYMBOL.render(typeParameterSymbol.containingDeclarationSymbol))
-                append(')')
+                appendSafe(FirDiagnosticRenderers.TYPE_PARAMETER_OWNER_SYMBOL.render(typeParameterSymbol.containingDeclarationSymbol))
+                append(")")
             }
         }
     }
@@ -168,7 +169,7 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
         }
 
         for ((symbol, genericsStartingIndex, typeArgumentCount) in stack.asReversed()) {
-            append(symbol.classId.shortClassName)
+            appendSafe(symbol.classId.shortClassName.toString())
             if (typeArgumentCount != 0) {
                 append("<")
                 for (i in 0..<typeArgumentCount) {
@@ -182,6 +183,12 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
                 append(".")
             }
         }
+    }
+
+    private fun StringBuilder.appendSafe(obj: String) {
+        append('\'')
+        append(obj.replace("'", "''"))
+        append('\'')
     }
 
     private fun TypeConstructorMarker.delegatedConstructorOrSelf(): TypeConstructorMarker {

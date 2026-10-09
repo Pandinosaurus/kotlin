@@ -1,15 +1,17 @@
 import GeneratorInputKind.RuntimeClasspath
+import org.gradle.kotlin.dsl.embedded
+import org.gradle.kotlin.dsl.testRuntimeOnly
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("java-test-fixtures")
 }
 
 sourceSets {
     "main" { java.srcDirs("main") }
+    "testFixtures" { projectDefault() }
     "test" { projectDefault() }
 }
 
@@ -37,9 +39,19 @@ val (nativeInteropRuntimeSourceSet, nativeInteropRuntimeApi) = extraSourceSet("n
 dependencies {
     api(kotlinStdlib("jdk8"))
     api(project(":core:util.runtime"))
-    api(intellijPlatformUtil()) {
-        exclude(module = "annotations")
-    }
+
+    api(intellijCore())
+    api(libs.intellij.patched.kotlinx.coroutines.core.jvm)
+    implementation(intellijJDom())
+
+    // Dependencies of 'intellijCore()' available on Maven Central
+    implementation(libs.apache.commons.lang)
+    implementation(libs.apache.commons.compress)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.opentelemetry.api) { isTransitive = false }
+
+    testFixturesApi(testFixtures(project(":compiler:tests-common")))
+    testFixturesApi(project(":core:util.runtime"))
 
     builtinsApi("org.jetbrains.kotlin:kotlin-stdlib:$bootstrapKotlinVersion") { isTransitive = false }
     evaluateApi(commonDependency("org.jetbrains.kotlin:kotlin-reflect"))
@@ -58,6 +70,7 @@ dependencies {
     testImplementation(protobufCompareSourceSet.output)
 
     testImplementation(project(":compiler:cli"))
+    testImplementation(project(":kotlin-build-common"))
     testImplementation(testFixtures(project(":compiler:incremental-compilation-impl")))
     testImplementation(testFixtures(project(":plugins:jvm-abi-gen")))
     testImplementation(testFixtures(project(":plugins:parcelize:parcelize-compiler")))
@@ -70,7 +83,7 @@ dependencies {
     testImplementation(testFixtures(project(":kotlin-sam-with-receiver-compiler-plugin")))
     testImplementation(testFixtures(project(":kotlin-assignment-compiler-plugin")))
     testImplementation(testFixtures(project(":kotlinx-serialization-compiler-plugin")))
-    testImplementation(projectTests(":kotlin-atomicfu-compiler-plugin"))
+    testImplementation(testFixtures(project(":kotlin-atomicfu-compiler-plugin")))
     testImplementation(testFixtures(project(":kotlin-dataframe-compiler-plugin")))
     testImplementation(testFixtures(project(":plugins:plugin-sandbox")))
     testImplementation(testFixtures(project(":plugins:plugin-sandbox:plugin-sandbox-ic-test")))
@@ -175,5 +188,3 @@ val generateNativeInteropRuntime by generator(
     nativeInteropRuntimeSourceSet,
     inputKind = RuntimeClasspath,
 )
-
-testsJar()

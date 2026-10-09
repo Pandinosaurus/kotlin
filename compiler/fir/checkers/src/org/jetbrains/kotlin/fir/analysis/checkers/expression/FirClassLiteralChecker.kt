@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.typeParameterSymbols
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.analysis.getChild
+import org.jetbrains.kotlin.fir.declarations.fullyExpandedClass
 import org.jetbrains.kotlin.fir.declarations.utils.isInner
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.references.toResolvedTypeParameterSymbol
@@ -32,6 +33,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirTypeAliasSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.lexer.KtTokens.QUEST
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.resolve.checkers.OptInNames
 
 object FirClassLiteralChecker : FirGetClassCallChecker(MppCheckerKind.Common) {
@@ -42,7 +44,7 @@ object FirClassLiteralChecker : FirGetClassCallChecker(MppCheckerKind.Common) {
 
     context(context: CheckerContext)
     private val areUselessTypeArgumentsForbidden: Boolean
-        get() = LanguageFeature.ForbidUselessTypeArgumentsIn25.isEnabled()
+        get() = LanguageFeature.ForbidUselessTypeArgumentsIn26.isEnabled()
 
     context(context: CheckerContext, reporter: DiagnosticReporter)
     override fun check(expression: FirGetClassCall) {
@@ -131,7 +133,7 @@ object FirClassLiteralChecker : FirGetClassCallChecker(MppCheckerKind.Common) {
     /**
      * Type arguments are only allowed in `Array` (not typealiases to `Array`!) on JVM.
      *
-     * Without [LanguageFeature.ForbidUselessTypeArgumentsIn25], the following cases must produce deprecation warnings:
+     * Without [LanguageFeature.ForbidUselessTypeArgumentsIn26], the following cases must produce deprecation warnings:
      *  1. typealiases to non-generic classes with arbitrary non-zero number of type arguments;
      *  2. typealiases to `Array` on JVM (with arbitrary non-zero number of type arguments);
      *  3. reified type parameters with non-zero number of type arguments.
@@ -176,6 +178,10 @@ object FirClassLiteralChecker : FirGetClassCallChecker(MppCheckerKind.Common) {
                 }
             }
             checkUpperBoundViolationsInTypeAlias(argument, symbol, fullyExpandedType)
+
+            if (argument.qualifierSymbol?.fullyExpandedClass()?.classId == StandardClassIds.NonError) {
+                reporter.reportOn(argument.source, FirErrors.NON_ERROR_GET_CLASS_CALL)
+            }
         }
     }
 

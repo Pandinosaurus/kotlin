@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.resolution.KtResolvable
  * // A double-colon expression (a callable reference)
  * ```
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 interface KtDoubleColonExpression : KtExpression, KtResolvable {
     /**
      * The first child when it is a [KtExpression], or `null` otherwise. Syntactic type receivers such as `String` in `String::length` are
@@ -70,8 +71,9 @@ interface KtDoubleColonExpression : KtExpression, KtResolvable {
             "this.setDoubleColonReceiverExpression(newReceiverExpression)",
             "org.jetbrains.kotlin.idea.base.psi.setDoubleColonReceiverExpression",
         ),
+        level = DeprecationLevel.ERROR,
     )
-    @OptIn(KtNonPublicApi::class)
+    @OptIn(KtIdeApi::class)
     fun setReceiverExpression(newReceiverExpression: KtExpression) {
         KtPsiMutationService.getInstance().setDoubleColonReceiverExpression(this, newReceiverExpression)
     }

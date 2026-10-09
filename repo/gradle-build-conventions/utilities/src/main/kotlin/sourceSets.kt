@@ -79,8 +79,10 @@ val JavaPluginExtension.codebaseTestSourceSet: SourceSet
     get() = sourceSets.getByName("codebaseTest")
 
 fun Project.mainJavaPluginSourceSet() = findJavaPluginExtension()?.sourceSets?.findByName("main")
+
 fun Project.mainKotlinSourceSet() =
     (extensions.findByName("kotlin") as? KotlinSourceSetContainer)?.sourceSets?.findByName("main")
+
 fun Project.sources() = mainJavaPluginSourceSet()?.allSource ?: mainKotlinSourceSet()?.kotlin
 
 fun SourceSet.generatedDir(project: Project, generationRoot: Provider<Directory>) {

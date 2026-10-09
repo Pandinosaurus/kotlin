@@ -25,7 +25,6 @@ import org.jetbrains.kotlin.arguments.dsl.types.NameBasedDestructuringMode
 import org.jetbrains.kotlin.arguments.dsl.types.ReturnValueCheckerMode
 import org.jetbrains.kotlin.arguments.dsl.types.SamConversionsMode
 import org.jetbrains.kotlin.arguments.dsl.types.StringConcatMode
-import org.jetbrains.kotlin.arguments.dsl.types.ValhallaSupportMode
 import org.jetbrains.kotlin.arguments.dsl.types.VerifyIrMode
 import org.jetbrains.kotlin.arguments.dsl.types.WhenExpressionsMode
 import org.jetbrains.kotlin.generators.util.GeneratorsFileUtil
@@ -46,6 +45,7 @@ internal const val KOTLIN_TEXT = "kotlin.text"
 
 internal val ANNOTATION_EXPERIMENTAL = ClassName(API_ARGUMENTS_PACKAGE, "ExperimentalCompilerArgument")
 internal val ANNOTATION_USE_FROM_IMPL_RESTRICTED = ClassName("org.jetbrains.kotlin.buildtools.internal", "UseFromImplModuleRestricted")
+internal val ANNOTATION_DELICATE_BUILDTOOLS_API = ClassName("org.jetbrains.kotlin.buildtools.api", "DelicateBuildToolsApi")
 
 internal const val KDOC_SINCE = "@since"
 internal const val KDOC_SINCE_2_3_0 = "$KDOC_SINCE 2.3.0"
@@ -138,7 +138,6 @@ internal val btaEnumVersionMap: Map<ClassName, KotlinReleaseVersion> =
         ReturnValueCheckerMode::class to KotlinReleaseVersion.v2_3_0,
         SamConversionsMode::class to KotlinReleaseVersion.v2_4_0,
         StringConcatMode::class to KotlinReleaseVersion.v2_4_0,
-        ValhallaSupportMode::class to KotlinReleaseVersion.v2_5_0,
         VerifyIrMode::class to KotlinReleaseVersion.v2_4_0,
         WhenExpressionsMode::class to KotlinReleaseVersion.v2_4_0
     ).mapKeys { [clazz, _] -> clazz.toBtaEnumClassName() }

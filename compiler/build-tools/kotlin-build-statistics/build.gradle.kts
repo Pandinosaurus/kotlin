@@ -2,9 +2,8 @@ description = "Kotlin Build Report Common"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     kotlin("jvm")
-    id("gradle-plugin-published-compiler-dependency-configuration")
+    id("gradle-plugin-compiler-dependency-configuration")
 }
 
 dependencies {

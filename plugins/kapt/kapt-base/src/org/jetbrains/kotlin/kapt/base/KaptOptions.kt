@@ -37,6 +37,7 @@ class KaptOptions(
     val mode: AptMode,
     val detectMemoryLeaks: DetectMemoryLeaksMode,
     val stubGenerationScheme: StubGenerationScheme,
+    val stubWriterThreads: Int, // Supported only in DIRECT scheme.
 
     //these two config can be replaced with single function-like interface (ProcessorName -> ClassLoader),
     // but it is hard to pass function between different classloaders
@@ -73,9 +74,11 @@ class KaptOptions(
         // Initialize this set with the flags that are enabled by default. This set may be changed later (with flags added or removed).
         val flags: MutableSet<KaptFlag> = KaptFlag.entries.filter { it.defaultValue }.toMutableSet()
 
-        var mode: AptMode = AptMode.WITH_COMPILATION
-        var detectMemoryLeaks: DetectMemoryLeaksMode = DetectMemoryLeaksMode.DEFAULT
+        var mode: AptMode = AptMode.STUBS_AND_APT
+        var detectMemoryLeaks: DetectMemoryLeaksMode = DetectMemoryLeaksMode.STANDARD
+        var usedDefaultDetectMemoryLeaks = false
         var stubGenerationScheme: StubGenerationScheme = StubGenerationScheme.JTREE
+        var stubWriterThreads: Int = 1
         var processorsStatsReportFile: File? = null
         var fileReadHistoryReportFile: File? = null
 
@@ -89,7 +92,7 @@ class KaptOptions(
                 changedFiles, compiledSources, incrementalCache, classpathChanges,
                 sourcesOutputDir, classesOutputDir, stubsOutputDir, incrementalDataOutputDir,
                 processingClasspath, processors, processingOptions, javacOptions, KaptFlags.fromSet(flags),
-                mode, detectMemoryLeaks, stubGenerationScheme,
+                mode, detectMemoryLeaks, stubGenerationScheme, stubWriterThreads,
                 processingClassLoader = null,
                 separateClassloaderForProcessors = emptySet(),
                 processorsStatsReportFile = processorsStatsReportFile,
@@ -125,6 +128,7 @@ enum class KaptFlag(val description: String, val defaultValue: Boolean = false) 
     INCLUDE_COMPILE_CLASSPATH("Detect annotation processors in compile classpath", defaultValue = true),
     INCREMENTAL_APT("Incremental annotation processing (apt mode)"),
     STRIP_METADATA("Strip @Metadata annotations from stubs"),
+    ISOLATE_PROCESSORS_FROM_BUILD_CLASSPATH("Hide the build process classpath from annotation processors, exposing only JDK classes"),
     ;
 }
 
@@ -133,7 +137,7 @@ interface KaptSelector {
 }
 
 enum class DetectMemoryLeaksMode(override val stringValue: String) : KaptSelector {
-    DEFAULT("default"), PARANOID("paranoid"), NONE("none")
+    STANDARD("standard"), PARANOID("paranoid"), NONE("none")
 }
 
 enum class StubGenerationScheme(override val stringValue: String) : KaptSelector {
@@ -142,7 +146,6 @@ enum class StubGenerationScheme(override val stringValue: String) : KaptSelector
 }
 
 enum class AptMode(override val stringValue: String) : KaptSelector {
-    WITH_COMPILATION("compile"),
     STUBS_AND_APT("stubsAndApt"),
     STUBS_ONLY("stubs"),
     APT_ONLY("apt");
@@ -155,11 +158,18 @@ enum class AptMode(override val stringValue: String) : KaptSelector {
 }
 
 fun KaptOptions.collectJavaSourceFiles(sourcesToReprocess: SourcesToReprocess = SourcesToReprocess.FullRebuild): List<File> {
+    // `sortedBy` re-invokes its selector on every comparison, so sorting by `isSymbolicLink` costs
+    // ~n*log(n) `lstat` syscalls where n would do. A stable partition gives the same order - sorting
+    // by a boolean puts `false` first and keeps the relative order within each group.
+    fun nonSymlinksFirst(files: List<File>): List<File> {
+        val [symlinks, regular] = files.partition { Files.isSymbolicLink(it.toPath()) }
+        return regular + symlinks
+    }
+
     fun allSources(): List<File> {
-        return (javaSourceRoots + stubsOutputDir)
-            .sortedBy { Files.isSymbolicLink(it.toPath()) } // Get non-symbolic paths first
+        return nonSymlinksFirst(javaSourceRoots + stubsOutputDir) // Get non-symbolic paths first
             .flatMap { root -> root.walk().filter { it.isFile && it.extension == "java" }.toList() }
-            .sortedBy { Files.isSymbolicLink(it.toPath()) } // This time is for .java files
+            .let(::nonSymlinksFirst) // This time is for .java files
             .distinctBy { it.normalize().absolutePath }
     }
 
@@ -198,6 +208,11 @@ fun KaptOptions.logString(additionalInfo: String = "") = buildString {
 
     appendLine("Annotation processing mode: ${mode.stringValue}")
     appendLine("Memory leak detection mode: ${detectMemoryLeaks.stringValue}")
+    appendLine("Stub generation scheme: ${stubGenerationScheme.stringValue}")
+    // Only DIRECT writes stubs on the writer pool, so the thread count is noise under any other scheme.
+    if (stubGenerationScheme == StubGenerationScheme.DIRECT) {
+        appendLine("Stub writer threads: $stubWriterThreads")
+    }
     for (flag in KaptFlag.entries) {
         appendLine(flag.description + ": " + get(flag))
     }

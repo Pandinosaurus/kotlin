@@ -16,7 +16,9 @@
 
 package org.jetbrains.kotlin.incremental.js
 
-data class TranslationResultValue(val metadata: ByteArray, val binaryAst: ByteArray, val inlineData: ByteArray)
+import org.jetbrains.kotlin.name.CallableId
+
+class TranslationResultValue(val metadata: ByteArray)
 
 data class IrTranslationResultValue(
     val fileData: ByteArray,
@@ -26,7 +28,9 @@ data class IrTranslationResultValue(
     val declarations: ByteArray,
     val bodies: ByteArray,
     val fqn: ByteArray,
-    val fileMetadata: ByteArray,
     val debugInfo: ByteArray?,
     val fileEntries: ByteArray?,
 )
+
+// We store List of hashes because one callableId can represent multiple overloads of an inline function
+data class IrInlineFunctionRepresentation(val callableId: CallableId, val hashes: List<Long>)

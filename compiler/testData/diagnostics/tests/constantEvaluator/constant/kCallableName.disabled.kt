@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LANGUAGE_FEATURE_TOGGLED: IntrinsicConstEvaluation
 
 class A(val OK: Int, val somePropertyWithLongName: String) {
@@ -17,7 +17,7 @@ const val extensionFunName = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>42::baz.nam
 const val suspendMethodName = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>A::bar.name<!>
 const val className = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>::A.name<!>
 const val topLevelPropName = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>::topLevelProp.name<!>
-const val nameInComplexExpression = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>A::OK.name + "!"<!>
+const val nameInComplexExpression = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>A::OK.name<!> + "!"
 
 /* GENERATED_FIR_TAGS: additiveExpression, const, equalityExpression, integerLiteral, propertyDeclaration,
 unsignedLiteral */

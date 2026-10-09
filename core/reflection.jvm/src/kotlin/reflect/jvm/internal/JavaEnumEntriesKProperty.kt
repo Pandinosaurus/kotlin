@@ -23,6 +23,7 @@ internal class JavaEnumEntriesKProperty(
 
     override val container: KDeclarationContainerImpl get() = enumClass
     override val rawBoundReceiver: Any? get() = CallableReference.NO_RECEIVER
+    override val rawBoundContextArguments: List<Any?> get() = emptyList()
     override val signature: String get() = ENUM_ENTRIES_SIGNATURE
 
     override val name: String get() = "entries"
@@ -44,22 +45,18 @@ internal class JavaEnumEntriesKProperty(
     override val typeParameters: List<KTypeParameter> get() = emptyList()
     override val annotations: List<Annotation> get() = emptyList()
 
+    @ExperimentalCompanionExtensions
+    override val companionExtensionClass: KClass<*>? get() = null
+
     override fun getDelegate(): Any? = null
 
     override fun shallowCopy(
         container: KDeclarationContainerImpl, overriddenStorage: KCallableOverriddenStorage,
     ): ReflectKCallable<EnumEntries<*>> = JavaEnumEntriesKProperty(enumClass)
 
-    override fun rebindSameArity(boundReceiver: Any?): ReflectKProperty<EnumEntries<*>> {
-        require(boundReceiver === CallableReference.NO_RECEIVER) { "Cannot bind JavaEnumEntriesKProperty: $this" }
-        return JavaEnumEntriesKProperty(enumClass)
-    }
-
-    override fun unbindToHigherArity(): ReflectKProperty<EnumEntries<*>> =
-        throw KotlinReflectionInternalError("Cannot unbind JavaEnumEntriesKProperty: $this")
-
-    override fun bindToLowerArity(boundReceiver: Any?): ReflectKProperty<EnumEntries<*>> =
+    override fun bindToLowerArity(boundReceiver: Any?, boundContextArguments: List<Any?>) =
         throw KotlinReflectionInternalError("Cannot bind JavaEnumEntriesKProperty: $this")
+
 
     override val caller: Caller<*> = JavaEnumEntriesCaller()
     override val callerWithDefaults: Caller<*>? get() = null
@@ -81,6 +78,7 @@ internal class JavaEnumEntriesKProperty(
         override val property: ReflectKProperty<EnumEntries<*>> get() = this@JavaEnumEntriesKProperty
         override val container: KDeclarationContainerImpl get() = property.container
         override val rawBoundReceiver: Any? get() = CallableReference.NO_RECEIVER
+        override val rawBoundContextArguments: List<Any?> get() = emptyList()
 
         override val name: String get() = "<get-${property.name}>"
 
@@ -98,6 +96,9 @@ internal class JavaEnumEntriesKProperty(
         override val typeParameters: List<KTypeParameter> get() = property.typeParameters
         override val annotations: List<Annotation> get() = property.annotations
 
+        @ExperimentalCompanionExtensions
+        override val companionExtensionClass: KClass<*>? get() = null
+
         override val returnType: KType get() = property.returnType
 
         override val caller: Caller<*> get() = property.caller
@@ -110,8 +111,9 @@ internal class JavaEnumEntriesKProperty(
         ): ReflectKCallable<EnumEntries<*>> =
             error("Property accessors can only be copied by copying the corresponding property")
 
-        override fun rebind(boundReceiver: Any?): ReflectKCallable<EnumEntries<*>> =
+        override fun bindToLowerArity(boundReceiver: Any?, boundContextArguments: List<Any?>) =
             error("Property accessors can only be bound by copying the corresponding property")
+
 
         override fun equals(other: Any?): Boolean = other is Getter && property == other.property
         override fun hashCode(): Int = property.hashCode()

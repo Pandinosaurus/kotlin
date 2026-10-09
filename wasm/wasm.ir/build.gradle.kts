@@ -1,15 +1,10 @@
-@file:OptIn(TemporaryTestFederationApi::class)
-
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
-import org.jetbrains.kotlin.testFederation.TemporaryTestFederationApi
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     kotlin("plugin.serialization")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -97,4 +92,3 @@ projectTests {
     }
 }
 
-testsJar()

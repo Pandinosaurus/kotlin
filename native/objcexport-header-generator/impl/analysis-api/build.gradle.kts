@@ -1,12 +1,9 @@
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("java-test-fixtures")
     id("test-inputs-check")
 }
@@ -33,6 +30,7 @@ dependencies {
     testFixturesApi(testFixtures(project(":native:objcexport-header-generator")))
     testFixturesApi(project(":native:analysis-api-based-test-utils"))
     testImplementation(project(":analysis:analysis-api-standalone"))
+    testRuntimeOnly(project(":analysis:analysis-api-standalone:analysis-api-standalone-fir"))
 }
 
 sourceSets {
@@ -48,6 +46,8 @@ projectTests {
     ) {
         // Ideally, it should be marked as affected by AnalysisApi instead.
         // But this would be cumbersome and the tests are very fast, so let's keep things simple:
-        smokeTestConfig = SmokeTestConfig.RunAllTests
+        testFederation {
+            smokeTests { includeAll() }
+        }
     }
 }

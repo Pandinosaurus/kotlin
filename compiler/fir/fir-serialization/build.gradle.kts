@@ -1,6 +1,5 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("require-explicit-types")
@@ -15,10 +14,6 @@ dependencies {
     implementation(project(":compiler:psi:psi-api"))
     implementation(project(":kotlin-util-klib-metadata"))
 
-    api(project(":compiler:fir:cones"))
-    api(project(":compiler:fir:tree"))
-    api(project(":compiler:fir:providers"))
-    api(project(":compiler:fir:semantics"))
     api(project(":compiler:fir:resolve"))
 
     compileOnly(intellijCore())

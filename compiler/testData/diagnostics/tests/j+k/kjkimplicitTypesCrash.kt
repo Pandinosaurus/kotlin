@@ -1,5 +1,5 @@
 // LATEST_LV_DIFFERENCE
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-66392
 // FILE: Java1.java
 public class Java1 extends KotlinClass  {
@@ -12,7 +12,7 @@ public class Java1 extends KotlinClass  {
 // FILE: test.kt
 // The order of Kotlin classes is important
 class B : Java1() {
-    override <!ACCIDENTAL_OVERRIDE!>var e<!> = super.e
+    <!ACCIDENTAL_OVERRIDE!>override var e<!> = super.e
 }
 
 open class KotlinClass {

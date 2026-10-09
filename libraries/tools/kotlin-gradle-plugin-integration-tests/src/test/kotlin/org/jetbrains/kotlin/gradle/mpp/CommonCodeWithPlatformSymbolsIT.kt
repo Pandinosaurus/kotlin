@@ -12,8 +12,8 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.replaceWithVersion
 import org.jetbrains.kotlin.test.TestMetadata
-import org.jetbrains.kotlin.testFederation.AffectedByBuildToolsApi
-import org.jetbrains.kotlin.testFederation.AffectedByCompilerInfrastructure
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerInfrastructure
 import org.junit.jupiter.api.DisplayName
 
 /**
@@ -22,8 +22,8 @@ import org.junit.jupiter.api.DisplayName
  * [CommonCodeWithPlatformSymbolsIT] should be removed with the IC option when the underlying compiler issue is fixed
  */
 
-@AffectedByCompilerInfrastructure
-@AffectedByBuildToolsApi
+@MustRunOnChangesInCompilerInfrastructure
+@MustRunOnChangesInBuildToolsApi
 abstract class CommonCodeWithPlatformSymbolsITBase(
     val platformType: KotlinPlatformType,
     val taskToExecute: String,
@@ -32,7 +32,7 @@ abstract class CommonCodeWithPlatformSymbolsITBase(
     override val defaultBuildOptions: BuildOptions
         get() = super.defaultBuildOptions.copy(
             logLevel = LogLevel.DEBUG,
-            languageVersion = "2.0",
+            // FIXME(KT-69597): Previously hardcoded to language version 2.0.
             isolatedProjects = when (platformType) {
                 KotlinPlatformType.js -> BuildOptions.IsolatedProjectsMode.DISABLED
                 else -> super.defaultBuildOptions.isolatedProjects

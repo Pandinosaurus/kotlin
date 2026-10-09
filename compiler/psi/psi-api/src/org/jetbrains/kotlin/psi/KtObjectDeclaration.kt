@@ -3,6 +3,8 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:OptIn(KtIdeApi::class)
+
 package org.jetbrains.kotlin.psi
 
 import com.intellij.lang.ASTNode
@@ -26,6 +28,7 @@ import org.jetbrains.kotlin.psi.stubs.KotlinObjectStub
  * // The entire object
  * ```
  */
+@OptIn(KtImplementationDetail::class)
 class KtObjectDeclaration : KtClassOrObject {
     @KtImplementationDetail
     constructor(node: ASTNode) : super(node)
@@ -47,8 +50,16 @@ class KtObjectDeclaration : KtClassOrObject {
         return null
     }
 
-    @OptIn(KtNonPublicApi::class)
-    override fun setName(@NonNls name: String): PsiElement = KtPsiMutationService.getInstance().setObjectDeclarationName(this, name)
+    override fun setName(@NonNls name: String): PsiElement {
+        KtPsiMutationService.getInstanceOrNull()?.let { return it.setObjectDeclarationName(this, name) }
+        if (nameIdentifier != null) return super.setName(name)
+
+        val psiFactory = KtPsiFactory(project)
+        val objectKeyword = getObjectKeyword()!!
+        val result = addAfter(psiFactory.createIdentifier(name), objectKeyword)
+        addAfter(psiFactory.createWhiteSpace(), objectKeyword)
+        return result
+    }
 
     /**
      * Returns `true` if this is a companion object (declared with the `companion` modifier).

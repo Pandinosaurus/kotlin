@@ -12,18 +12,12 @@ import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirRegularClassChecker
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
-import org.jetbrains.kotlin.fir.declarations.utils.isFinal
-import org.jetbrains.kotlin.fir.resolve.getSuperTypes
-import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.scopes.impl.declaredMemberScope
-import org.jetbrains.kotlin.fir.scopes.processAllProperties
-import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.lombok.LombokFirDiagnostics
 import org.jetbrains.kotlin.lombok.LombokNames
 import org.jetbrains.kotlin.lombok.config.lombokService
 import org.jetbrains.kotlin.lombok.generators.isToString
-import org.jetbrains.kotlin.lombok.generators.kotlin.findAnnotationOnPropertyOrField
 import org.jetbrains.kotlin.lombok.generators.hasReceiverOrContextParameters
 
 object FirLombokToStringChecker : FirRegularClassChecker(MppCheckerKind.Platform) {
@@ -50,7 +44,7 @@ object FirLombokToStringChecker : FirRegularClassChecker(MppCheckerKind.Platform
              * "toString() in Child cannot override toString() in Parent; overridden method is final".
              * Only relevant when no conflicting `toString()` is declared, otherwise nothing is generated at all.
              */
-            declaration.findFinalToStringInSuperclasses()?.let { superClassSymbol ->
+            declaration.findSuperclassWithFinalToString()?.let { superClassSymbol ->
                 reporter.reportOn(
                     source,
                     LombokFirDiagnostics.TO_STRING_FUNCTION_IS_FINAL_IN_SUPERCLASS,
@@ -67,38 +61,17 @@ object FirLombokToStringChecker : FirRegularClassChecker(MppCheckerKind.Platform
             functionNames,
         )
 
-        /**
-         * Mirrors Lombok Java behaviour: "Having both @ToString.Exclude and @ToString.Include on a member
-         * generates a warning; the member will be excluded in this case."
-         */
-        declaredMemberScope.processAllProperties { variableSymbol ->
-            val property = variableSymbol as? FirPropertySymbol ?: return@processAllProperties
-            val includeAnnotation = property.findAnnotationOnPropertyOrField(LombokNames.TO_STRING_INCLUDE_ID, context.session)
-                ?: return@processAllProperties
-            property.findAnnotationOnPropertyOrField(LombokNames.TO_STRING_EXCLUDE_ID, context.session)
-                ?: return@processAllProperties
-            val includeSource = includeAnnotation.source ?: return@processAllProperties
-
-            reporter.reportOn(includeSource, LombokFirDiagnostics.EXCLUDE_AND_INCLUDE_MUTUALLY_EXCLUSIVE, LombokNames.TO_STRING.shortName(), context)
-        }
+        checkIncludeAndExcludeAnnotations(
+            declaredMemberScope,
+            LombokNames.TO_STRING_ID,
+            toStringAnnInfo.onlyExplicitlyIncluded ?: context.session.lombokService.config.toStringOnlyExplicitlyIncluded,
+        )
     }
 
-    /**
-     * The closest superclass (interfaces are irrelevant, they can't declare a final member) that declares a final
-     * parameterless `toString()`, or `null` if the generated `toString()` is free to override whatever it inherits.
-     */
+    /** The closest superclass declaring a final parameterless `toString()`, if any. */
     context(context: CheckerContext)
-    private fun FirRegularClass.findFinalToStringInSuperclasses(): FirRegularClassSymbol? {
-        return symbol.getSuperTypes(context.session, lookupInterfaces = false)
-            .firstNotNullOfOrNull { superType ->
-                superType.toRegularClassSymbol(context.session)?.let { superClassSymbol ->
-                    var isFinal = false
-                    context.session.declaredMemberScope(superClassSymbol, memberRequiredPhase = null)
-                        .processFunctionsByName(TO_STRING_NAME) {
-                            isFinal = isFinal || it.isFinal && it.valueParameterSymbols.isEmpty() && !it.hasReceiverOrContextParameters
-                        }
-                    superClassSymbol.takeIf { isFinal }
-                }
-            }
-    }
+    private fun FirRegularClass.findSuperclassWithFinalToString(): FirRegularClassSymbol? =
+        findSuperclassWithFinalFunction(functionNames) {
+            it.valueParameterSymbols.isEmpty() && !it.hasReceiverOrContextParameters
+        }
 }

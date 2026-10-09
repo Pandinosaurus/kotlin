@@ -1,13 +1,13 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
 interface Foo<T> {
     fun foo(l: List<T>)
 }
 
-<!CONFLICTING_JVM_DECLARATIONS!>class Bar(f: Foo<String>): Foo<String> by f {
-    <!CONFLICTING_JVM_DECLARATIONS!>fun foo(l: List<Int>) {}<!>
-}<!>
+class <!CONFLICTING_JVM_DECLARATIONS!>Bar(f: Foo<String>)<!>: Foo<String> by f {
+    <!CONFLICTING_JVM_DECLARATIONS!>fun foo(l: List<Int>)<!> {}
+}
 
 /* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, inheritanceDelegation, interfaceDeclaration, nullableType,
 primaryConstructor, typeParameter */

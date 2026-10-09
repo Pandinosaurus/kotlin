@@ -79,13 +79,13 @@ public final class MyImplementation: KotlinRuntime.KotlinBase, lib.InternalLibIn
         }
     }
     @_spi(InternalLibApi)
-    public init() {
+    public override init() {
         let __kt = __root___MyImplementation_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___MyImplementation_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -106,13 +106,13 @@ public final class MyImplementation: KotlinRuntime.KotlinBase, lib.InternalLibIn
 @_spi(MyOptInApi)
 public final class MyOptInClass: KotlinRuntime.KotlinBase {
     @_spi(MyOptInApi)
-    public init() {
+    public override init() {
         let __kt = __root___MyOptInClass_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___MyOptInClass_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -127,7 +127,7 @@ public final class MySubClass: lib.OpenClass, lib.InterfaceOne, lib.__InterfaceO
         { __root___MySubClass_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -136,13 +136,13 @@ public final class MySubClass: lib.OpenClass, lib.InterfaceOne, lib.__InterfaceO
 @_spi(InterfaceOptInTwo)
 public final class MySubInterface: KotlinRuntime.KotlinBase, lib.InterfaceTwo, lib.__InterfaceTwo {
     @_spi(InterfaceOptInTwo)
-    public init() {
+    public override init() {
         let __kt = __root___MySubInterface_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___MySubInterface_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -153,20 +153,13 @@ public var functionalTypePropertyA: (main.MyOptInClass) -> Swift.Void {
     @_spi(MyOptInApi)
     get {
         return {
-            let pointerToBlock = KotlinRuntime.KotlinBase(__externalRCRefUnsafe: __root___functionalTypePropertyA_get(), options: .asBestFittingWrapper)!
-            return { _1 in return { main_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_MyOptInClass__(pointerToBlock.__externalRCRef()!, _1.__externalRCRef()); return () }() }
+            let pointerToBlock = KotlinRuntime.KotlinBase(__externalRCRefUnsafe: __root___functionalTypePropertyA_get(), options: .asBestFittingWrapper)
+            return { _1 in return { main_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_MyOptInClass__(pointerToBlock.__externalRCRef(), _1.__externalRCRef()); return () }() }
         }()
     }
     @_spi(MyOptInApi)
     set {
-        return { __root___functionalTypePropertyA_set__TypesOfArguments__U28main_MyOptInClassU29202D_U20Swift_Void__({
-            let originalBlock: (main.MyOptInClass) -> Swift.Void = newValue
-            return { (arg0: Swift.UnsafeMutableRawPointer) in
-                let _arg0: main.MyOptInClass = main.MyOptInClass.__createClassWrapper(externalRCRef: arg0)
-                let _result = originalBlock(_arg0)
-                return { _result; return true }()
-            }
-        }()); return () }()
+        return { __root___functionalTypePropertyA_set__TypesOfArguments__U28main_MyOptInClassU29202D_U20Swift_Void__(Unmanaged.passRetained((newValue as (main.MyOptInClass) -> Swift.Void) as AnyObject).toOpaque()); return () }()
     }
 }
 @_spi(InternalLibApi)
@@ -174,33 +167,20 @@ public var functionalTypePropertyB: (any lib.InternalLibInterface) -> Swift.Void
     @_spi(InternalLibApi)
     get {
         return {
-            let pointerToBlock = KotlinRuntime.KotlinBase(__externalRCRefUnsafe: __root___functionalTypePropertyB_get(), options: .asBestFittingWrapper)!
-            return { _1 in return { main_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_anyU20lib_InternalLibInterface__(pointerToBlock.__externalRCRef()!, _1.__externalRCRef()); return () }() }
+            let pointerToBlock = KotlinRuntime.KotlinBase(__externalRCRefUnsafe: __root___functionalTypePropertyB_get(), options: .asBestFittingWrapper)
+            return { _1 in return { main_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_anyU20lib_InternalLibInterface__(pointerToBlock.__externalRCRef(), _1.__externalRCRef()); return () }() }
         }()
     }
     @_spi(InternalLibApi)
     set {
-        return { __root___functionalTypePropertyB_set__TypesOfArguments__U28anyU20lib_InternalLibInterfaceU29202D_U20Swift_Void__({
-            let originalBlock: (any lib.InternalLibInterface) -> Swift.Void = newValue
-            return { (arg0: Swift.UnsafeMutableRawPointer) in
-                let _arg0: any lib.InternalLibInterface = KotlinRuntime.KotlinBase.__createProtocolWrapper(externalRCRef: arg0, conformsTo: lib.InternalLibInterface.Type.self) as! any lib.InternalLibInterface
-                let _result = originalBlock(_arg0)
-                return { _result; return true }()
-            }
-        }()); return () }()
+        return { __root___functionalTypePropertyB_set__TypesOfArguments__U28anyU20lib_InternalLibInterfaceU29202D_U20Swift_Void__(Unmanaged.passRetained((newValue as (any lib.InternalLibInterface) -> Swift.Void) as AnyObject).toOpaque()); return () }()
     }
 }
 @_spi(MyOptInApi)
 public func callbackFunction(
     action: @escaping () -> main.MyOptInClass
 ) -> Swift.Void {
-    return { __root___callbackFunction__TypesOfArguments__U2829202D_U20main_MyOptInClass__({
-        let originalBlock: () -> main.MyOptInClass = action
-        return {
-            let _result = originalBlock()
-            return _result.__externalRCRef()
-        }
-    }()); return () }()
+    return { __root___callbackFunction__TypesOfArguments__U2829202D_U20main_MyOptInClass__(Unmanaged.passRetained((action as () -> main.MyOptInClass) as AnyObject).toOpaque()); return () }()
 }
 @_spi(MyOptInApi)
 public func optInFunctionA() -> Swift.Void {
@@ -387,4 +367,22 @@ package func MyInterface_optInProp_set__TypesOfArguments__Swift_String____revers
     let _self = KotlinRuntime.KotlinBase.__createProtocolWrapper(externalRCRef: `self`, conformsTo: main.MyInterface.Type.self) as! any main.MyInterface
     let _result: Swift.Void = { _self.optInProp = newValue }()
     return { _result; return true }()
+}
+
+@_cdecl("main_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_anyU20lib_InternalLibInterface__")
+package func main_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_anyU20lib_InternalLibInterface__(_ pointerToClosure: Swift.UnsafeMutableRawPointer, _ _1: Swift.UnsafeMutableRawPointer) -> Swift.Bool {
+    let _result: Swift.Void = (Unmanaged<AnyObject>.fromOpaque(pointerToClosure).takeUnretainedValue() as! (any lib.InternalLibInterface) -> Swift.Void)(KotlinRuntime.KotlinBase.__createProtocolWrapper(externalRCRef: _1, conformsTo: lib.InternalLibInterface.Type.self) as! any lib.InternalLibInterface)
+    return { _result; return true }()
+}
+
+@_cdecl("main_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_MyOptInClass__")
+package func main_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_MyOptInClass__(_ pointerToClosure: Swift.UnsafeMutableRawPointer, _ _1: Swift.UnsafeMutableRawPointer) -> Swift.Bool {
+    let _result: Swift.Void = (Unmanaged<AnyObject>.fromOpaque(pointerToClosure).takeUnretainedValue() as! (main.MyOptInClass) -> Swift.Void)(main.MyOptInClass.__createClassWrapper(externalRCRef: _1))
+    return { _result; return true }()
+}
+
+@_cdecl("main_internal_functional_type_callee_mainU2EMyOptInClass__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
+package func main_internal_functional_type_callee_mainU2EMyOptInClass__TypesOfArguments__Swift_UnsafeMutableRawPointer__(_ pointerToClosure: Swift.UnsafeMutableRawPointer) -> Swift.UnsafeMutableRawPointer {
+    let _result: main.MyOptInClass = (Unmanaged<AnyObject>.fromOpaque(pointerToClosure).takeUnretainedValue() as! () -> main.MyOptInClass)()
+    return _result.__externalRCRef()
 }

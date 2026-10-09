@@ -150,7 +150,7 @@ internal fun stringRepresentation(any: Any?): String = with(any) {
                             /** This is already covered by [KaFunctionCall.valueArgumentMapping] and [KaFunctionCall.contextArguments] */
                             !(klass.isSubclassOf(KaFunctionCall::class) && property.name == KaFunctionCall<*>::combinedArgumentMapping.name) &&
                             // The multi-call resolution attempt already renders all attempts via individual named properties
-                            !(klass.isSubclassOf(KaMultiCallResolutionAttempt::class) && property.name == KaMultiCallResolutionAttempt::attempts.name) &&
+                            !(klass.isSubclassOf(KaMultiCallResolutionAttempt::class) && property.name == KaMultiCallResolutionAttempt::simpleAttempts.name) &&
                             // If call is present, skip individual attempt properties (they're redundant with the call)
                             !(klass.isSubclassOf(KaMultiCallResolutionAttempt::class) && multiCallResolutionAttemptCallValue != null &&
                                     property.name.endsWith("Attempt")) &&
@@ -163,11 +163,11 @@ internal fun stringRepresentation(any: Any?): String = with(any) {
                         @Suppress("UNCHECKED_CAST")
                         val value = (property as KProperty1<Any, *>).get(this@with)?.let { value ->
                             when {
-                                (KaErrorCallInfo::class.isSuperclassOf(klass) || KaCallResolutionError::class.isSuperclassOf(klass)) && name == "candidateCalls" -> {
+                                (KaErrorCallInfo::class.isSuperclassOf(klass) || KaSimpleCallResolutionError::class.isSuperclassOf(klass)) && name == "candidateCalls" -> {
                                     sortedCalls(value as Collection<KaSimpleOrMultiCall>)
                                 }
 
-                                KaSymbolResolutionError::class.isSuperclassOf(klass) && name == KaSymbolResolutionError::candidateSymbols.name -> {
+                                KaSimpleSymbolResolutionError::class.isSuperclassOf(klass) && name == KaSimpleSymbolResolutionError::candidateSymbols.name -> {
                                     sortedSymbols(value as Collection<KaSymbol>)
                                 }
 
@@ -325,15 +325,15 @@ internal fun assertStableResult(
     }
 
     assertions.assertEquals(firstAttempt::class, secondAttempt::class)
-    if (firstAttempt is KaSymbolResolutionError) {
+    if (firstAttempt is KaSimpleSymbolResolutionError) {
         assertStableResult(
             testServices = testServices,
             firstDiagnostic = firstAttempt.diagnostic,
-            secondDiagnostic = (secondAttempt as KaSymbolResolutionError).diagnostic,
+            secondDiagnostic = (secondAttempt as KaSimpleSymbolResolutionError).diagnostic,
         )
     }
 
-    if (firstAttempt is KaSymbolResolutionSuccess) {
+    if (firstAttempt is KaSimpleSymbolResolutionSuccess) {
         assertions.assertTrue(firstAttempt.symbols.isNotEmpty()) {
             "Success result has no symbols"
         }
@@ -366,12 +366,12 @@ internal fun assertStableResult(
         null -> return
 
         // Cannot check name reference expressions since they might have different result
-        is KaCallResolutionError if mainElement is KtNameReferenceExpression -> {}
+        is KaSimpleCallResolutionError if mainElement is KtNameReferenceExpression -> {}
 
-        is KaCallResolutionError -> {
-            if (symbolResolutionAttempt !is KaSymbolResolutionError) {
+        is KaSimpleCallResolutionError -> {
+            if (symbolResolutionAttempt !is KaSimpleSymbolResolutionError) {
                 testServices.assertions.fail {
-                    "${KaSymbolResolutionError::class.simpleName} is expected, but ${symbolResolutionAttempt?.let { it::class.simpleName }} is found"
+                    "${KaSimpleSymbolResolutionError::class.simpleName} is expected, but ${symbolResolutionAttempt?.let { it::class.simpleName }} is found"
                 }
             }
 
@@ -383,8 +383,8 @@ internal fun assertStableResult(
         }
 
         is KaMultiCallResolutionAttempt -> if (symbolResolutionAttempt is KaCompoundSymbolResolutionError) {
-            val callErrors = callResolutionAttempt.attempts.filterIsInstance<KaCallResolutionError>()
-            val symbolErrors = symbolResolutionAttempt.attempts.filterIsInstance<KaSymbolResolutionError>()
+            val callErrors = callResolutionAttempt.errors
+            val symbolErrors = symbolResolutionAttempt.errors
             assertions.assertEquals(callErrors.size, symbolErrors.size) {
                 "Number of error attempts differs between call and symbol resolution"
             }
@@ -445,15 +445,15 @@ internal fun assertStableResult(
     assertions.assertEquals(firstAttempt::class, secondAttempt::class)
 
     when (firstAttempt) {
-        is KaCallResolutionError -> {
+        is KaSimpleCallResolutionError -> {
             assertStableResult(
                 testServices = testServices,
                 firstDiagnostic = firstAttempt.diagnostic,
-                secondDiagnostic = (secondAttempt as KaCallResolutionError).diagnostic,
+                secondDiagnostic = (secondAttempt as KaSimpleCallResolutionError).diagnostic,
             )
         }
 
-        is KaCallResolutionSuccess -> {
+        is KaSimpleCallResolutionSuccess -> {
             assertConsistency(testServices, firstAttempt.call)
         }
 
@@ -461,14 +461,14 @@ internal fun assertStableResult(
             assertMultiCallConsistency(testServices, firstAttempt)
 
             val secondMulti = secondAttempt as KaMultiCallResolutionAttempt
-            assertions.assertEquals(firstAttempt.attempts.size, secondMulti.attempts.size)
-            for ((first, second) in firstAttempt.attempts.zip(secondMulti.attempts)) {
+            assertions.assertEquals(firstAttempt.simpleAttempts.size, secondMulti.simpleAttempts.size)
+            for ((first, second) in firstAttempt.simpleAttempts.zip(secondMulti.simpleAttempts)) {
                 assertions.assertEquals(first::class, second::class)
-                if (first is KaCallResolutionError) {
+                if (first is KaSimpleCallResolutionError) {
                     assertStableResult(
                         testServices = testServices,
                         firstDiagnostic = first.diagnostic,
-                        secondDiagnostic = (second as KaCallResolutionError).diagnostic,
+                        secondDiagnostic = (second as KaSimpleCallResolutionError).diagnostic,
                     )
                 }
             }
@@ -492,14 +492,14 @@ private fun assertMultiCallConsistency(testServices: TestServices, attempt: KaMu
     val call = attempt.call
     if (call != null) {
         // All attempts must be successful
-        for (subAttempt in attempt.attempts) {
-            assertions.assertTrue(subAttempt is KaCallResolutionSuccess) {
+        for (subAttempt in attempt.simpleAttempts) {
+            assertions.assertTrue(subAttempt is KaSimpleCallResolutionSuccess) {
                 "Multi-call has non-null call, but attempt ${subAttempt::class.simpleName} is not success"
             }
         }
     } else {
         // At least one attempt must be an error
-        assertions.assertTrue(attempt.attempts.any { it is KaCallResolutionError }) {
+        assertions.assertTrue(attempt.simpleAttempts.any { it is KaSimpleCallResolutionError }) {
             "Multi-call has null call, but no error attempts found"
         }
     }
@@ -511,14 +511,14 @@ private fun assertMultiCallConsistency(testServices: TestServices, attempt: KaMu
 context(_: KaSession)
 private fun assertMultiSymbolConsistency(testServices: TestServices, attempt: KaCompoundSymbolResolutionError) {
     val assertions = testServices.assertions
-    val attempts = attempt.attempts
+    val attempts = attempt.simpleAttempts
     // At least one attempt must be an error
-    assertions.assertTrue(attempts.any { it is KaSymbolResolutionError }) {
+    assertions.assertTrue(attempts.any { it is KaSimpleSymbolResolutionError }) {
         "Multi-call has no error attempts found"
     }
 
     // At most one attempt must be successful
-    assertions.assertTrue(attempts.count { it is KaSymbolResolutionSuccess } <= 1) {
+    assertions.assertTrue(attempts.count { it is KaSimpleSymbolResolutionSuccess } <= 1) {
         "Multi-call has more than one successful attempts found"
     }
 
@@ -568,7 +568,7 @@ internal fun assertConsistency(testServices: TestServices, call: KaSimpleOrMulti
         assertions.assertEquals(call.contextArguments, partiallyAppliedSymbol.contextArguments)
     }
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION_ERROR")
     if (call is KaSimpleFunctionCall) {
         assertions.assertEquals(call is KaImplicitInvokeCall, call.isImplicitInvoke)
     }

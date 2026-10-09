@@ -25,6 +25,8 @@ import androidx.compose.compiler.plugins.kotlin.lower.hiddenfromobjc.hiddenFromO
 import org.jetbrains.kotlin.GeneratedDeclarationKey
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
+import org.jetbrains.kotlin.backend.common.serialization.mangle.MangleMode
+import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.IrMangleComputer
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
 import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -36,7 +38,6 @@ import org.jetbrains.kotlin.fir.declarations.utils.klibSourceFile
 import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyClass
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.builders.irBlockBody
@@ -57,7 +58,6 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.library.metadata.DeserializedSourceFile
-import org.jetbrains.kotlin.load.kotlin.computeJvmDescriptor
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.name.JvmStandardClassIds.Annotations
 import org.jetbrains.kotlin.platform.jvm.isJvm
@@ -220,7 +220,7 @@ abstract class AbstractComposeLowering(
     }
 
     fun IrCall.isComposableLambdaInvoke(): Boolean {
-        if (!isInvoke()) return false
+        if (!isLambdaInvoke()) return false
         return dispatchReceiver?.type?.let {
             it.hasComposableAnnotation() || it.isSyntheticComposableFunction()
         } ?: false
@@ -302,7 +302,7 @@ abstract class AbstractComposeLowering(
     }
 
     protected fun irCall(
-        symbol: IrFunctionSymbol
+        symbol: IrFunctionSymbol,
     ): IrCallImpl =
         IrCallImpl(
             UNDEFINED_OFFSET,
@@ -337,7 +337,8 @@ abstract class AbstractComposeLowering(
                         call.arguments[it.indexInParameters] = extensionReceiver
                     }
                     IrParameterKind.Context,
-                    IrParameterKind.Regular -> {
+                    IrParameterKind.Regular,
+                        -> {
                         call.arguments[it.indexInParameters] = args[argIndex++]
                     }
                 }
@@ -361,7 +362,7 @@ abstract class AbstractComposeLowering(
         rhs: IrExpression,
         name: Name,
         lhsType: IrType = lhs.type,
-        rhsType: IrType = rhs.type
+        rhsType: IrType = rhs.type,
     ): IrCallImpl {
         val symbol = lhsType.binaryOperator(name, rhsType)
         return irCall(
@@ -1259,17 +1260,13 @@ abstract class AbstractComposeLowering(
         }
     }
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
     fun IrSimpleFunction.sourceKey(): Int {
         val info = this.durableFunctionKey
         if (info != null) {
             info.used = true
             return info.key
         }
-        val signature = symbol.descriptor.computeJvmDescriptor(withName = false)
-        val name = fqNameForIrSerialization
-        val stringKey = "$name$signature"
-        return stringKey.hashCode()
+        return IrMangleComputer(StringBuilder(), MangleMode.FULL, compatibleMode = false).computeMangle(this).hashCode()
     }
 
     /*
@@ -1557,11 +1554,13 @@ abstract class AbstractComposeLowering(
         newFunction.parameters = original.parameters.map {
             when (it.kind) {
                 IrParameterKind.ExtensionReceiver,
-                IrParameterKind.DispatchReceiver -> {
+                IrParameterKind.DispatchReceiver,
+                    -> {
                     it.copyWithNewTypeParams(original, newFunction)
                 }
                 IrParameterKind.Context,
-                IrParameterKind.Regular -> {
+                IrParameterKind.Regular,
+                    -> {
                     val name = dexSafeName(it.name)
                     it.copyTo(
                         newFunction,
@@ -1878,13 +1877,17 @@ val IrFunction.namedParameters
 val IrValueParameter.isReceiver
     get() = kind == IrParameterKind.ExtensionReceiver || kind == IrParameterKind.DispatchReceiver
 
-fun IrClass.invokeFunctionNForComposable(context: IrPluginContext, invokeFn: IrSimpleFunction): IrSimpleFunction {
+fun IrClass.matchingFunctionNForComposable(
+    context: IrPluginContext,
+    invokeFn: IrSimpleFunction,
+    isKFunction: Boolean = false,
+): IrSimpleFunction {
     val realParams = typeParameters.size - /* return type */ 1
     // `changedParamCount` must account for the `invoke` dispatch receiver (the function instance),
     // matching `ComposableTypeRemapper.remapType`; otherwise the arity is off by one $changed slot
     // at multiples of SLOTS_PER_INT (e.g. a 10-parameter composable lambda).
     val newArgsSize = realParams + /* composer */ 1 + changedParamCount(realParams, invokeFn.thisParamCount)
-    val newFnClass = context.irBuiltIns.functionN(newArgsSize)
+    val newFnClass = if (isKFunction) context.irBuiltIns.kFunctionN(newArgsSize) else context.irBuiltIns.functionN(newArgsSize)
 
     return newFnClass
         .functions
@@ -1892,7 +1895,7 @@ fun IrClass.invokeFunctionNForComposable(context: IrPluginContext, invokeFn: IrS
 }
 
 fun IrSimpleFunction.lambdaInvokeWithComposerParam(context: IrPluginContext): IrSimpleFunction =
-    parentAsClass.invokeFunctionNForComposable(context, this)
+    parentAsClass.matchingFunctionNForComposable(context, this)
 
 fun IrFunction.isExternalFunction(): Boolean =
     origin == IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB || origin == IrDeclarationOrigin.FAKE_OVERRIDE && getPackageFragment() is IrExternalPackageFragment
@@ -1907,10 +1910,10 @@ fun IrType.isInlineClassType(isJvm: Boolean): Boolean {
     }
 }
 
-fun IrFunction.isInvoke(): Boolean =
+fun IrFunction.isLambdaInvoke(): Boolean =
     name == OperatorNameConventions.INVOKE &&
             parentClassOrNull?.defaultType?.let {
-                it.isFunction() || it.isSyntheticComposableFunction()
+                it.isFunction() || it.isSyntheticComposableFunction() || it.isKComposableFunction()
             } ?: false
 
-fun IrCall.isInvoke() = origin == IrStatementOrigin.INVOKE || symbol.owner.isInvoke()
+fun IrCall.isLambdaInvoke() = origin == IrStatementOrigin.INVOKE || symbol.owner.isLambdaInvoke()

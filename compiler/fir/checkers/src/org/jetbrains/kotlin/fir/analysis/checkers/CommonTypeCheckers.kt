@@ -34,6 +34,7 @@ object CommonTypeCheckers : TypeCheckers() {
         FirMissingDependencyClassInTypeAliasTypeChecker,
         FirRootIdePackageDeprecatedInCliTypeChecker,
         TypeArgumentsInPackagesTypeRefChecker,
+        FirResolvedUnionTypeRefChecker,
     )
 
     override val intersectionTypeRefCheckers: Set<FirIntersectionTypeRefChecker> = setOf(
@@ -44,5 +45,9 @@ object CommonTypeCheckers : TypeCheckers() {
         FirUnsupportedDefaultValueInFunctionTypeParameterChecker,
         FirUnsupportedModifiersInFunctionTypeParameterChecker,
         FirDslMarkerPropagationChecker,
+    )
+
+    override val unionTypeRefCheckers: Set<FirUnionTypeRefChecker> = setOf(
+        FirUnionTypeChecker,
     )
 }

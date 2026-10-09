@@ -338,19 +338,9 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
         return org.jetbrains.kotlin.types.checker.captureFromArguments(type, status)
     }
 
-    override fun TypeConstructorMarker.isAnyConstructor(): Boolean {
+    override fun TypeConstructorMarker.isClassWithId(classId: ClassId): Boolean {
         require(this is TypeConstructor, this::errorMessage)
-        return KotlinBuiltIns.isTypeConstructorForGivenClass(this, FqNames.any)
-    }
-
-    override fun TypeConstructorMarker.isNothingConstructor(): Boolean {
-        require(this is TypeConstructor, this::errorMessage)
-        return KotlinBuiltIns.isTypeConstructorForGivenClass(this, FqNames.nothing)
-    }
-
-    override fun TypeConstructorMarker.isArrayConstructor(): Boolean {
-        require(this is TypeConstructor, this::errorMessage)
-        return KotlinBuiltIns.isTypeConstructorForGivenClass(this, FqNames.array)
+        return KotlinBuiltIns.isTypeConstructorForGivenClass(this, classId.asSingleFqName().toUnsafe())
     }
 
     override fun KotlinTypeMarker.asTypeArgument(): TypeArgumentMarker {
@@ -901,8 +891,6 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
         require(baseType is KotlinType, baseType::errorMessage)
         return (baseType.memberScope as? SubstitutingScope)?.substitutor
     }
-
-    override fun usePreciseSimplificationToFlexibleLowerConstraint(): Boolean = false
 
     override fun substitutionSupertypePolicy(type: RigidTypeMarker): TypeCheckerState.SupertypesPolicy {
         require(type is SimpleType, type::errorMessage)

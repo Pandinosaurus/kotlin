@@ -2,12 +2,10 @@ description = "Kotlin Build Common"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("gradle-plugin-compiler-dependency-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
 }
 
 dependencies {
@@ -31,6 +29,7 @@ dependencies {
 
     compileOnly(intellijCore())
     compileOnly(libs.intellij.asm)
+    compileOnly(libs.guava)
     compileOnly(project(":compiler:build-tools:kotlin-build-statistics"))
 
     testFixturesImplementation(testFixtures(project(":compiler:tests-common")))

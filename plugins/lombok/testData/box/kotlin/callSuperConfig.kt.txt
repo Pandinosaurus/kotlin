@@ -1,0 +1,232 @@
+open class Base {
+  val baseProp: Int
+    field = baseProp
+    get
+
+  constructor(baseProp: Int) /* primary */ {
+    super/*Any*/()
+    /* <init>() */
+
+  }
+
+  override operator fun equals(other: Any?): Boolean {
+    return when {
+      other is Base -> EQEQ(arg0 = other /*as Base */.<get-baseProp>(), arg1 = <this>.<get-baseProp>())
+      else -> false
+    }
+  }
+
+  override fun hashCode(): Int {
+    return <this>.<get-baseProp>()
+  }
+
+  override fun toString(): String {
+    return "Base(baseProp=" + <this>.<get-baseProp>() + ")"
+  }
+
+}
+
+@EqualsAndHashCode(callSuper = false)
+@ToString(callSuper = false)
+class DerivedExplicitFalse : Base {
+  val ownProp: String
+    field = ownProp
+    get
+
+  constructor(ownProp: String, baseProp: Int) /* primary */ {
+    super/*Base*/(baseProp = baseProp)
+    /* <init>() */
+
+  }
+
+  protected open fun canEqual(other: Any?): Boolean {
+    return other is DerivedExplicitFalse
+  }
+
+  override fun equals(other: Any?): Boolean {
+    when {
+      EQEQEQ(arg0 = <this>, arg1 = other) -> return true
+    }
+    when {
+      other !is DerivedExplicitFalse -> return false
+    }
+    val tmp_0: DerivedExplicitFalse = other /*as DerivedExplicitFalse */
+    when {
+      tmp_0.canEqual(other = <this>).not() -> return false
+    }
+    when {
+      EQEQ(arg0 = <this>.<get-ownProp>(), arg1 = tmp_0.<get-ownProp>()).not() -> return false
+    }
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var tmp_1: Int = 1
+    tmp_1 = tmp_1.times(other = 59).plus(other = <this>.<get-ownProp>().hashCode())
+    return tmp_1
+  }
+
+  override fun toString(): String {
+    return "DerivedExplicitFalse(" + "ownProp=" + <this>.<get-ownProp>() + ')'
+  }
+
+}
+
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
+class DerivedExplicitTrue : Base {
+  val ownProp: String
+    field = ownProp
+    get
+
+  constructor(ownProp: String, baseProp: Int) /* primary */ {
+    super/*Base*/(baseProp = baseProp)
+    /* <init>() */
+
+  }
+
+  protected open fun canEqual(other: Any?): Boolean {
+    return other is DerivedExplicitTrue
+  }
+
+  override fun equals(other: Any?): Boolean {
+    when {
+      EQEQEQ(arg0 = <this>, arg1 = other) -> return true
+    }
+    when {
+      other !is DerivedExplicitTrue -> return false
+    }
+    val tmp_2: DerivedExplicitTrue = other /*as DerivedExplicitTrue */
+    when {
+      tmp_2.canEqual(other = <this>).not() -> return false
+    }
+    when {
+      super<Base>.equals(other = other).not() -> return false
+    }
+    when {
+      EQEQ(arg0 = <this>.<get-ownProp>(), arg1 = tmp_2.<get-ownProp>()).not() -> return false
+    }
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var tmp_3: Int = super<Base>.hashCode()
+    tmp_3 = tmp_3.times(other = 59).plus(other = <this>.<get-ownProp>().hashCode())
+    return tmp_3
+  }
+
+  override fun toString(): String {
+    return "DerivedExplicitTrue(" + "super=" + super<Base>.toString() + ", ownProp=" + <this>.<get-ownProp>() + ')'
+  }
+
+}
+
+@EqualsAndHashCode
+@ToString
+class DerivedImplicit : Base {
+  val ownProp: String
+    field = ownProp
+    get
+
+  constructor(ownProp: String, baseProp: Int) /* primary */ {
+    super/*Base*/(baseProp = baseProp)
+    /* <init>() */
+
+  }
+
+  protected open fun canEqual(other: Any?): Boolean {
+    return other is DerivedImplicit
+  }
+
+  override fun equals(other: Any?): Boolean {
+    when {
+      EQEQEQ(arg0 = <this>, arg1 = other) -> return true
+    }
+    when {
+      other !is DerivedImplicit -> return false
+    }
+    val tmp_4: DerivedImplicit = other /*as DerivedImplicit */
+    when {
+      tmp_4.canEqual(other = <this>).not() -> return false
+    }
+    when {
+      super<Base>.equals(other = other).not() -> return false
+    }
+    when {
+      EQEQ(arg0 = <this>.<get-ownProp>(), arg1 = tmp_4.<get-ownProp>()).not() -> return false
+    }
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var tmp_5: Int = super<Base>.hashCode()
+    tmp_5 = tmp_5.times(other = 59).plus(other = <this>.<get-ownProp>().hashCode())
+    return tmp_5
+  }
+
+  override fun toString(): String {
+    return "DerivedImplicit(" + "super=" + super<Base>.toString() + ", ownProp=" + <this>.<get-ownProp>() + ')'
+  }
+
+}
+
+@EqualsAndHashCode
+@ToString
+class NotDerivedImplicit {
+  val ownProp: String
+    field = ownProp
+    get
+
+  constructor(ownProp: String) /* primary */ {
+    super/*Any*/()
+    /* <init>() */
+
+  }
+
+  override fun equals(other: Any?): Boolean {
+    when {
+      EQEQEQ(arg0 = <this>, arg1 = other) -> return true
+    }
+    when {
+      other !is NotDerivedImplicit -> return false
+    }
+    val tmp_6: NotDerivedImplicit = other /*as NotDerivedImplicit */
+    when {
+      EQEQ(arg0 = <this>.<get-ownProp>(), arg1 = tmp_6.<get-ownProp>()).not() -> return false
+    }
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var tmp_7: Int = 1
+    tmp_7 = tmp_7.times(other = 59).plus(other = <this>.<get-ownProp>().hashCode())
+    return tmp_7
+  }
+
+  override fun toString(): String {
+    return "NotDerivedImplicit(" + "ownProp=" + <this>.<get-ownProp>() + ')'
+  }
+
+}
+
+fun box(): String {
+  val implicit: DerivedImplicit = DerivedImplicit(ownProp = "same", baseProp = 1)
+  assertEquals<DerivedImplicit>(expected = DerivedImplicit(ownProp = "same", baseProp = 1), actual = implicit, message = "chained equals rejects an equal instance")
+  assertNotEquals<DerivedImplicit>(illegal = DerivedImplicit(ownProp = "same", baseProp = 2), actual = implicit, message = "equals did not chain to Base")
+  assertEquals<Int>(expected = DerivedImplicit(ownProp = "same", baseProp = 1).hashCode(), actual = implicit.hashCode(), message = "chained hashCode is unstable")
+  assertNotEquals<Int>(illegal = DerivedImplicit(ownProp = "same", baseProp = 2).hashCode(), actual = implicit.hashCode(), message = "hashCode did not chain to Base")
+  assertEquals<String>(expected = "DerivedImplicit(super=Base(baseProp=1), ownProp=same)", actual = implicit.toString())
+  val explicitFalse: DerivedExplicitFalse = DerivedExplicitFalse(ownProp = "same", baseProp = 1)
+  assertEquals<DerivedExplicitFalse>(expected = DerivedExplicitFalse(ownProp = "same", baseProp = 2), actual = explicitFalse, message = "equals chained despite callSuper=false")
+  assertEquals<Int>(expected = DerivedExplicitFalse(ownProp = "same", baseProp = 2).hashCode(), actual = explicitFalse.hashCode(), message = "hashCode chained despite callSuper=false")
+  assertEquals<String>(expected = "DerivedExplicitFalse(ownProp=same)", actual = explicitFalse.toString())
+  val explicitTrue: DerivedExplicitTrue = DerivedExplicitTrue(ownProp = "same", baseProp = 1)
+  assertNotEquals<DerivedExplicitTrue>(illegal = DerivedExplicitTrue(ownProp = "same", baseProp = 2), actual = explicitTrue, message = "equals did not chain despite callSuper=true")
+  assertEquals<String>(expected = "DerivedExplicitTrue(super=Base(baseProp=1), ownProp=same)", actual = explicitTrue.toString())
+  val notDerived: NotDerivedImplicit = NotDerivedImplicit(ownProp = "same")
+  assertEquals<NotDerivedImplicit>(expected = NotDerivedImplicit(ownProp = "same"), actual = notDerived, message = "equals chained to Any")
+  assertEquals<Int>(expected = NotDerivedImplicit(ownProp = "same").hashCode(), actual = notDerived.hashCode(), message = "hashCode chained to Any")
+  assertEquals<String>(expected = "NotDerivedImplicit(ownProp=same)", actual = notDerived.toString())
+  return "OK"
+}
+

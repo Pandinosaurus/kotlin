@@ -9,40 +9,41 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.TokenType
 import com.intellij.psi.impl.source.tree.TreeUtil
 import com.intellij.psi.util.PsiUtilCore
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaBuiltinsModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.symbols.*
+import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.psi.psiUtil.hasExpectModifier
-import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
-import org.jetbrains.kotlin.serialization.deserialization.builtins.BuiltInSerializerProtocol
 
-fun KtClassOrObject.shouldNotBeVisibleAsLightClass(): Boolean {
-    val containingFile = containingFile
-    if (containingFile is KtCodeFragment) {
+
+internal fun KaClassSymbol.shouldNotBeVisibleAsLightClass(containingModule: KaModule): Boolean {
+    if ((containingModule as? KaDanglingFileModule)?.isCodeFragment == true) {
         // Avoid building light classes for code fragments
         return true
     }
 
     // Avoid building light classes for decompiled built-ins
-    if ((containingFile as? KtFile)?.isCompiled == true &&
-        containingFile.virtualFile.extension == BuiltInSerializerProtocol.BUILTINS_FILE_EXTENSION
-    ) {
+    if ((containingModule is KaLibraryModule || containingModule is KaBuiltinsModule) && isBuiltinClass()) {
         return true
     }
 
-    if (parentsWithSelf.filterIsInstance<KtClassOrObject>().any { it.hasExpectModifier() }) {
+    if (isExpect) {
         return true
     }
 
-    if (isLocal) {
-        if (containingFile.originalFile.virtualFile == null) return true
-        if (hasParseErrorsAround(this) || PsiUtilCore.hasErrorElementChild(this)) return true
-        if (classDeclaredInUnexpectedPosition(this)) return true
+    if (!isLocal) {
+        return false
     }
 
-    if (isEnumEntryWithoutBody(this)) {
-        return true
-    }
-
-    return false
+    val classOrObjectPsi = realPsi as? KtClassOrObject ?: return false
+    if (classOrObjectPsi.containingKtFile.originalFile.virtualFile == null) return true
+    if (hasParseErrorsAround(classOrObjectPsi) || PsiUtilCore.hasErrorElementChild(classOrObjectPsi)) return true
+    return classDeclaredInUnexpectedPosition(classOrObjectPsi)
 }
 
 /**
@@ -62,13 +63,6 @@ private fun classDeclaredInUnexpectedPosition(classOrObject: KtClassOrObject): B
             classParent !is KtDeclarationContainer
 }
 
-private fun isEnumEntryWithoutBody(classOrObject: KtClassOrObject): Boolean {
-    if (classOrObject !is KtEnumEntry) {
-        return false
-    }
-    return classOrObject.getBody()?.declarations?.isEmpty() ?: true
-}
-
 private fun hasParseErrorsAround(psi: PsiElement): Boolean {
     val node = psi.node ?: return false
 
@@ -85,4 +79,21 @@ private fun hasParseErrorsAround(psi: PsiElement): Boolean {
     }
 
     return false
+}
+
+private fun KaClassSymbol.isBuiltinClass(): Boolean {
+    val classId = classId ?: return false
+    return classId.packageFqName.startsWith(StandardNames.BUILT_INS_PACKAGE_NAME) &&
+            (JavaToKotlinClassMap.isMappedKotlinClass(classId) || classId.isArrayType())
+}
+
+/**
+ * [JavaToKotlinClassMap] doesn't contain any Kotlin -> Java mappings for array types.
+ * That's because Kotlin array types are mapped into regular array structures in Java.
+ * Hence, those have to be checked manually in [isBuiltinClass].
+ */
+private fun ClassId.isArrayType(): Boolean {
+    return this == StandardClassIds.Array ||
+            this in StandardClassIds.elementTypeByPrimitiveArrayType ||
+            this in StandardClassIds.elementTypeByUnsignedArrayType
 }

@@ -2,16 +2,23 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
+    id("java-test-fixtures")
 }
 
-project.updateJvmTarget("1.8")
+jvmToolchains {
+    targetBytecodeVersion = JdkMajorVersion.JDK_1_8
+}
 
 dependencies {
     api(kotlinStdlib())
     api(project(":kotlin-scripting-common"))
+
+    testFixturesApi(project(":kotlin-scripting-common"))
+    testFixturesApi(platform(libs.junit.bom))
+    testFixturesApi(libs.junit.jupiter.api)
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)
@@ -23,6 +30,7 @@ dependencies {
 
 sourceSets {
     "main" { projectDefault() }
+    "testFixtures" { projectDefault() }
     "test" { projectDefault() }
 }
 
@@ -39,4 +47,3 @@ publish()
 runtimeJar()
 sourcesJar()
 javadocJar()
-testsJar()

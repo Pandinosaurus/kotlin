@@ -25,7 +25,7 @@ import java.nio.file.Files.createTempFile
 import javax.script.*
 import kotlin.io.path.writeLines
 import kotlin.script.experimental.jvmhost.jsr223.KotlinJsr223ScriptEngineImpl
-import kotlin.script.templates.standard.ScriptTemplateWithBindings
+import kotlin.script.experimental.templates.ScriptWithBindings
 
 // duplicating it here to avoid dependency on the implementation - it may interfere with tests
 private const val KOTLIN_JSR223_RESOLVE_FROM_CLASSLOADER_PROPERTY = "kotlin.jsr223.experimental.resolve.dependencies.from.context.classloader"
@@ -40,7 +40,7 @@ fun callLambda(x: Int, aFunction: (Int) -> Int): Int = aFunction.invoke(x)
 inline fun inlineCallLambda(x: Int, aFunction: (Int) -> Int): Int = aFunction.invoke(x)
 
 @Suppress("unused", "UNCHECKED_CAST") // accessed from the tests below
-fun ScriptTemplateWithBindings.myFunFromBindings(n: Int): Int =
+fun ScriptWithBindings.myFunFromBindings(n: Int): Int =
     (bindings["myFunFromBindings"] as (Int) -> Int).invoke(n)
 
 
@@ -232,6 +232,19 @@ obj
         // `z.length` unresolved (or its getter `bindings["z"] as Int` throws a ClassCastException).
         engine.put("z", "abc")
         assertEquals(6, engine.eval("z.length * 2"))
+    }
+
+    @Test
+    fun testBindGenericJavaClass() {
+        val engine = ScriptEngineManager().getEngineByExtension("kts")!!
+        engine.put("boundList", arrayListOf(1, 2))
+        engine.put("boundMap", hashMapOf("a" to 1))
+        // A generic runtime class has to be exposed with star-projected type arguments: a raw type
+        // reference makes the synthetic bindings snippet fail to compile, which breaks every eval on
+        // the engine, including snippets that don't touch the binding (KT-89220).
+        assertEquals(2, engine.eval("1 + 1"))
+        assertEquals(2, engine.eval("boundList.size"))
+        assertEquals(1, engine.eval("boundMap.size"))
     }
 
     @Test

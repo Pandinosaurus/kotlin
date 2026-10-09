@@ -1,0 +1,27 @@
+; OPT: --passes=kotlin-calls-checker
+
+; CHECK: @0 = private constant [2 x i8] c"f\00"
+; CHECK: @1 = private constant [7 x i8] c"sinBad\00"
+
+; sin and llvm.sin.* are both defined in GoodFunctionNames
+
+declare double @sin(double)
+declare double @sinBad(double)
+
+; CHECK: define void @f(double %0) {
+define void @f(double %0) {
+; sin is a good function, call uninstrumented
+; CHECK-NEXT: call double @sin(double %0)
+  call double @sin(double %0)
+; CHECK-NEXT: call void @Kotlin_callsChecker_check(ptr @0, ptr @1, ptr @sinBad)
+; CHECK-NEXT: call double @sinBad(double %0)
+  call double @sinBad(double %0)
+; llvm.sin.* is a good intrinsics family, call uninstrumented
+; CHECK-NEXT: call double @llvm.sin.f64(double %0)
+  call double @llvm.sin.f64(double %0)
+; CHECK-NEXT: ret void
+  ret void
+; CHECK-NEXT: }{{$}}
+}
+
+; CHECK: declare void @Kotlin_callsChecker_check(ptr, ptr, ptr)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -22,6 +22,7 @@ import com.intellij.psi.PsiReference
  * Prefer type-safe traversal via the visitors ([accept], [acceptChildren], [KtVisitor], [KtTreeVisitor]) over the generic
  * [com.intellij.psi.PsiElement] navigation methods where possible.
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 interface KtElement : NavigatablePsiElement, KtPureElement {
     /**
      * Passes each direct child of this element to the given [visitor].
@@ -41,12 +42,17 @@ interface KtElement : NavigatablePsiElement, KtPureElement {
 
     /**
      * Deletes this PSI element using the raw platform implementation, bypassing Kotlin PSI-specific [delete] overrides.
+     *
+     * Regular clients should use [delete] instead. When [KtPsiMutationService] is not registered, it performs the same plain deletion, and
+     * when the service is registered, as in the IntelliJ Kotlin plugin, it may also adjust the surrounding code, e.g., delete a semicolon
+     * that follows the element.
      */
-    @KtNonPublicApi
+    @KtIdeApi
     fun rawDelete()
 
     @Deprecated(
         message = "Don't use getReference() on KtElement for the choice is unpredictable",
+        level = DeprecationLevel.ERROR,
     )
     override fun getReference(): PsiReference?
 }

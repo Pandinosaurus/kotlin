@@ -1,6 +1,5 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     `java-library`
     id("analysis-api-artifact")
@@ -51,6 +50,11 @@ val validateClasspath = tasks.register("validateClasspath", CacheableProguardTas
     )
 }
 
+val validateNoDuplicateClasses = tasks.register("validateNoDuplicateClasses", VerifyNoDuplicateClasspathEntriesTask::class) {
+    classpath.from(configurations.runtimeClasspath)
+    permittedDuplicatesFile = layout.projectDirectory.file("api/analysis-api.permitted-duplicates")
+}
+
 tasks.check {
-    dependsOn(validateClasspath)
+    dependsOn(validateClasspath, validateNoDuplicateClasses)
 }

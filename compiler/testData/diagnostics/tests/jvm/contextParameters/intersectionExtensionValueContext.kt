@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LANGUAGE: +ContextParameters
 // IGNORE_ERRORS
 class A
@@ -20,9 +20,9 @@ interface Third {
     fun foo(a: A)
 }
 
-<!CONFLICTING_INHERITED_JVM_DECLARATIONS!>interface IntersectionContextWithExtension : First, Second<!>
+interface <!CONFLICTING_INHERITED_JVM_DECLARATIONS!>IntersectionContextWithExtension<!> : First, Second
 
-<!CONFLICTING_INHERITED_JVM_DECLARATIONS!>interface IntersectionContextWithValue : First, Third<!>
+interface <!CONFLICTING_INHERITED_JVM_DECLARATIONS!>IntersectionContextWithValue<!> : First, Third
 
 /* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, functionDeclarationWithContext,
 interfaceDeclaration, propertyDeclaration, propertyDeclarationWithContext, propertyWithExtensionReceiver */

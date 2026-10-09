@@ -57,7 +57,6 @@ class TagsGeneratorChecker(testServices: TestServices) : FirAnalysisHandler(test
         testServices.moduleStructure.originalTestDataFiles.first().let { originalFile ->
             listOf(
                 originalFile.originalTestDataFile,
-                originalFile.firTestDataFile,
                 originalFile.llFirTestDataFile,
                 originalFile.reversedTestDataFile,
                 originalFile.latestLVTestDataFile
@@ -621,6 +620,7 @@ private class TagsCollectorVisitor(private val session: FirSession) : FirVisitor
         return when (origin) {
             is FirDeclarationOrigin.Java.Source -> true
             is FirDeclarationOrigin.Java.Library -> true
+            is FirDeclarationOrigin.Java.Plugin -> true
             is FirDeclarationOrigin.Synthetic.JavaProperty -> true
             FirDeclarationOrigin.Enhancement, FirDeclarationOrigin.RenamedForOverride -> when (source?.kind) {
                 is KtFakeSourceElementKind.EnumGeneratedDeclaration -> false

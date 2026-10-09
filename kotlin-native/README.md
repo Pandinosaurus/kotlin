@@ -27,7 +27,7 @@ More information can be found in the overviews of
 [Kotlin/Native](https://kotlinlang.org/docs/native-overview.html)
 and [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html).
 
-On macOS Kotlin/Native requires Xcode 12.5 or newer.
+On macOS Kotlin/Native requires Xcode 15.4 or newer.
 
 ## Contributing
 
@@ -42,7 +42,7 @@ Prerequisites:
 *   configure Kotlin build as [specified in main readme](../ReadMe.md#build-environment-requirements)
 *   at the root directory of the repository,
     create `local.properties` file with `kotlin.native.enabled=true` line
-*   macOS: Xcode 26.4 or newer
+*   macOS: Xcode 27.0 or newer
     * if you're seeing a build error like this
       
             > Failed to apply plugin class 'org.jetbrains.kotlin.xcode.XcodeOverridePlugin'.

@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.psi
 import com.intellij.lang.ASTNode
 import com.intellij.psi.PsiElement
 import com.intellij.psi.tree.IElementType
-import org.jetbrains.kotlin.psi.psiUtil.parentSubstitute
 
 /**
  * Base implementation of [KtExpression] backed directly by the AST tree.
@@ -16,6 +15,7 @@ import org.jetbrains.kotlin.psi.psiUtil.parentSubstitute
  * This is an internal implementation base class of the Kotlin PSI, not intended for direct use or subclassing outside of the PSI
  * implementation. For expressions that may also be backed by a stub, see [KtExpressionImplStub].
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 abstract class KtExpressionImpl : KtElementImpl, KtExpression {
     @KtImplementationDetail
     constructor(node: ASTNode) : super(node)
@@ -27,13 +27,19 @@ abstract class KtExpressionImpl : KtElementImpl, KtExpression {
         return containerNode.findChildByClass<KtExpression>(KtExpression::class.java)
     }
 
-    @OptIn(KtNonPublicApi::class)
-    override fun replace(newElement: PsiElement): PsiElement =
-        KtPsiMutationService.getInstance().replaceExpression(this, newElement, true) { super.replace(it) }
-
-    // HasPlatformType is used to preserve the flexible type to not break source compatibility
-    @Suppress("DEPRECATION", "HasPlatformType")
-    override fun getParent() = parentSubstitute ?: super.getParent()
+    /**
+     * Replaces this expression with [newElement].
+     *
+     * When [KtPsiMutationService] is registered, as in the IntelliJ Kotlin plugin, the replacement may also adjust the new expression to
+     * its place, e.g., wrap it in parentheses to keep the operator precedence, or turn a `$name` string template entry into `${...}`.
+     * Without the service, it performs only the plain platform replacement, so, e.g., replacing `a` in `a * b` with `x + y` results in
+     * `x + y * b`.
+     */
+    @OptIn(KtIdeApi::class)
+    override fun replace(newElement: PsiElement): PsiElement {
+        val mutationService = KtPsiMutationService.getInstanceOrNull() ?: return super.replace(newElement)
+        return mutationService.replaceExpression(this, newElement, true) { super.replace(it) }
+    }
 
     companion object {
         @Deprecated(
@@ -42,8 +48,9 @@ abstract class KtExpressionImpl : KtElementImpl, KtExpression {
                 "expression.replaceExpression(newElement, reformat, rawReplaceHandler)",
                 "org.jetbrains.kotlin.idea.base.psi.replaceExpression",
             ),
+            level = DeprecationLevel.ERROR,
         )
-        @OptIn(KtNonPublicApi::class)
+        @OptIn(KtIdeApi::class)
         fun replaceExpression(
             expression: KtExpression,
             newElement: PsiElement,

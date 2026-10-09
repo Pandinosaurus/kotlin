@@ -12,8 +12,7 @@ import org.jetbrains.kotlin.psi.KtStringInterpolationPrefix
 import org.jetbrains.kotlin.psi.stubs.KotlinStringInterpolationPrefixStub
 import org.jetbrains.kotlin.psi.stubs.KotlinStubElement
 
-@OptIn(KtImplementationDetail::class)
-class KotlinStringInterpolationPrefixStubImpl(
+internal class KotlinStringInterpolationPrefixStubImpl(
     parent: StubElement<*>?,
     override val dollarSignCount: Int,
 ) : KotlinStubBaseImpl<KtStringInterpolationPrefix>(parent, KtNodeTypes.STRING_INTERPOLATION_PREFIX),

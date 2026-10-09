@@ -3,7 +3,6 @@ KaCompletionCandidateChecker: org.jetbrains.kotlin.analysis.api.components.KaExt
 KaCompletionCandidateChecker: org.jetbrains.kotlin.analysis.api.components.createExtensionCandidateChecker(KtFile, KtSimpleNameExpression, KtExpression?)
 KaExpressionInformationProvider: org.jetbrains.kotlin.analysis.api.components.KaWhenMissingCase
 KaExpressionInformationProvider: org.jetbrains.kotlin.analysis.api.components.computeMissingCases()
-KaExpressionTypeProvider: org.jetbrains.kotlin.analysis.api.components.returnType
 KaJavaInteroperabilityComponent: org.jetbrains.kotlin.analysis.api.components.asPsiType(PsiElement, Boolean, KaTypeMappingMode, Boolean, Boolean?, Boolean, Boolean)
 KaReferenceShortener: org.jetbrains.kotlin.analysis.api.components.QualifierToShortenInfo
 KaReferenceShortener: org.jetbrains.kotlin.analysis.api.components.ShortenCommand
@@ -22,6 +21,8 @@ KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.KaScopeKind
 KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.KaScopeKinds
 KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.KaScopeWithKind
 KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.KaScopeWithKindImpl
+KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.KaSmartCastPossibility
+KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.KaSmartCastSource
 KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.compositeScope((KaScopeKind) -> Boolean)
 KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.importingScopeContext
 KaScopeProvider: org.jetbrains.kotlin.analysis.api.components.scopeContext(KtElement)

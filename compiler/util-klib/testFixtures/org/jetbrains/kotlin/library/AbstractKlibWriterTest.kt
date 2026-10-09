@@ -107,8 +107,9 @@ abstract class AbstractKlibWriterTest<P : Parameters>(private val newParameters:
             listOf(true, false).forEach { includeInlinableFunctions ->
                 runTestWithParameters {
                     ir = SerializedIrModule(
+                        signatureIndex = null,
                         files = List(mainIrFiles) { KlibMockDSL.generateRandomIrFile() },
-                        fileWithPreparedInlinableFunctions = if (includeInlinableFunctions) KlibMockDSL.generateRandomIrFile() else null
+                        filesWithPreparedInlinableFunctions = if (includeInlinableFunctions) List(1) { KlibMockDSL.generateRandomIrFile() } else emptyList()
                     )
                 }
             }

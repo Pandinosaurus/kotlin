@@ -423,6 +423,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByPsiTestGenerated extend
   }
 
   @Test
+  @TestMetadata("jvmExposeBoxedInternalDeclarations.kt")
+  public void testJvmExposeBoxedInternalDeclarations() {
+    run("jvmExposeBoxedInternalDeclarations.kt");
+  }
+
+  @Test
   @TestMetadata("jvmField.kt")
   public void testJvmField() {
     run("jvmField.kt");
@@ -618,6 +624,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByPsiTestGenerated extend
   @TestMetadata("typeAnnotations.kt")
   public void testTypeAnnotations() {
     run("typeAnnotations.kt");
+  }
+
+  @Test
+  @TestMetadata("typeParameterOnAnonymousObject.kt")
+  public void testTypeParameterOnAnonymousObject() {
+    run("typeParameterOnAnonymousObject.kt");
   }
 
   @Test

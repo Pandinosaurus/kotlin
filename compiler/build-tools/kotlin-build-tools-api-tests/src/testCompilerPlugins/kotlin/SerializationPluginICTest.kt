@@ -11,10 +11,10 @@ import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompil
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.BtaV2StrategyAgnosticCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.FileDependency
 import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.jvmScenario
-import org.jetbrains.kotlin.testFederation.AffectedByCompilerPlugins
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
 import org.junit.jupiter.api.DisplayName
 
-@AffectedByCompilerPlugins
+@MustRunOnChangesInCompilerPlugins
 class SerializationPluginICTest : BaseCompilationTest() {
     @BtaV2StrategyAgnosticCompilationTest
     @DisplayName("KT-50901: recompiling a serializable class with a @SerialInfo annotation with default arguments from a separate file does not fail codegen")
@@ -32,6 +32,50 @@ class SerializationPluginICTest : BaseCompilationTest() {
 
             module.compile {
                 assertCompiledSources("Serializable.kt")
+            }
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    @DisplayName("KT-86121: Modifying a concrete subclass in a multi-file sealed serializable hierarchy succeeds incrementally")
+    fun testIncrementalCompilationOfSealedSerializableHierarchy(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jvmScenario(strategyConfig) {
+            val module = module(
+                "ic-scenarios/serialization-sealed-hierarchy",
+                SERIALIZATION_CORE_CLASSPATH.map { FileDependency(it) },
+                compilationConfigAction = {
+                    it.compilerArguments[COMPILER_PLUGINS] = listOf(SERIALIZATION_PLUGIN)
+                },
+            )
+
+            module.replaceFileWithVersion("Bar.kt", "change")
+
+            // before KT-86121 fix, this crashed with IndexOutOfBoundsException in
+            // usesDefaultArguments() during SyntheticAccessorLowering
+            module.compile {
+                assertCompiledSources("Bar.kt")
+            }
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    @DisplayName("KT-88801: Modifying a subclass of a serializable abstract class with a private field succeeds incrementally")
+    fun testIncrementalCompilationOfSerializableAbstractClassWithPrivateField(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jvmScenario(strategyConfig) {
+            val module = module(
+                "ic-scenarios/serialization-abstract-private-field",
+                SERIALIZATION_CORE_CLASSPATH.map { FileDependency(it) },
+                compilationConfigAction = {
+                    it.compilerArguments[COMPILER_PLUGINS] = listOf(SERIALIZATION_PLUGIN)
+                },
+            )
+
+            module.replaceFileWithVersion("SubClass.kt", "change")
+
+            // before KT-88801 fix, this crashed with IndexOutOfBoundsException in
+            // usesDefaultArguments() during SyntheticAccessorLowering
+            module.compile {
+                assertCompiledSources("SubClass.kt")
             }
         }
     }

@@ -1,6 +1,5 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("generated-sources")
@@ -10,10 +9,8 @@ plugins {
 dependencies {
     api(project(":core:compiler.common.js"))
     api(project(":js:js.ast"))
-    api(project(":compiler:fir:checkers"))
     api(project(":compiler:fir:checkers:checkers.web.common"))
 
-    implementation(project(":compiler:fir:diagnostic-renderers"))
     implementation(project(":js:js.config"))
 
     /*

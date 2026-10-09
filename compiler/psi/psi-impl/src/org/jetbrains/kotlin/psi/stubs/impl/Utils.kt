@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.stubs.KotlinStubElement
 import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
 
-object Utils {
+internal object Utils {
     fun wrapStrings(names: List<String>): Array<StringRef> = if (names.isEmpty())
         StringRef.EMPTY_ARRAY
     else
@@ -31,7 +31,6 @@ fun KotlinFileStubImpl.deepCopy(): KotlinFileStubImpl = copyStubRecursively(
 /**
  * Returns a copy of [originalStub].
  */
-@OptIn(KtImplementationDetail::class)
 private fun <T : PsiElement> copyStubRecursively(
     originalStub: StubElement<T>,
     newParentStub: StubElement<*>?,

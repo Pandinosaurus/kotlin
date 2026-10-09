@@ -6,12 +6,10 @@ import org.jetbrains.kotlin.nativeDistribution.nativeProtoDistribution
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     application
     id("native-dependencies")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -39,6 +37,8 @@ dependencies {
     implementation(project(":native:unsafe-mem"))
     implementation(project(":compiler:ir.serialization.common"))
     implementation(project(":kotlin-util-klib-metadata"))
+    implementation(project(":native:cinterop.deserialization"))
+    compileOnly(project(":kotlin-metadata")) // Only to fix IDE reporting unresolved references (KTI-3323).
 
     testImplementation(kotlinTest("junit5"))
     testImplementation(testFixtures(project(":native:kotlin-native-utils")))

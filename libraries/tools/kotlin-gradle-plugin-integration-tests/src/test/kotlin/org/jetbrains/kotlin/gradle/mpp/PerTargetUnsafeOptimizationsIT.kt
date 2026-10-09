@@ -10,8 +10,8 @@ import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.build.report.metrics.BuildAttribute
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.test.TestMetadata
-import org.jetbrains.kotlin.testFederation.AffectedByBuildToolsApi
-import org.jetbrains.kotlin.testFederation.AffectedByCompilerInfrastructure
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerInfrastructure
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.writeText
 
@@ -24,14 +24,14 @@ import kotlin.io.path.writeText
  */
 @MppGradlePluginTests
 @DisplayName("Per-target unsafe optimizations for KMP incremental compilation")
-@AffectedByCompilerInfrastructure
-@AffectedByBuildToolsApi
+@MustRunOnChangesInCompilerInfrastructure
+@MustRunOnChangesInBuildToolsApi
 class PerTargetUnsafeOptimizationsIT : KGPBaseTest() {
 
     override val defaultBuildOptions: BuildOptions
         get() = super.defaultBuildOptions.copy(
             logLevel = LogLevel.DEBUG,
-            languageVersion = "2.0",
+            // FIXME(KT-69597): Previously hardcoded to language version 2.0.
         ).disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
 
     @GradleTest

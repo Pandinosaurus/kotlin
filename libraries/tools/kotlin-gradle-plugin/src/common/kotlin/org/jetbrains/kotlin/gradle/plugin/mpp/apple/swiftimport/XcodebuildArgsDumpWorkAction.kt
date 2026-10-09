@@ -204,7 +204,16 @@ internal abstract class XcodebuildArgsDumpWorkAction @Inject constructor(
                 "CODE_SIGN_IDENTITY=",
                 "COMPILER_INDEX_STORE_ENABLE=NO",
                 "SWIFT_INDEX_STORE_ENABLE=NO",
+                // Remove the flag below once SPM issue #10429 is fixed:
+                // https://github.com/swiftlang/swift-package-manager/issues/10429
+                "SWIFT_ENABLE_EXPLICIT_MODULES=NO",
             )
+
+            // KT-89285: xcodebuild echoes every clang/ld invocation, several megabytes per run.
+            // Without --info, ask for warnings and errors only, so failures stay visible.
+            if (!logger.isInfoEnabled) {
+                args.add("-quiet")
+            }
 
             args.addAll(parameters.additionalXcodeArgs.get())
 

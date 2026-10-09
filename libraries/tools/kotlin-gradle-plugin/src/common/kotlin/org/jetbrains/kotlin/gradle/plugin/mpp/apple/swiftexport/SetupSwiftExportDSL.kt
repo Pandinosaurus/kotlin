@@ -6,15 +6,25 @@
 package org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport
 
 import org.gradle.api.Project
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.supportedAppleTargets
 import org.jetbrains.kotlin.gradle.plugin.KotlinProjectSetupCoroutine
 import org.jetbrains.kotlin.gradle.plugin.addExtension
+import org.jetbrains.kotlin.gradle.plugin.findExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XcodeEnvironment
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.registerEmbedSwiftExportTask
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.internal.initSwiftExportClasspathConfigurations
-import org.jetbrains.kotlin.gradle.plugin.variantImplementationFactoryProvider
+import org.jetbrains.kotlin.gradle.plugin.mpp.export.EXPORT_EXTENSION_NAME
+import org.jetbrains.kotlin.gradle.plugin.mpp.export.ExportExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.export.internal.SwiftExportMetadata
+import org.jetbrains.kotlin.gradle.plugin.mpp.export.internal.shareSwiftExportMetadata
+import org.jetbrains.kotlin.gradle.plugin.mpp.export.internal.swiftExportDependencySelectorFactory
+import org.jetbrains.kotlin.gradle.plugin.mpp.export.tasks.locateOrRegisterSwiftExportMetadataTaskAndConsumableConfiguration
+import org.jetbrains.kotlin.gradle.plugin.statistics.SwiftExportDslMetrics
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.reportDiagnostic
 
 internal object SwiftExportDSLConstants {
     const val SWIFT_EXPORT_EXTENSION_NAME = "swiftExport"
@@ -22,15 +32,16 @@ internal object SwiftExportDSLConstants {
 }
 
 internal val SetUpSwiftExportAction = KotlinProjectSetupCoroutine {
-    val swiftExportExtension = objects.SwiftExportExtension(
-        dependencies,
-        variantImplementationFactoryProvider(),
-    ) { path -> project.project(path) }
+    val legacySwiftExportExtension = multiplatformExtension.swiftExportInternal
 
     multiplatformExtension.addExtension(
         SwiftExportDSLConstants.SWIFT_EXPORT_EXTENSION_NAME,
-        swiftExportExtension
+        legacySwiftExportExtension
     )
+
+    // TODO: Move to a more generic SetUpExportAction.
+    val exportExtension = objects.ExportExtension(swiftExportDependencySelectorFactory())
+    multiplatformExtension.addExtension(EXPORT_EXTENSION_NAME, exportExtension)
 
     val appleTargets = project
         .multiplatformExtension
@@ -38,28 +49,99 @@ internal val SetUpSwiftExportAction = KotlinProjectSetupCoroutine {
         .withType(KotlinNativeTarget::class.java)
         .matching { it.konanTarget.family.isAppleFamily }
 
-    if (appleTargets.isEmpty()) return@KotlinProjectSetupCoroutine
+    if (appleTargets.isEmpty()) {
+        if (exportExtension.isSwiftExportConfigured) {
+            project.reportDiagnostic(KotlinToolingDiagnostics.SwiftExportWithoutAppleTargets())
+        }
+        return@KotlinProjectSetupCoroutine
+    }
 
-    initSwiftExportClasspathConfigurations()
-    registerSwiftExportPipeline(swiftExportExtension)
+    if (exportExtension.isSwiftExportConfigured) {
+        SwiftExportDslMetrics.collectSwiftExportConfigured(project)
+    }
+
+    // Runs before isSwiftExportXcodeIntegrationActivated()'s early return: publishing metadata is independent
+    // of the Xcode integration. AfterFinaliseDsl still precedes any afterEvaluate {} a build script registers,
+    // so configuring the DSL from there publishes nothing.
+    val swiftExportConfiguration = exportExtension.swiftExportConfiguration
+    if (swiftExportConfiguration.moduleName.isPresent || swiftExportConfiguration.rootPackage.isPresent) {
+        SwiftExportDslMetrics.collectModuleMetrics(
+            project,
+            moduleNameOverridden = swiftExportConfiguration.moduleName.isPresent,
+            rootPackageOverridden = swiftExportConfiguration.rootPackage.isPresent,
+        )
+        locateOrRegisterSwiftExportMetadataTaskAndConsumableConfiguration(swiftExportConfiguration)
+
+        // Published dependencies expose their metadata through the root publication's Swift Export metadata variant.
+        // Same-build subprojects additionally share it as a secondary variant on each apple target's `apiElements`, so
+        // that a consuming project in the same build can read it at execution time without relying on the module cache
+        // (which a not-yet-published subproject has no entry in).
+        val metadata = project.provider {
+            SwiftExportMetadata(
+                moduleName = swiftExportConfiguration.moduleName.orNull,
+                rootPackage = swiftExportConfiguration.rootPackage.orNull,
+            )
+        }
+        appleTargets.all { target ->
+            project.shareSwiftExportMetadata(
+                project.configurations.getByName(target.apiElementsConfigurationName),
+                metadata,
+            )
+        }
+    }
+
+    // The targets are awaited above, so the DSL is finalised by now and the activations are order-independent.
+    val xcodeIntegrationActivated = multiplatformExtension.isSwiftExportXcodeIntegrationActivated()
+    val swiftPackageIntegrationActivated = swiftExportConfiguration.activatedSwiftPackageIntegration != null
+    if (xcodeIntegrationActivated || swiftPackageIntegrationActivated) {
+        swiftExportConfiguration.activatedXcodeIntegration?.let { activatedXcodeIntegration ->
+            SwiftExportDslMetrics.collectXcodeIntegrationMetrics(project, activatedXcodeIntegration)
+        }
+
+        initSwiftExportClasspathConfigurations()
+        if (xcodeIntegrationActivated) {
+            registerSwiftExportPipeline(legacySwiftExportExtension, exportExtension)
+        }
+        if (swiftPackageIntegrationActivated) {
+            registerSwiftPackageExportPipeline(exportExtension)
+        }
+    }
+}
+
+/**
+ * Whether the Swift Export Xcode integration has to be set up in this project.
+ *
+ * The `export { swift { } }` DSL activates the integration explicitly with
+ * [org.jetbrains.kotlin.gradle.plugin.mpp.export.SwiftExportConfigurationDsl.xcodeIntegration]: an exported module
+ * doesn't have to be integrated into Xcode, only the umbrella module does. The legacy `swiftExport { }` DSL has no
+ * such distinction and activates the integration by being used at all.
+ *
+ * Reading this value is only meaningful after the DSL has been finalised, so that the order of the DSL calls
+ * doesn't matter.
+ */
+internal fun KotlinMultiplatformExtension.isSwiftExportXcodeIntegrationActivated(): Boolean {
+    val exportExtension = findExtension<ExportExtension>(EXPORT_EXTENSION_NAME)
+    if (exportExtension != null && exportExtension.isSwiftExportConfigured) {
+        return exportExtension.swiftExportConfiguration.activatedXcodeIntegration != null
+    }
+
+    if (isSwiftExportRequested) return true
+
+    // TODO(KT-89151): Return false here once the legacy `swiftExport { }` DSL is removed in Kotlin 2.7.
+    //  Un-registering `embedSwiftExportForXcode` now would silently break a project whose Xcode build phase
+    //  already invokes that task without a `swiftExport { }` block. Keep the integration until the DSL is gone.
+    return true
 }
 
 private fun Project.registerSwiftExportPipeline(
-    swiftExportExtension: SwiftExportExtension,
+    legacySwiftExportExtension: SwiftExportExtension,
+    exportExtension: ExportExtension,
 ) {
     val environment = XcodeEnvironment(project)
 
     multiplatformExtension
         .supportedAppleTargets()
         .configureEach { target ->
-            setupSwiftExport(target, environment, swiftExportExtension)
+            registerEmbedSwiftExportTask(target, environment, legacySwiftExportExtension, exportExtension)
         }
-}
-
-private fun Project.setupSwiftExport(
-    target: KotlinNativeTarget,
-    environment: XcodeEnvironment,
-    swiftExportExtension: SwiftExportExtension,
-) {
-    registerEmbedSwiftExportTask(target, environment, swiftExportExtension)
 }

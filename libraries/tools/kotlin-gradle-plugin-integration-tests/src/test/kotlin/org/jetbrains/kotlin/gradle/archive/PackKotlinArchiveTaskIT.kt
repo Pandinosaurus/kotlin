@@ -1,0 +1,296 @@
+/*
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
+ */
+
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
+
+package org.jetbrains.kotlin.gradle.archive
+
+import org.gradle.kotlin.dsl.kotlin
+import org.gradle.util.GradleVersion
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.KotlinPublicationFormat
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.gradle.testing.prettyPrinted
+import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames
+import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
+import org.jetbrains.kotlin.gradle.uklibs.include
+import org.junit.jupiter.api.condition.OS
+import java.nio.file.Path
+import kotlin.io.path.appendText
+import kotlin.test.assertEquals
+
+@MppGradlePluginTests
+class PackKotlinArchiveTaskIT : KGPBaseTest() {
+    override val defaultBuildOptions: BuildOptions
+        get() = super.defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
+
+    @GradleTest
+    fun testSimpleProducer(gradleVersion: GradleVersion) {
+        val archiveEntries = packKotlinArchive(
+            gradleVersion,
+            projectName = "producer",
+        ) { setupKarTestTargetsAndSourceSets() }
+
+        assertEquals(simpleProducerArchiveEntries.prettyPrinted, archiveEntries.prettyPrinted)
+    }
+
+    @GradleTest
+    fun testTargetRenamesDoNotAffectArchiveLayout(gradleVersion: GradleVersion) {
+        val archiveEntries = packKotlinArchive(
+            gradleVersion,
+            projectName = "producerWithRenames",
+        ) {
+            jvm("renamedJvm")
+            js("renamedJs")
+            wasmJs("renamedWasmJs")
+            macosArm64("renamedMacosArm64")
+
+            sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+        }
+
+        assertEquals(simpleProducerArchiveEntries.prettyPrinted, archiveEntries.prettyPrinted)
+    }
+
+    @GradleTest
+    fun testCommonizedCInteropsKeepPerLibraryDirectories(gradleVersion: GradleVersion) {
+        val archiveEntries = packKotlinArchive(
+            gradleVersion,
+            projectName = "producerWithCommonizedCinterops",
+            "-P${PropertyNames.KOTLIN_MPP_ENABLE_CINTEROP_COMMONIZATION}=true",
+        ) {
+            listOf(linuxX64(), linuxArm64()).forEach { target ->
+                target.createCInterop("first")
+                target.createCInterop("second")
+            }
+
+            sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+            sourceSets.nativeMain.get().compileStubSourceWithSourceSetName()
+        }
+
+        assertEquals(producerWithCommonizedCinteropsArchiveEntries.prettyPrinted, archiveEntries.prettyPrinted)
+    }
+
+    @GradleTest
+    @OsCondition(supportedOn = [OS.LINUX, OS.WINDOWS], enabledOnCI = [OS.LINUX, OS.WINDOWS])
+    fun testAssemblyFailsWhenTargetIsNotPublishableOnCurrentHost(gradleVersion: GradleVersion) {
+        kotlinArchiveProject(
+            gradleVersion,
+            projectName = "producerWithHostSpecificTarget",
+        ) { setupHostSpecificKarTestTargets() }
+            .buildAndFail("assembleKotlinArchive") {
+                assertHasDiagnostic(KotlinToolingDiagnostics.IncompleteKotlinArchivePublication)
+            }
+    }
+
+    @GradleTest
+    @OsCondition(supportedOn = [OS.LINUX, OS.WINDOWS], enabledOnCI = [OS.LINUX, OS.WINDOWS])
+    fun testIncompleteArchiveIsPackedWhenAllowed(gradleVersion: GradleVersion) {
+        val archiveEntries = packKotlinArchive(
+            gradleVersion,
+            projectName = "producerWithHostSpecificTarget",
+            "-P${PropertyNames.KOTLIN_ALLOW_INCOMPLETE_KOTLIN_ARCHIVE_PUBLICATION}=true",
+        ) { setupHostSpecificKarTestTargets() }
+
+        assertEquals(producerWithHostSpecificTargetArchiveEntries.prettyPrinted, archiveEntries.prettyPrinted)
+    }
+
+    @GradleTest
+    @OsCondition(supportedOn = [OS.LINUX, OS.WINDOWS], enabledOnCI = [OS.LINUX, OS.WINDOWS])
+    fun testAssemblyFailsWhenProjectDependencyDisablesCrossCompilation(gradleVersion: GradleVersion) {
+        project("empty", gradleVersion) {
+            plugins {
+                kotlin("multiplatform")
+            }
+            settingsBuildScriptInjection {
+                settings.rootProject.name = "producerWithNotCrossCompilableDependency"
+            }
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    js()
+                    macosArm64()
+                    sourceSets.commonMain.get().apply {
+                        compileStubSourceWithSourceSetName()
+                        dependencies {
+                            implementation(project(":dependency"))
+                        }
+                    }
+                    publishing {
+                        publicationFormat.set(KotlinPublicationFormat.KOTLIN_ARCHIVE)
+                    }
+                }
+            }
+
+            // The dependency disables cross-compilation, so it produces no 'macosArm64' klib on a host that
+            // does not support that target. The consumer then can't compile 'macosArm64' against it either.
+            val dependency = project("empty", gradleVersion) {
+                plugins {
+                    kotlin("multiplatform")
+                }
+                gradleProperties.appendText(
+                    "${System.lineSeparator()}${PropertyNames.KOTLIN_NATIVE_ENABLE_KLIBS_CROSSCOMPILATION}=false"
+                )
+                buildScriptInjection {
+                    project.applyMultiplatform {
+                        js()
+                        macosArm64()
+                        sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+                    }
+                }
+            }
+            include(dependency, "dependency")
+        }.buildAndFail("assembleKotlinArchive") {
+            assertTasksSkipped(":compileKotlinMacosArm64")
+            assertHasDiagnostic(KotlinToolingDiagnostics.IncompleteKotlinArchivePublication)
+        }
+    }
+
+    private fun packKotlinArchive(
+        gradleVersion: GradleVersion,
+        projectName: String,
+        vararg buildArguments: String,
+        configure: KotlinMultiplatformExtension.() -> Unit,
+    ): List<String> = kotlinArchiveProject(gradleVersion, projectName, configure).run {
+        build("packKotlinArchive", *buildArguments) {
+            assertTasksExecuted(":packKotlinArchive")
+        }
+
+        projectPath.resolve("build/kar/$projectName.kar.xz").normalizedArchiveEntries()
+    }
+
+    private fun kotlinArchiveProject(
+        gradleVersion: GradleVersion,
+        projectName: String,
+        configure: KotlinMultiplatformExtension.() -> Unit,
+    ): TestProject = project("empty", gradleVersion) {
+        plugins {
+            kotlin("multiplatform")
+        }
+        settingsBuildScriptInjection {
+            settings.rootProject.name = projectName
+        }
+        buildScriptInjection {
+            project.applyMultiplatform {
+                configure()
+                publishing {
+                    publicationFormat.set(KotlinPublicationFormat.KOTLIN_ARCHIVE)
+                }
+            }
+        }
+    }
+
+    private fun Path.normalizedArchiveEntries(): List<String> {
+        val entries = zipXzArchiveEntries()
+        val klibRoots = entries.mapNotNull { entry -> entry.klibRootOrNull() }
+        return entries
+            .map { entry -> entry.collapseKlibContent(klibRoots) }
+            .distinct()
+            .sorted()
+    }
+
+    private fun String.klibRootOrNull(): String? =
+        if (endsWith("/$KLIB_MANIFEST_PATH")) removeSuffix("/$KLIB_MANIFEST_PATH") else null
+
+    private fun String.collapseKlibContent(klibRoots: List<String>): String {
+        val klibRoot = klibRoots.firstOrNull { klibRoot -> startsWith("$klibRoot/") } ?: return this
+        return "$klibRoot/$KLIB_CONTENT_PLACEHOLDER"
+    }
+
+    private companion object {
+        val simpleProducerArchiveEntries = listOf(
+            "cinterop/",
+            "manifest.json",
+            "metadata/",
+            "metadata/commonMain/<klib content>",
+            "metadata/kotlin-project-structure-metadata.json",
+            "platform/",
+            "platform/js/<klib content>",
+            "platform/macosArm64/<klib content>",
+            "platform/wasmJs/<klib content>",
+            "resources/",
+            "swift-export/",
+        )
+
+        /**
+         * 'macosArm64' is not publishable on the hosts this test runs on, so neither its klib
+         * nor its cinterop is in the archive.
+         */
+        val producerWithHostSpecificTargetArchiveEntries = listOf(
+            "cinterop/",
+            "manifest.json",
+            "metadata/",
+            "metadata/commonMain/<klib content>",
+            "metadata/kotlin-project-structure-metadata.json",
+            "platform/",
+            "platform/js/<klib content>",
+            "resources/",
+            "swift-export/",
+        )
+
+        val producerWithCommonizedCinteropsArchiveEntries = listOf(
+            "cinterop/",
+            "cinterop/linuxArm64/",
+            "cinterop/linuxArm64/producerWithCommonizedCinterops-cinterop-first/<klib content>",
+            "cinterop/linuxArm64/producerWithCommonizedCinterops-cinterop-second/<klib content>",
+            "cinterop/linuxX64/",
+            "cinterop/linuxX64/producerWithCommonizedCinterops-cinterop-first/<klib content>",
+            "cinterop/linuxX64/producerWithCommonizedCinterops-cinterop-second/<klib content>",
+            "manifest.json",
+            "metadata/",
+            "metadata/commonMain-cinterop/",
+            "metadata/commonMain-cinterop/producerWithCommonizedCinterops-cinterop-first/<klib content>",
+            "metadata/commonMain-cinterop/producerWithCommonizedCinterops-cinterop-second/<klib content>",
+            "metadata/commonMain/<klib content>",
+            "metadata/kotlin-project-structure-metadata.json",
+            "metadata/linuxMain-cinterop/",
+            "metadata/linuxMain-cinterop/producerWithCommonizedCinterops-cinterop-first/<klib content>",
+            "metadata/linuxMain-cinterop/producerWithCommonizedCinterops-cinterop-second/<klib content>",
+            "metadata/nativeMain-cinterop/",
+            "metadata/nativeMain-cinterop/producerWithCommonizedCinterops-cinterop-first/<klib content>",
+            "metadata/nativeMain-cinterop/producerWithCommonizedCinterops-cinterop-second/<klib content>",
+            "metadata/nativeMain/<klib content>",
+            "platform/",
+            "platform/linuxArm64/<klib content>",
+            "platform/linuxX64/<klib content>",
+            "resources/",
+            "swift-export/",
+        )
+
+        const val KLIB_MANIFEST_PATH = "default/manifest"
+        const val KLIB_CONTENT_PLACEHOLDER = "<klib content>"
+    }
+}
+
+private fun KotlinMultiplatformExtension.setupKarTestTargetsAndSourceSets() {
+    jvm()
+    js()
+    wasmJs()
+    macosArm64()
+
+    sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+}
+
+private fun KotlinMultiplatformExtension.setupHostSpecificKarTestTargets() {
+    js()
+    macosArm64().createCInterop("first")
+
+    sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+}
+
+private fun KotlinNativeTarget.createCInterop(interopName: String) {
+    val definitionFile = project.layout.projectDirectory.file("$interopName.def")
+    definitionFile.asFile.writeText(
+        """
+        language = C
+        ---
+        void $interopName(void);
+        """.trimIndent()
+    )
+    compilations.getByName("main").cinterops.create(interopName) {
+        it.definitionFile.set(definitionFile)
+    }
+}

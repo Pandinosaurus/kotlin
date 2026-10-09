@@ -42,6 +42,7 @@ import org.jetbrains.kotlin.konan.target.LinkerOutputKind
 import org.jetbrains.kotlin.library.isNativeStdlib
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.DFS
+import org.jetbrains.kotlin.utils.addToStdlib.skipNext
 import kotlin.jvm.Throws
 
 internal fun TypeBridge.makeNothing(llvm: CodegenLlvmHelpers) = when (this) {
@@ -678,7 +679,7 @@ private fun ObjCExportCodeGenerator.generateUnitContinuationToRetainedCompletion
 
 private val ObjCExportBlockCodeGenerator.mappedFunctionNClasses: List<IrClass>
     get() {
-        val stdlibModule = context.irLinker.modules.values.firstOrNull { it.kotlinLibrary?.isNativeStdlib == true }
+        val stdlibModule = context.irLinker.allModuleFragments.firstOrNull { it.kotlinLibrary?.isNativeStdlib == true }
                 ?: error("stdlib module not found")
         val functionFiles = stdlibModule.files.filter { it.isFunctionInterfaceFile }
         val functionN = functionFiles.flatMap { it.declarations.filterIsInstance<IrClass>() }
@@ -1927,7 +1928,7 @@ private fun MethodBridge.parametersAssociated(
                 it to null
 
             MethodBridgeReceiver.Factory -> {
-                kotlinParameters.next()
+                kotlinParameters.skipNext()
                 it to null
             }
         }

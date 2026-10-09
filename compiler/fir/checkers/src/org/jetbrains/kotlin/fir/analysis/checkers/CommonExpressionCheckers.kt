@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.fir.analysis.checkers
 
-import org.jetbrains.kotlin.fir.ArrayLiteralResolution
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.*
 import org.jetbrains.kotlin.fir.analysis.checkers.syntax.*
+import org.jetbrains.kotlin.util.ArrayLiteralResolution
 
 object CommonExpressionCheckers : ExpressionCheckers() {
     override val annotationCallCheckers: Set<FirAnnotationCallChecker> = setOf(
@@ -29,7 +29,6 @@ object CommonExpressionCheckers : ExpressionCheckers() {
         FirAnnotatedBinaryExpressionChecker,
         FirExpressionWithErrorTypeChecker,
         FirInlineBodyResolvableExpressionChecker,
-        ArrayEqualityCanBeReplacedWithContentEquals,
     )
 
     override val throwExpressionCheckers: Set<FirThrowExpressionChecker> = setOf(
@@ -155,6 +154,7 @@ object CommonExpressionCheckers : ExpressionCheckers() {
 
     override val safeCallExpressionCheckers: Set<FirSafeCallExpressionChecker> = setOf(
         FirUnnecessarySafeCallChecker,
+        FirErrorSafeCallChecker,
     )
 
     override val smartCastExpressionCheckers: Set<FirSmartCastExpressionChecker> = setOf(
@@ -184,6 +184,8 @@ object CommonExpressionCheckers : ExpressionCheckers() {
     override val equalityOperatorCallCheckers: Set<FirEqualityOperatorCallChecker> = setOf(
         FirEqualityCompatibilityChecker,
         FirContextSensitiveResolutionAmbiguityCheckerForEqualities,
+        ArrayEqualityCanBeReplacedWithContentEquals,
+        FirIdentityEqualsOnWillBecomeValueClassChecker,
     )
 
     override val collectionLiteralCheckers: Set<FirCollectionLiteralChecker> = @OptIn(ArrayLiteralResolution::class) setOf(
@@ -211,5 +213,9 @@ object CommonExpressionCheckers : ExpressionCheckers() {
 
     override val thisReceiverExpressionCheckers: Set<FirThisReceiverExpressionChecker> = setOf(
         FirInlineExposedLessVisibleThisReceiverChecker
+    )
+
+    override val functionTypeConversionExpressionCheckers: Set<FirFunctionTypeConversionExpressionChecker> = setOf(
+        FirMissingDependencySupertypeInSamConversionChecker,
     )
 }

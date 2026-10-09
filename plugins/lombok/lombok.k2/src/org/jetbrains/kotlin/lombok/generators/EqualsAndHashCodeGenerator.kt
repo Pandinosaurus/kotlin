@@ -13,8 +13,7 @@ import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.caches.FirCache
 import org.jetbrains.kotlin.fir.caches.firCachesFactory
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
-import org.jetbrains.kotlin.fir.declarations.utils.isAnnotationClass
-import org.jetbrains.kotlin.fir.declarations.utils.isInterface
+import org.jetbrains.kotlin.fir.declarations.utils.isStatic
 import org.jetbrains.kotlin.fir.extensions.FirDeclarationGenerationExtension
 import org.jetbrains.kotlin.fir.extensions.FirDeclarationPredicateRegistrar
 import org.jetbrains.kotlin.fir.extensions.MemberGenerationContext
@@ -22,18 +21,19 @@ import org.jetbrains.kotlin.fir.extensions.predicate.DeclarationPredicate
 import org.jetbrains.kotlin.fir.scopes.impl.FirClassDeclaredMemberScope
 import org.jetbrains.kotlin.fir.scopes.processAllFunctions
 import org.jetbrains.kotlin.fir.scopes.processAllProperties
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.isNullableAny
 import org.jetbrains.kotlin.lombok.LombokNames
-import org.jetbrains.kotlin.lombok.config.CallSuperMode
 import org.jetbrains.kotlin.lombok.config.ConeLombokAnnotations
 import org.jetbrains.kotlin.lombok.config.lombokService
 import org.jetbrains.kotlin.lombok.generators.kotlin.findAnnotationOnPropertyOrField
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 
 /**
@@ -49,25 +49,30 @@ data class EqualsAndHashCodePropertyInfo(
 )
 
 /**
- * Declaration key shared by the generated `equals` and `hashCode` for the same class so that the IR body
- * filler builds both bodies from the same property snapshot.
+ * Declaration key shared by the generated `equals`, `hashCode` and (optional) `canEqual` for the same class so
+ * that the IR body filler builds all bodies from the same property snapshot.
+ *
+ * @param hasCanEqual whether this class also generates `canEqual`, so the `equals` body filler knows whether to
+ *   call it
  */
 class EqualsAndHashCodeGeneratorKey(
     val propertyInfos: List<EqualsAndHashCodePropertyInfo>,
     val callSuper: Boolean,
+    val hasCanEqual: Boolean,
 ) : LombokDeclarationKey()
 
 val FirDeclarationOrigin.isEqualsAndHashCode
     get() = this is FirDeclarationOrigin.Plugin && key is EqualsAndHashCodeGeneratorKey
 
 /**
- * Holder for the (optional) `equals`/`hashCode` symbols generated for a single class.
- * Both share the same [EqualsAndHashCodeGeneratorKey] instance so that the IR body filler
- * sees a consistent property selection across the two functions.
+ * Holder for the (optional) `equals`/`hashCode`/`canEqual` symbols generated for a single class.
+ * All three share the same [EqualsAndHashCodeGeneratorKey] instance so that the IR body filler
+ * sees a consistent property selection across the functions.
  */
 private class EqualsAndHashCodeMembers(
     val equals: FirNamedFunctionSymbol,
     val hashCode: FirNamedFunctionSymbol,
+    val canEqual: FirNamedFunctionSymbol?,
 )
 
 /**
@@ -97,7 +102,8 @@ class EqualsAndHashCodeGenerator(session: FirSession) : FirDeclarationGeneration
         session.firCachesFactory.createCache(::initializeMembersIfNeeded)
 
     override fun getCallableNamesForClass(classSymbol: FirClassSymbol<*>, context: MemberGenerationContext): Set<Name> {
-        return if (cache.getValue(classSymbol, context) != null) callableNames else emptySet()
+        val members = cache.getValue(classSymbol, context) ?: return emptySet()
+        return if (members.canEqual != null) callableNames + LombokNames.CAN_EQUAL else callableNames
     }
 
     override fun generateFunctions(callableId: CallableId, context: MemberGenerationContext?): List<FirNamedFunctionSymbol> {
@@ -107,6 +113,7 @@ class EqualsAndHashCodeGenerator(session: FirSession) : FirDeclarationGeneration
             when (callableId.callableName) {
                 EQUALS_NAME -> members.equals
                 HASHCODE_NAME -> members.hashCode
+                LombokNames.CAN_EQUAL -> members.canEqual ?: return emptyList()
                 else -> shouldNotBeCalled()
             }
         )
@@ -116,9 +123,10 @@ class EqualsAndHashCodeGenerator(session: FirSession) : FirDeclarationGeneration
         classSymbol: FirClassSymbol<*>,
         context: MemberGenerationContext,
     ): EqualsAndHashCodeMembers? {
-        // An annotation class can hold no member at all, generating one makes the platform report
-        // `ANNOTATION_CLASS_MEMBER` on it. Both kinds are already reported as `ANNOTATION_HAS_NO_EFFECT`.
-        if (classSymbol !is FirRegularClassSymbol || classSymbol.isInterface || classSymbol.isAnnotationClass) return null
+        // Only a plain class gets `equals`/`hashCode`: an annotation class can hold no member at all, an enum's
+        // `equals`/`hashCode` are final, and an object is compared by identity. Every other kind is already
+        // reported as `ANNOTATION_HAS_NO_EFFECT`.
+        if (classSymbol !is FirRegularClassSymbol || !classSymbol.isPlainClass) return null
 
         val annotation = session.lombokService.getEqualsAndHashCode(classSymbol) ?: return null
         val declaredScope = context.declaredScope
@@ -127,12 +135,30 @@ class EqualsAndHashCodeGenerator(session: FirSession) : FirDeclarationGeneration
         // The checker reports the partial-override error or the "both already exist" warning.
         if (hasUserDeclaredEqualsOrHashCode(declaredScope)) return null
 
+        // A user-declared `canEqual` is called by `equals` as is: generating one on top would clash with it on the JVM.
+        val hasUserDeclaredCanEqual = hasUserDeclaredCanEqual(declaredScope)
+
+        // Lombok skips `canEqual` only for a final class with nothing but `Any` to chain to.
+        val needsCanEqual = !hasUserDeclaredCanEqual &&
+                !(classSymbol.looksFinal && !classSymbol.hasNonTrivialSuperclass(session))
+
+        // The generated `canEqual(other: Any?)` can only override a superclass `canEqual` taking exactly `Any?`. Any
+        // other one with the same JVM signature would clash with it, so nothing is generated and the checker reports.
+        val superclassCanEqual = runIf(needsCanEqual) { classSymbol.findSuperclassCanEqual(session) }
+        val generatesCanEqual = needsCanEqual &&
+                superclassCanEqual?.valueParameterSymbols?.single()?.isAnyOrJavaObjectType != false
+
         val key by lazy(LazyThreadSafetyMode.NONE) {
             val propertyInfos = computePropertiesToInclude(annotation, declaredScope)
 
             EqualsAndHashCodeGeneratorKey(
                 propertyInfos = propertyInfos,
-                callSuper = annotation.callSuper == CallSuperMode.Call,
+                callSuper = annotation.shouldCallSuper(
+                    session.lombokService.config.equalsAndHashCodeCallSuper,
+                    classSymbol,
+                    session,
+                ),
+                hasCanEqual = generatesCanEqual || hasUserDeclaredCanEqual,
             )
         }
 
@@ -156,9 +182,32 @@ class EqualsAndHashCodeGenerator(session: FirSession) : FirDeclarationGeneration
             isOverride = true,
             createKey = { key },
         )
+        val canEqualSymbol = runIf(generatesCanEqual) {
+            createJavaOrKotlinMemberFunction(
+                owner = classSymbol,
+                name = LombokNames.CAN_EQUAL,
+                valueParameters = listOf(ConeLombokValueParameter(OTHER, session.builtinTypes.nullableAnyType)),
+                returnTypeRef = session.builtinTypes.booleanType,
+                visibility = Visibilities.Protected,
+                modality = Modality.OPEN,
+                isOverride = superclassCanEqual != null,
+                createKey = { key },
+            )
+        }
 
-        return EqualsAndHashCodeMembers(equalsSymbol, hashCodeSymbol)
+        return EqualsAndHashCodeMembers(equalsSymbol, hashCodeSymbol, canEqualSymbol)
     }
+
+    /**
+     * Whether [this] is final, without resolving [FirRegularClassSymbol.resolvedStatus]: this can be called from
+     * `getCallableNamesForClass`, itself callable as early as the SUPERTYPES stage, at which point requesting a
+     * lazy resolve to STATUS - even for this class's own declaration - is a phase contract violation.
+     *
+     * A `null` raw modality is read as final: a class with no modality modifier is final by default.
+     */
+    @OptIn(SymbolInternals::class)
+    private val FirRegularClassSymbol.looksFinal: Boolean
+        get() = fir.status.modality.let { it == null || it == Modality.FINAL }
 
     private fun hasUserDeclaredEqualsOrHashCode(declaredScope: FirClassDeclaredMemberScope?): Boolean {
         var found = false
@@ -176,6 +225,14 @@ class EqualsAndHashCodeGenerator(session: FirSession) : FirDeclarationGeneration
         return found
     }
 
+    private fun hasUserDeclaredCanEqual(declaredScope: FirClassDeclaredMemberScope?): Boolean {
+        var found = false
+        declaredScope?.processFunctionsByName(LombokNames.CAN_EQUAL) {
+            found = found || it.hasCanEqualJvmSignature
+        }
+        return found
+    }
+
     private fun computePropertiesToInclude(
         annotation: ConeLombokAnnotations.EqualsAndHashCode,
         declaredScope: FirClassDeclaredMemberScope?,
@@ -185,28 +242,27 @@ class EqualsAndHashCodeGenerator(session: FirSession) : FirDeclarationGeneration
             declaredScope?.processAllProperties { variableSymbol ->
                 val property = variableSymbol as? FirPropertySymbol ?: return@processAllProperties
 
+                // See the same guard in `ToStringGenerator`: a static property is never part of the generated
+                // members, and its getter takes no dispatch receiver for IR to pass `this`/`other` in (KT-88367).
+                if (property.isStatic) return@processAllProperties
+
                 val propertyName = property.name
 
-                if (property.findAnnotationOnPropertyOrField(LombokNames.EQUALS_AND_HASH_CODE_EXCLUDE_ID, session) != null ||
-                    propertyName.identifier in annotation.excludeFields
-                ) {
+                if (property.findAnnotationOnPropertyOrField(LombokNames.EQUALS_AND_HASH_CODE_EXCLUDE_ID) != null) {
                     return@processAllProperties
                 }
 
-                val includeAnnotation = property.findAnnotationOnPropertyOrField(LombokNames.EQUALS_AND_HASH_CODE_INCLUDE_ID, session)
+                val includeAnnotation = property.findAnnotationOnPropertyOrField(LombokNames.EQUALS_AND_HASH_CODE_INCLUDE_ID)
 
-                // The deprecated-but-still-supported `of` parameter pins selection to the listed names.
-                if (annotation.ofFields != null) {
-                    if (propertyName.identifier !in annotation.ofFields) return@processAllProperties
-                } else if (includeAnnotation == null && annotation.onlyExplicitlyIncluded ?: config.equalsAndHashCodeOnlyExplicitlyIncluded) {
+                if (includeAnnotation == null && property.isExcludedByDollarPrefix) return@processAllProperties
+
+                if (includeAnnotation == null && annotation.onlyExplicitlyIncluded ?: config.equalsAndHashCodeOnlyExplicitlyIncluded) {
                     return@processAllProperties
                 }
 
                 // Same convention as ToString: properties without a backing field are treated like
                 // computed/getter-only members. Include them only if explicitly opted in.
-                val ignoreWithoutBackingField = includeAnnotation == null && annotation.ofFields == null
-
-                add(EqualsAndHashCodePropertyInfo(propertyName, ignoreWithoutBackingField))
+                add(EqualsAndHashCodePropertyInfo(propertyName, ignoreWithoutBackingField = includeAnnotation == null))
             }
         }
     }

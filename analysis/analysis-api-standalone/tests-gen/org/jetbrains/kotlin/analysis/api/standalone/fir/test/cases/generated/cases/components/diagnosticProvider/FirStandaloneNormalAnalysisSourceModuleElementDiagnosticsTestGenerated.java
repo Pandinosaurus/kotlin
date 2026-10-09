@@ -62,6 +62,12 @@ public class FirStandaloneNormalAnalysisSourceModuleElementDiagnosticsTestGenera
   }
 
   @Test
+  @TestMetadata("defaultValueInFunctionWithOverride.kt")
+  public void testDefaultValueInFunctionWithOverride() {
+    run("defaultValueInFunctionWithOverride.kt");
+  }
+
+  @Test
   @TestMetadata("delegatedClass.kt")
   public void testDelegatedClass() {
     run("delegatedClass.kt");
@@ -74,9 +80,27 @@ public class FirStandaloneNormalAnalysisSourceModuleElementDiagnosticsTestGenera
   }
 
   @Test
+  @TestMetadata("delegatedFunctionWithImplicitReturnTypeFromOtherFile.kt")
+  public void testDelegatedFunctionWithImplicitReturnTypeFromOtherFile() {
+    run("delegatedFunctionWithImplicitReturnTypeFromOtherFile.kt");
+  }
+
+  @Test
+  @TestMetadata("delegatedPropertyWithImplicitReturnTypeFromOtherFile.kt")
+  public void testDelegatedPropertyWithImplicitReturnTypeFromOtherFile() {
+    run("delegatedPropertyWithImplicitReturnTypeFromOtherFile.kt");
+  }
+
+  @Test
   @TestMetadata("fileWithFunctionWithImplicitType.kt")
   public void testFileWithFunctionWithImplicitType() {
     run("fileWithFunctionWithImplicitType.kt");
+  }
+
+  @Test
+  @TestMetadata("fileWithInlineFunction.kt")
+  public void testFileWithInlineFunction() {
+    run("fileWithInlineFunction.kt");
   }
 
   @Test

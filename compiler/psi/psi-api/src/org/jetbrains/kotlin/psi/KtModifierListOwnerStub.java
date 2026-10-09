@@ -8,7 +8,9 @@ package org.jetbrains.kotlin.psi;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.tree.IElementType;
+import kotlin.DeprecationLevel;
 import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;
@@ -26,6 +28,7 @@ import java.util.List;
  *
  * @param <T> the type of stub backing this element
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtModifierListOwnerStub<T extends StubElement<?>> extends KtElementImplStub<T> implements KtModifierListOwner {
     @KtImplementationDetail
     public KtModifierListOwnerStub(@NotNull ASTNode node) {
@@ -80,7 +83,8 @@ public class KtModifierListOwnerStub<T extends StubElement<?>> extends KtElement
             replaceWith = @ReplaceWith(
                     expression = "this.addModifierKeyword(modifier)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.addModifierKeyword"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     public void addModifier(@NotNull KtModifierKeywordToken modifier) {
@@ -97,7 +101,8 @@ public class KtModifierListOwnerStub<T extends StubElement<?>> extends KtElement
             replaceWith = @ReplaceWith(
                     expression = "this.removeModifierKeyword(modifier)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.removeModifierKeyword"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     public void removeModifier(@NotNull KtModifierKeywordToken modifier) {
@@ -115,7 +120,8 @@ public class KtModifierListOwnerStub<T extends StubElement<?>> extends KtElement
             replaceWith = @ReplaceWith(
                     expression = "this.addAnnotation(annotationEntry)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.addAnnotation"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     public KtAnnotationEntry addAnnotationEntry(@NotNull KtAnnotationEntry annotationEntry) {

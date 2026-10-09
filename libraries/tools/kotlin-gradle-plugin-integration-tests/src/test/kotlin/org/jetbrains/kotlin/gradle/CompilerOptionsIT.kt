@@ -11,13 +11,13 @@ import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.parseCompilerArguments
 import org.jetbrains.kotlin.gradle.util.parseCompilerArgumentsFromBuildOutput
-import org.jetbrains.kotlin.testFederation.SmokeTest
+import org.jetbrains.kotlin.testFederation.MustRunAlways
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.appendText
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
-@SmokeTest
+@MustRunAlways
 internal class CompilerOptionsIT : KGPBaseTest() {
 
     @DisplayName("Allow to suppress kotlinOptions.freeCompilerArgs on task execution modification warning")
@@ -178,7 +178,7 @@ internal class CompilerOptionsIT : KGPBaseTest() {
                 @Suppress("DEPRECATION")
                 val arguments = parseCompilerArgumentsFromBuildOutput(K2NativeCompilerArguments::class, taskOutput)
                 assertEquals(
-                    setOf("another.custom.UnderOptIn", "my.custom.OptInAnnotation"), arguments.optIn?.toSet(),
+                    setOf("another.custom.UnderOptIn", "my.custom.OptInAnnotation"), arguments.optIn.toSet(),
                     "Arguments optIn does not match '-opt-in=another.custom.UnderOptIn, -opt-in=my.custom.OptInAnnotation'"
                 )
             }
@@ -189,7 +189,7 @@ internal class CompilerOptionsIT : KGPBaseTest() {
                 @Suppress("DEPRECATION")
                 val arguments = parseCompilerArgumentsFromBuildOutput(K2NativeCompilerArguments::class, taskOutput)
                 assertEquals(
-                    setOf("another.custom.UnderOptIn", "my.custom.OptInAnnotation"), arguments.optIn?.toSet(),
+                    setOf("another.custom.UnderOptIn", "my.custom.OptInAnnotation"), arguments.optIn.toSet(),
                     "Arguments optIn does not match '-opt-in=another.custom.UnderOptIn, -opt-in=my.custom.OptInAnnotation'"
                 )
             }
@@ -217,7 +217,7 @@ internal class CompilerOptionsIT : KGPBaseTest() {
                 val expectedOptIn = listOf("kotlin.RequiresOptIn", "my.CustomOptIn")
                 @Suppress("DEPRECATION")
                 val arguments = parseCompilerArguments<K2NativeCompilerArguments>()
-                if (arguments.optIn?.toList() != listOf("kotlin.RequiresOptIn", "my.CustomOptIn")) {
+                if (arguments.optIn.toList() != listOf("kotlin.RequiresOptIn", "my.CustomOptIn")) {
                     fail(
                         "compiler arguments does not contain expected optIns'${expectedOptIn.joinToString()}': ${arguments.optIn}"
                     )

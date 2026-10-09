@@ -16,7 +16,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtExperimentalApi
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.test.MockLibraryUtil
 import org.jetbrains.kotlin.test.services.StandardLibrariesPathProviderForKotlinProject
@@ -32,14 +31,14 @@ import kotlin.io.path.absolutePathString
 import kotlin.io.path.extension
 import kotlin.streams.asSequence
 
-@OptIn(KaExperimentalApi::class, KtExperimentalApi::class)
+@OptIn(KaExperimentalApi::class)
 fun KtCallExpression.assertIsSuccessfulCallOf(
     callableId: CallableId,
     additionalCheck: (KaFunctionSymbol) -> Unit = {},
 ) {
     analyze(this) {
         val attempt = tryResolveCall()
-        Assertions.assertInstanceOf(KaCallResolutionSuccess::class.java, attempt)
+        Assertions.assertInstanceOf(KaSimpleCallResolutionSuccess::class.java, attempt)
         val symbol = attempt?.successful?.function?.symbol
         Assertions.assertInstanceOf(KaNamedFunctionSymbol::class.java, symbol); symbol as KaNamedFunctionSymbol
         Assertions.assertEquals(callableId, symbol.callableId)
@@ -47,7 +46,7 @@ fun KtCallExpression.assertIsSuccessfulCallOf(
     }
 }
 
-@OptIn(KaExperimentalApi::class, KtExperimentalApi::class)
+@OptIn(KaExperimentalApi::class)
 fun KtCallExpression.assertIsCallOf(
     callableId: CallableId,
     additionalCheck: (KaFunctionSymbol) -> Unit = {},

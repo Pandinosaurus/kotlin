@@ -63,7 +63,7 @@ public interface KaExpressionTypeProvider : KaSessionComponent {
      * Note: this property throws an exception if the declaration _can't_ have a return type
      * (i.e., it is not a [KtDeclarationWithReturnType]).
      */
-    @Deprecated("Use `KtDeclarationWithReturnType.returnType` overload instead")
+    @Deprecated("Use `KtDeclarationWithReturnType.returnType` overload instead", level = DeprecationLevel.ERROR)
     public val KtDeclaration.returnType: KaType
         get() = (this as KtDeclarationWithReturnType).returnType
 
@@ -170,6 +170,10 @@ public val KtExpression.expressionType: KaType?
  * from [KaExpressionTypeProvider][org.jetbrains.kotlin.analysis.api.components.KaExpressionTypeProvider.returnType] represents a
  * use-site perspective, which has to desugar `vararg` parameters because they are consumed as array types.
  */
+@Deprecated(
+    message = "Use the 'org.jetbrains.kotlin.analysis.api.expressions' endpoint instead.",
+    replaceWith = ReplaceWith("this.returnType", "org.jetbrains.kotlin.analysis.api.expressions.returnType"),
+)
 context(session: KaSession)
 public val KtDeclarationWithReturnType.returnType: KaType
     get() = with(session) { returnType }
@@ -180,11 +184,11 @@ public val KtDeclarationWithReturnType.returnType: KaType
  * Note: this property throws an exception if the declaration _can't_ have a return type
  * (i.e., it is not a [KtDeclarationWithReturnType]).
  */
-@Deprecated("Use `KtDeclarationWithReturnType.returnType` overload instead")
+@Deprecated("Use `KtDeclarationWithReturnType.returnType` overload instead", level = DeprecationLevel.ERROR)
 @KaContextParameterApi
 context(session: KaSession)
 public val KtDeclaration.returnType: KaType
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION_ERROR")
     get() = with(session) { returnType }
 
 /**

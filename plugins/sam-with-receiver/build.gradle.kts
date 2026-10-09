@@ -2,11 +2,9 @@ description = "Kotlin SamWithReceiver Compiler Plugin"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -39,7 +37,6 @@ publish()
 runtimeJar()
 sourcesJar()
 javadocJar()
-testsJar()
 
 projectTests {
     testTask()
@@ -48,7 +45,6 @@ projectTests {
 
     withJvmStdlibAndReflect()
     withTestJar()
-    withScriptRuntime()
     withMockJdkRuntime()
     withMockJdkAnnotationsJar()
 

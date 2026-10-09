@@ -18,6 +18,25 @@ typealias TA = String
 
 val onAnonymous = <!ANNOTATION_HAS_NO_EFFECT!>@EqualsAndHashCode<!> object {}
 
+// An enum inherits final `equals`/`hashCode` from `java.lang.Enum`, so a generated one wouldn't load, KT-88507.
+<!ANNOTATION_HAS_NO_EFFECT!>@EqualsAndHashCode<!>
+enum class Color(val hex: String) {
+    RED("#FF0000")
+}
+
+// An object is a single instance, and comparing it to itself by identity is what it already does, KT-88507.
+<!ANNOTATION_HAS_NO_EFFECT!>@EqualsAndHashCode<!>
+object Object {
+    val version = "2.0"
+}
+
+class WithCompanion {
+    <!ANNOTATION_HAS_NO_EFFECT!>@EqualsAndHashCode<!>
+    companion object {
+        val version = "2.0"
+    }
+}
+
 // Both equals and hashCode user-defined → warning, no generation.
 <!EQUALS_OR_HASH_CODE_FUNCTIONS_ALREADY_EXIST!>@EqualsAndHashCode<!>
 class WithBothExisting(val x: Int) {
@@ -61,6 +80,55 @@ class WithOnlyInclude(@EqualsAndHashCode.Include val included: String)
 @EqualsAndHashCode
 class WithOnlyExclude(@EqualsAndHashCode.Exclude val excluded: String, val normal: String)
 
+// A `$`-prefixed property is left out of what Lombok generates unless it is explicitly included, so an
+// `@Exclude` on one says nothing the name does not already say, KT-88636.
+@EqualsAndHashCode
+class WithDollarPrefixedProperties(
+    val regular: String,
+    val `$excludedByDefault`: String,
+    @EqualsAndHashCode.Include val `$explicitlyIncluded`: String,
+    <!EXCLUDE_IS_REDUNDANT_FOR_DOLLAR_PREFIXED_PROPERTY!>@EqualsAndHashCode.Exclude<!> val `$redundantlyExcluded`: String,
+)
+
+// Both diagnostics are reported, exactly as Lombok reports both.
+@EqualsAndHashCode
+class WithDollarPrefixedPropertyIncludedAndExcluded(
+    <!EXCLUDE_AND_INCLUDE_MUTUALLY_EXCLUSIVE!>@EqualsAndHashCode.Include<!>
+    <!EXCLUDE_IS_REDUNDANT_FOR_DOLLAR_PREFIXED_PROPERTY!>@EqualsAndHashCode.Exclude<!>
+    val `$both`: String,
+)
+
+// No warning: the name does not start with `$`, so the `@Exclude` is doing the work.
+@EqualsAndHashCode
+class WithRegularExcludedProperty(val regular: String, @EqualsAndHashCode.Exclude val excluded: String)
+
+// `onlyExplicitlyIncluded` leaves nothing for an `@Exclude` to take out - a property is in only if it says
+// `@Include` - so the annotation says nothing the class-level argument does not already say, KT-88655.
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+class OnlyExplicitlyIncludedExample(
+    <!EXCLUDE_IS_REDUNDANT_FOR_ONLY_EXPLICITLY_INCLUDED!>@EqualsAndHashCode.Exclude<!> val id: Long,
+    val name: String,
+)
+
+// Only one redundancy is reported per property, `onlyExplicitlyIncluded` first: Lombok chains the two with
+// `else if`, and once the whole class is opt-in there is nothing left for `$` to explain.
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+class OnlyExplicitlyIncludedDollarPrefixed(
+    <!EXCLUDE_IS_REDUNDANT_FOR_ONLY_EXPLICITLY_INCLUDED!>@EqualsAndHashCode.Exclude<!> val `$dollarPrefixed`: String,
+)
+
+// The clash is reported on top of it, the two being separate checks in Lombok as well.
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+class OnlyExplicitlyIncludedIncludedAndExcluded(
+    <!EXCLUDE_AND_INCLUDE_MUTUALLY_EXCLUSIVE!>@EqualsAndHashCode.Include<!>
+    <!EXCLUDE_IS_REDUNDANT_FOR_ONLY_EXPLICITLY_INCLUDED!>@EqualsAndHashCode.Exclude<!>
+    val both: String,
+)
+
+// No warning: `onlyExplicitlyIncluded = false` puts every property back in, so the `@Exclude` does the work.
+@EqualsAndHashCode(onlyExplicitlyIncluded = false)
+class OnlyExplicitlyIncludedFalse(@EqualsAndHashCode.Exclude val excluded: String, val included: String)
+
 // No warning: doNotUseGetters not specified
 @EqualsAndHashCode
 class Normal(val x: Int)
@@ -71,6 +139,33 @@ class WithDoNotUseGettersTrue(val x: Int)
 
 @EqualsAndHashCode(doNotUseGetters = <!DO_NOT_USE_GETTERS_IRRELEVANT!>false<!>)
 class WithDoNotUseGettersFalse(val x: Int)
+
+// A user-declared `canEqual` matching the generated shape is not duplicated, so it must not trigger
+// CONFLICTING_JVM_DECLARATIONS or any other diagnostic here.
+@EqualsAndHashCode
+class WithUserDeclaredCanEqual(val a: Int) {
+    fun canEqual(other: Any?): Boolean = other is WithUserDeclaredCanEqual
+}
+
+// An unrelated overload sharing the name is not mistaken for `canEqual`, so `@EqualsAndHashCode` still generates
+// its own, without conflict.
+@EqualsAndHashCode
+class WithUnrelatedCanEqualOverload(val a: Int) {
+    fun canEqual(x: Int): Boolean = x == a
+}
+
+// `Any` and `Any?` both erase to `canEqual(Ljava/lang/Object;)Z` on the JVM, so this must be recognized as
+// matching too - same as the `Any?` case above - or a duplicate `canEqual` is generated on top of it.
+@EqualsAndHashCode
+class WithNonNullCanEqual(val a: Int) {
+    fun canEqual(other: Any): Boolean = other is WithNonNullCanEqual
+}
+
+// The same erasure gap reached through an unbounded type parameter rather than `Any` directly.
+@EqualsAndHashCode
+class WithTypeParameterCanEqual<T>(val a: Int) {
+    fun canEqual(other: T): Boolean = other != null
+}
 
 @EqualsAndHashCode(
     exclude = <!ANNOTATION_ARGUMENT_IS_NOT_SUPPORTED!>[]<!>,

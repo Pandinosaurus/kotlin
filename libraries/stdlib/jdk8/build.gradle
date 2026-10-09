@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
 }
 
@@ -43,7 +42,7 @@ sourceSets {
 dependencies {
     moduleTestApi project(':kotlin-stdlib')
     moduleTestApi project(':kotlin-stdlib-jdk7')
-    moduleTestCompileOnly project
+    moduleTestCompileOnly(project(project.path))
     moduleTestApi RepoDependencies.kotlinTest(project, "junit5")
     moduleTestApi "org.ow2.asm:asm:9.0"
 }

@@ -6,22 +6,25 @@
 package org.jetbrains.kotlin.gradle.targets.js.ir
 
 import org.gradle.api.Action
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation.Companion.TEST_COMPILATION_NAME
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBrowserDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBrowserTestDsl
+import org.jetbrains.kotlin.gradle.tasks.KotlinWasmDevServer
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.testing.karma.KotlinKarma
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
-import org.jetbrains.kotlin.gradle.targets.wasm.internal.isWasm
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.wasm.dsl.KotlinWasmJsBrowserDsl
 import org.jetbrains.kotlin.gradle.utils.withType
 import javax.inject.Inject
 
+@OptIn(ExperimentalWasmDsl::class)
 abstract class KotlinBrowserJsIr @Inject constructor(target: KotlinJsIrTarget) :
     KotlinJsIrNpmBasedSubTarget(target, "browser"),
-    KotlinJsBrowserDsl {
+    KotlinJsBrowserDsl,
+    KotlinWasmJsBrowserDsl {
 
     override val testTaskDescription: String
         get() = "Run all ${target.name} tests inside browser using karma and webpack"
@@ -75,10 +78,24 @@ abstract class KotlinBrowserJsIr @Inject constructor(target: KotlinJsIrTarget) :
             }
     }
 
-    override val test: KotlinJsBrowserTestDsl = project.objects
-        .createKotlinJsBrowserTestImpl(target.compilations.getByName(TEST_COMPILATION_NAME))
+    @ExperimentalWasmDsl
+    override fun devServer(body: Action<KotlinWasmDevServer>) {
+        subTargetConfigurators
+            .withType<NoBundleConfigurator>()
+            .configureEach {
+                it.configureRun(body)
+            }
+    }
+
+    private val testDsl: Lazy<KotlinJsBrowserTestImpl> = lazy {
+        project.objects.createKotlinJsBrowserTestImpl(target.compilations.getByName(TEST_COMPILATION_NAME))
+    }
+
+    override val test: KotlinJsBrowserTestDsl get() = testDsl.value
 
     override fun test(body: Action<KotlinJsBrowserTestDsl>) = body.execute(test)
+
+    internal fun usedJsBrowserTestDsl() = testDsl.isInitialized()
 
     companion object {
         internal const val WEBPACK_TASK_NAME = "webpack"

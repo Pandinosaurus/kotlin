@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
 // FILE: A.java
 
@@ -16,9 +16,9 @@ public class B extends A {
 // FILE: K.kt
 
 open class K : B() {
-    <!ACCIDENTAL_OVERRIDE!>fun foo() {}<!>
+    <!ACCIDENTAL_OVERRIDE!>fun foo()<!> {}
     fun foo(a: Any) {}
-    <!ACCIDENTAL_OVERRIDE!>fun bar(i: Int) {}<!>
+    <!ACCIDENTAL_OVERRIDE!>fun bar(i: Int)<!> {}
     fun bar(i: String) {}
     fun baz(i: Int) {}
 

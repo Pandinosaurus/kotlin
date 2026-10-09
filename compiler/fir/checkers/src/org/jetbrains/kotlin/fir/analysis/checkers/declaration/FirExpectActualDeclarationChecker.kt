@@ -222,8 +222,7 @@ object FirExpectActualDeclarationChecker : FirBasicDeclarationChecker(MppChecker
         // This is needed only to reduce the number of errors. Incompatibility errors for those members will be reported
         // later when this checker is called for them
         fun hasSingleActualSuspect(incompatibility: MemberIncompatibility<FirBasedSymbol<*>>): Boolean {
-            @OptIn(SymbolInternals::class)
-            return incompatibility.actual.fir.expectForActual?.values?.singleOrNull()?.singleOrNull() == incompatibility.expect
+            return incompatibility.actual.expectForActual?.values?.singleOrNull()?.singleOrNull() == incompatibility.expect
         }
 
         val nonTrivialIncompatibleMembers = checkingCompatibility.incompatibleMembers.filterNot(::hasSingleActualSuspect)
@@ -366,7 +365,7 @@ object FirExpectActualDeclarationChecker : FirBasicDeclarationChecker(MppChecker
             .sortedBy { it.name.asString() }
             .toList()
 
-        if (filesWithMatchedExpects.size > 1) {
+        if (filesWithMatchedExpects.size > 1 && LanguageFeature.AllowMultipleExpectsForSingleActual.isDisabled()) {
             reporter.reportOn(
                 actualDeclaration.source,
                 FirErrors.AMBIGUOUS_EXPECTS,

@@ -9,8 +9,8 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.components.KaWhenMissingCase
-import org.jetbrains.kotlin.analysis.api.components.returnType
 import org.jetbrains.kotlin.analysis.api.expressions.expressionType
+import org.jetbrains.kotlin.analysis.api.expressions.returnType
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.impl.base.components.KaBaseSessionComponent
 import org.jetbrains.kotlin.analysis.api.impl.base.components.withPsiValidityAssertion
@@ -477,7 +477,6 @@ private val KtResolvable.canReferenceCallable: Boolean
  *
  * in which the `f` in 2) is regarded as used and `f` in 1) is not.
  */
-@OptIn(KtExperimentalApi::class)
 context(_: KaSession)
 private fun doesCallExpressionUseCallee(callee: PsiElement): Boolean {
     return callee !is KtReferenceExpression || callee is KtResolvableCall && callee.resolveSuccessfulCall() is KaVariableAccessCall

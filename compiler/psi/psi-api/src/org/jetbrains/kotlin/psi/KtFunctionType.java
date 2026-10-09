@@ -7,7 +7,9 @@ package org.jetbrains.kotlin.psi;
 
 import com.google.common.collect.Lists;
 import com.intellij.lang.ASTNode;
+import kotlin.DeprecationLevel;
 import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;
@@ -28,6 +30,7 @@ import java.util.List;
  * //          ^______________________^
  * }</pre>
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtFunctionType extends KtElementImplStub<KotlinFunctionTypeStub> implements KtTypeElement, KtResolvable {
 
     /** The token that separates the parameter list from the return type in a function type (the {@code ->} arrow). */
@@ -113,7 +116,8 @@ public class KtFunctionType extends KtElementImplStub<KotlinFunctionTypeStub> im
             replaceWith = @ReplaceWith(
                     expression = "contextParameterList",
                     imports = {}
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     @Nullable

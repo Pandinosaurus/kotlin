@@ -29,7 +29,7 @@ import org.jetbrains.kotlin.utils.checkWithAttachment
 @Deprecated(
     message = "Use 'KtPsiFactory' constructor instead",
     replaceWith = ReplaceWith("KtPsiFactory(project!!, markGenerated)", "org.jetbrains.kotlin.psi.KtPsiFactory"),
-    level = DeprecationLevel.WARNING,
+    level = DeprecationLevel.ERROR,
 )
 fun KtPsiFactory(project: Project?, markGenerated: Boolean = true): KtPsiFactory = KtPsiFactory(project!!, markGenerated)
 
@@ -39,7 +39,7 @@ fun KtPsiFactory(project: Project?, markGenerated: Boolean = true): KtPsiFactory
 @Deprecated(
     message = "Use 'KtPsiFactory' constructor instead",
     replaceWith = ReplaceWith("KtPsiFactory(elementForProject.project, markGenerated)", "org.jetbrains.kotlin.psi.KtPsiFactory"),
-    level = DeprecationLevel.WARNING,
+    level = DeprecationLevel.ERROR,
 )
 fun KtPsiFactory(elementForProject: PsiElement, markGenerated: Boolean = true): KtPsiFactory =
     KtPsiFactory(elementForProject.project, markGenerated)
@@ -103,6 +103,7 @@ class KtPsiFactory private constructor(
     @Deprecated(
         message = "Use 'KtPsiFactory(project, markGenerated)' or 'KtPsiFactory.contextual(context, markGenerated)' instead",
         replaceWith = ReplaceWith("KtPsiFactory(element.project, markGenerated)", "org.jetbrains.kotlin.psi.KtPsiFactory"),
+        level = DeprecationLevel.ERROR,
     )
     constructor(element: KtElement, markGenerated: Boolean = true) : this(element.project, markGenerated, context = null, eventSystemEnabled = false)
 
@@ -292,6 +293,34 @@ class KtPsiFactory private constructor(
         return createClass("class A {\n $text\n}").companionObjects.first()
     }
 
+    /** Creates an empty companion block. */
+    @KtExperimentalApi
+    fun createCompanionBlock(): KtCompanionBlock {
+        return createCompanionBlock("companion {\n}")
+    }
+
+    /**
+     * Creates a companion block from the given [text] (for example, `"companion { ... }"`). The text must contain exactly one complete
+     * companion block and no other class-body elements.
+     */
+    @KtExperimentalApi
+    fun createCompanionBlock(@NonNls text: String): KtCompanionBlock {
+        val klass = createClass("class A {\n$text\n}")
+        val companionBlock = klass.companionBlocks.singleOrNull()
+
+        checkWithAttachment(
+            companionBlock != null &&
+                    klass.body?.declarationsAndCompanionBlocks?.singleOrNull() === companionBlock &&
+                    companionBlock.text == text,
+            { "Failed to create a single companion block from text" },
+        ) {
+            it.withAttachment("text.kt", text)
+            it.withPsiAttachment("parsed.kt", klass)
+        }
+
+        return companionBlock
+    }
+
     /** Creates a file-level annotation entry from the given [annotationText] (without the `@file:` prefix). */
     fun createFileAnnotation(@NonNls annotationText: String): KtAnnotationEntry {
         return createFileAnnotationListWithAnnotation(annotationText).annotationEntries.first()
@@ -337,6 +366,7 @@ class KtPsiFactory private constructor(
 
     @Deprecated(
         message = "Call 'createFile()' on a contextual 'KtPsiFactory' instead",
+        level = DeprecationLevel.ERROR,
     )
     fun createAnalyzableFile(@NonNls fileName: String, @NonNls text: String, contextToAnalyzeIn: PsiElement): KtFile {
         val file = doCreateFile(fileName, text)
@@ -346,6 +376,7 @@ class KtPsiFactory private constructor(
 
     @Deprecated(
         message = "Call 'createPhysicalFile() on a contextual 'KtPsiFactory' instead",
+        level = DeprecationLevel.ERROR,
     )
     fun createFileWithLightClassSupport(@NonNls fileName: String, @NonNls text: String, contextToAnalyzeIn: PsiElement): KtFile {
         val file = createPhysicalFile(fileName, text)
@@ -362,18 +393,6 @@ class KtPsiFactory private constructor(
         val file = PsiFileFactory.getInstance(project).createFileFromText(fileName, KotlinFileType.INSTANCE, text, time, true) as KtFile
         file.analysisContext = this@KtPsiFactory.context
         return file
-    }
-
-    /**
-     * Creates a REPL snippet [KtScript] from the specified text content.
-     */
-    @KtExperimentalApi
-    @OptIn(KtNonPublicApi::class)
-    fun createReplSnippet(@NonNls text: String): KtScript {
-        val file = doCreateFile("snippet.repl.kts", text)
-        val script = file.script!!
-        script.markAsReplSnippet()
-        return script
     }
 
     /**
@@ -726,6 +745,7 @@ class KtPsiFactory private constructor(
 
     @Deprecated(
         message = "function is not used in the kotlin plugin/compiler and will be removed soon",
+        level = DeprecationLevel.ERROR,
     )
     fun createImportDirectives(paths: Collection<ImportPath>): List<KtImportDirective> {
         val fileContent = buildString {

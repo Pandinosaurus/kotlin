@@ -4,13 +4,12 @@ import org.jetbrains.kotlin.testFederation.testFederationDomains
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
+    id("test-coverage-convention")
 }
 
 val otherCompilerModules = CompilerModules.compilerModules.filter { it != path }
@@ -28,6 +27,7 @@ dependencies {
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
     testFixturesApi(testFixtures(project(":compiler:fir:raw-fir:psi2fir")))
     testFixturesApi(testFixtures(project(":compiler:fir:raw-fir:light-tree2fir")))
+    testFixturesApi(testFixtures(project(":compiler:fir:raw-fir:mp-parsing2fir")))
     testFixturesApi(testFixtures(project(":compiler:fir:analysis-tests:legacy-fir-tests")))
     testFixturesApi(testFixtures(project(":generators:test-generator")))
     testFixturesApi(project(":compiler:ir.tree")) // used for deepCopyWithSymbols call that is removed by proguard from the compiler TODO: make it more straightforward
@@ -85,13 +85,14 @@ projectTests {
     testData(isolated, "testData/writeFlags")
     testData(isolated, "testData/writeSignature")
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withTestJar()
     withStdlibCommon()
     withMockJdkRuntime()
     withMockJdkAnnotationsJar()
 }
 
-val generateTestData by generator("org.jetbrains.kotlin.generators.tests.GenerateCompilerTestDataKt", testSourceSet)
-
-testsJar()
+val generateTestData by generator(
+    "org.jetbrains.kotlin.generators.tests.GenerateCompilerTestDataKt",
+    testSourceSet,
+    inputKind = GeneratorInputKind.RuntimeClasspath,
+)

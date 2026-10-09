@@ -19,11 +19,11 @@ import org.jetbrains.kotlin.analysis.api.symbols.markers.KaAnnotatedSymbol
 import org.jetbrains.kotlin.analysis.api.types.*
 import org.jetbrains.kotlin.asJava.classes.annotateByTypeAnnotationProvider
 import org.jetbrains.kotlin.builtins.StandardNames
-import org.jetbrains.kotlin.light.classes.symbol.NullabilityAnnotation
-import org.jetbrains.kotlin.light.classes.symbol.asAnnotationQualifier
 import org.jetbrains.kotlin.light.classes.symbol.classes.SymbolLightClassBase
-import org.jetbrains.kotlin.light.classes.symbol.getContainingSymbolsWithSelf
-import org.jetbrains.kotlin.light.classes.symbol.getRequiredNullabilityAnnotation
+import org.jetbrains.kotlin.light.classes.symbol.utils.NullabilityAnnotation
+import org.jetbrains.kotlin.light.classes.symbol.utils.asAnnotationQualifier
+import org.jetbrains.kotlin.light.classes.symbol.utils.getContainingSymbolsWithSelf
+import org.jetbrains.kotlin.light.classes.symbol.utils.getRequiredNullabilityAnnotation
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.JvmStandardClassIds.JVM_OVERLOADS_CLASS_ID
@@ -168,9 +168,10 @@ fun annotateByKtType(
             else -> type
         }
 
-        val explicitTypeAnnotations = unwrappedType.annotations.map { annotationApplication ->
+        val explicitTypeAnnotations = unwrappedType.annotations.mapNotNull { annotationApplication ->
+            val classId = annotationApplication.classId ?: return@mapNotNull null
             SymbolLightSimpleAnnotation(
-                annotationApplication.classId?.asFqNameString(),
+                classId.asFqNameString(),
                 annotationParent,
                 annotationApplication.arguments.map { it.toLightClassAnnotationArgument(useSiteModule) },
                 annotationApplication.psi,

@@ -6,9 +6,7 @@
 package org.jetbrains.kotlin.analysis.low.level.api.fir
 
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractFirLazyDeclarationResolveTestCase.Directives.RESOLVE_REPL_SNIPPET_CLASS
 import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractFirLazyDeclarationResolveTestCase.Directives.RESOLVE_SCRIPT
-import org.jetbrains.kotlin.analysis.api.impl.base.util.requireIsInstance
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLResolutionFacade
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbol
 import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirResolvableModuleSession
@@ -16,7 +14,10 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.util.FirElementFinder
 import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBasedTest
 import org.jetbrains.kotlin.analysis.test.framework.services.expressionMarkerProvider
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
-import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.FirClass
+import org.jetbrains.kotlin.fir.declarations.FirDanglingModifierList
+import org.jetbrains.kotlin.fir.declarations.FirFile
+import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.renderer.FirDeclarationRendererWithFilteredAttributes
 import org.jetbrains.kotlin.fir.renderer.FirErrorExpressionExtendedRenderer
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
@@ -28,7 +29,6 @@ import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirReplSnippetSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirScriptSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhaseRecursively
@@ -38,11 +38,11 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.test.directives.model.*
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.moduleStructure
+import org.jetbrains.kotlin.utils.addToStdlib.requireIsInstance
 
 /**
  * Test that we do not resolve declarations we do not need & do not build bodies for them
  */
-@OptIn(DirectDeclarationsAccess::class)
 abstract class AbstractFirLazyDeclarationResolveTestCase : AbstractAnalysisApiBasedTest() {
     protected fun findFirDeclarationToResolve(
         ktFile: KtFile,
@@ -68,7 +68,7 @@ abstract class AbstractFirLazyDeclarationResolveTestCase : AbstractAnalysisApiBa
                 }
             }
             else -> {
-                val ktDeclaration = if (RESOLVE_SCRIPT in allDirectives || RESOLVE_REPL_SNIPPET_CLASS in allDirectives) {
+                val ktDeclaration = if (RESOLVE_SCRIPT in allDirectives) {
                     ktFile.script!!
                 } else {
                     testServices.expressionMarkerProvider.getBottommostElementOfTypeAtCaret<KtDeclaration>(fileWithCaret).let {
@@ -110,12 +110,6 @@ abstract class AbstractFirLazyDeclarationResolveTestCase : AbstractAnalysisApiBa
         resolutionFacade: LLResolutionFacade,
         directives: RegisteredDirectives,
     ): FirBasedSymbol<*> {
-        val symbol = if (RESOLVE_REPL_SNIPPET_CLASS in directives) {
-            (symbol as FirReplSnippetSymbol).snippetClassSymbol
-        } else {
-            symbol
-        }
-
         val memberClassFilters = listOfNotNull(
             directives.singleOrZeroValue(Directives.MEMBER_CLASS_FILTER),
             directives.singleOrZeroValue(Directives.MEMBER_NAME_FILTER),
@@ -209,7 +203,6 @@ abstract class AbstractFirLazyDeclarationResolveTestCase : AbstractAnalysisApiBa
 
         val RESOLVE_PROPERTY_PART by enumDirective<PropertyPart>("Choose getter/setter/backing field in the case of property")
         val RESOLVE_SCRIPT by directive("Resolve script instead of declaration at caret")
-        val RESOLVE_REPL_SNIPPET_CLASS by directive("Resolve a REPL snippet class instead of declaration at caret")
         val RESOLVE_FILE by directive("Resolve file instead of declaration at caret")
         val RESOLVE_DANGLING_MODIFIER by directive("Resolve a file dangling modifier list instead of declaration at caret")
 

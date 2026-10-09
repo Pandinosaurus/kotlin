@@ -2,13 +2,14 @@ description = "Kotlin JKlib Stdlib for Tests"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     base
 }
 
-project.configureJvmToolchain(JdkMajorVersion.JDK_1_8)
+jvmToolchains {
+    targetBytecodeVersion = JdkMajorVersion.JDK_1_8
+}
 
 val stdlibProjectDir = file("$rootDir/libraries/stdlib")
 
@@ -31,6 +32,8 @@ dependencies {
     substrateStdlibCompilerDependencies(intellijCore())
 
     // Transitive dependencies pulled by IntellijCore
+    // Required by 'NoopTelemetryManager', queried through 'CoreProgressManager'
+    substrateStdlibCompilerDependencies(libs.opentelemetry.api)
     // Used for IR interning and seriliazation and other things
     substrateStdlibCompilerDependencies(libs.intellij.fastutil)
     // Used to read XML metadata files inside META-INF
@@ -101,6 +104,7 @@ val copyMinimalSources = tasks.register("copyMinimalSources", Sync::class) {
             "kotlin/annotations/Annotations.kt",
             "kotlin/concurrent/atomics/ExperimentalAtomicApi.kt",
             "kotlin/annotations/ExperimentalStdlibApi.kt",
+            "kotlin/annotations/ExperimentalCollectionLiteralsApi.kt",
         )
         into("src/common")
     }
@@ -196,7 +200,9 @@ fun JavaExec.configureJklibCompilation(
             "-opt-in=kotlin.contracts.ExperimentalContracts",
             "-opt-in=kotlin.ExperimentalMultiplatform",
             "-opt-in=kotlin.contracts.ExperimentalExtendedContracts",
+            *dogfoodedExperimentalFeatures.toTypedArray(),
             "-Xreturn-value-checker=full",
+            "-Xcompanion-blocks",
             "-Xcommon-sources=${(commonSourceFiles).joinToString(",")}",
         )
 
@@ -210,7 +216,7 @@ fun JavaExec.configureJklibCompilation(
 val compileStdlib = tasks.register("compileStdlib", JavaExec::class) {
     val javaToolchains = project.extensions.getByType(JavaToolchainService::class.java)
     javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion.set(JavaLanguageVersion.of(17))
     })
     configureJklibCompilation(copyMinimalSources, outputKlib)
 

@@ -5,14 +5,13 @@
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
     id("share-foreign-java-nullability-annotations")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
+    id("test-coverage-convention")
     id("require-explicit-types")
 }
 
@@ -32,7 +31,6 @@ dependencies {
     testFixturesApi(project(":compiler:fir:fir-serialization"))
     testFixturesApi(project(":compiler:fir:entrypoint"))
     testFixturesApi(project(":compiler:frontend"))
-    testFixturesImplementation(project(":js:js.frontend"))
     testFixturesImplementation(project(":wasm:wasm.frontend"))
     testFixturesImplementation(testFixtures(project(":generators:test-generator")))
     testFixturesImplementation(testFixtures(project(":compiler:tests-spec")))
@@ -75,10 +73,7 @@ kotlin {
 
 projectTests {
     testTask(
-        javaLauncher = JdkMajorVersion.JDK_1_8,
         maxHeapSize = testMaxHeapSizeLarge,
-        // Use Parallel GC because this test runs on JDK 8.
-        garbageCollector = GarbageCollector.Parallel,
         defineJDKEnvVariables = listOf(
             JdkMajorVersion.JDK_1_8,
             JdkMajorVersion.JDK_11_0,
@@ -97,7 +92,6 @@ projectTests {
     testData(project(":compiler:tests-spec").isolated, "testData/diagnostics")
 
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withMockJdkAnnotationsJar()
     withMockJDKModifiedRuntime()
     withTestJar()
@@ -112,4 +106,3 @@ projectTests {
     withThirdPartyJava9Annotations()
 }
 
-testsJar()

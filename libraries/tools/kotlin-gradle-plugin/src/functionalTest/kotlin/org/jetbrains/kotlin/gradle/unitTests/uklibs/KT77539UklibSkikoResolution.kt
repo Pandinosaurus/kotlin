@@ -1,7 +1,6 @@
 package org.jetbrains.kotlin.gradle.unitTests.uklibs
 
 import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.internal.dsl.KotlinMultiplatformSourceSetConventionsImpl.commonMain
@@ -35,7 +34,7 @@ class KT77539UklibSkikoResolution {
             kotlin {
                 jvm()
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                @Suppress("DEPRECATION_ERROR") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
                 iosX64()
                 val skiko = dependencies.create("org.jetbrains.skiko:skiko:0.9.4.2")
                 dependencies {
@@ -47,11 +46,11 @@ class KT77539UklibSkikoResolution {
         }.evaluate()
         val skikoCompilationDependency = project.configurations.getByName("jvmCompileClasspath")
             .incoming.resolutionResult.allComponents.map {
-                (it as ResolvedComponentResult).variants.single().displayName
+                it.variants.single().displayName
             }
         val skikoRuntimeDependency = project.configurations.getByName("jvmRuntimeClasspath")
             .incoming.resolutionResult.allComponents.map {
-                (it as ResolvedComponentResult).variants.single().displayName
+                it.variants.single().displayName
             }
         assertEquals(
             listOf("jvmCompileClasspath", "awtApiElements-published", "awtApiElements-published"),
@@ -76,7 +75,7 @@ class KT77539UklibSkikoResolution {
             .commonMain.get().internal.resolvableMetadataConfiguration.resolve()
         val metadataResolution = project.multiplatformExtension.sourceSets
             .commonMain.get().internal.resolvableMetadataConfiguration.incoming.resolutionResult.allComponents.map {
-                (it as ResolvedComponentResult).variants.single().displayName
+                it.variants.single().displayName
             }
         assertEquals(
             listOf("commonMainResolvableDependenciesMetadata", "metadataApiElements"),
@@ -87,7 +86,7 @@ class KT77539UklibSkikoResolution {
             .configurations.hostSpecificMetadataConfiguration!!
         hostSpecificMetadataConfiguration.resolve()
         val hostSpecificMetadataResolution = hostSpecificMetadataConfiguration.incoming.resolutionResult.allComponents.map {
-                (it as ResolvedComponentResult).variants.single().displayName
+                it.variants.single().displayName
             }
         assertEquals(
             listOf("iosArm64CompilationDependenciesMetadata", "iosArm64MetadataElements-published", "iosArm64MetadataElements-published"),

@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.light.classes.symbol
 
+import com.intellij.psi.*
 import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaSession
-import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.*
 
 /**
  * The internal bridge for utilities sharing.
@@ -16,19 +16,75 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 @KaImplementationDetail
 interface KaInternalsLightClassBridge {
     /**
-     * The declaration that owns the JVM method for [symbol], or `null` if the method is placed into a file facade class.
+     * Applies [JvmName] and `internal` mangling to [defaultName].
      *
-     * For a property accessor, the owner of the property is used, as an accessor is never owned by its property on the JVM.
+     * @param ignoreInlineClassMangling whether to compute the name as if inline classes did not require mangling
+     * @return the computed Java method name, or `null` if inline-class mangling is required and
+     * [ignoreInlineClassMangling] is `false`
      */
     context(_: KaSession)
-    fun jvmMethodOwner(symbol: KaCallableSymbol): KaDeclarationSymbol?
+    fun computeJavaMethodName(symbol: KaCallableSymbol, defaultName: String, ignoreInlineClassMangling: Boolean): String?
 
     /**
-     * Whether the JVM name of [symbol] is mangled because of value classes.
+     * [PsiClass] for [classSymbol] in the context of [KaSession.useSiteModule].
+     * For the proper LC construction, use the endpoints from Analysis API surface.
      *
-     * The suffix is either a hash of the signature, as in `classFunInParameter-5lyY9Q4`, or `impl` for a member of a value class,
-     * as in `funWithoutParameters-impl`.
+     * @see org.jetbrains.kotlin.analysis.api.javaInterop.asPsiClass
      */
-    context(_: KaSession)
-    fun hasMangledNameDueToValueClasses(symbol: KaCallableSymbol): Boolean
+    context(session: KaSession)
+    fun getLightClass(classSymbol: KaClassSymbol): PsiClass?
+
+    /**
+     * [PsiClass] facade for [fileSymbol] in the context of [KaSession.useSiteModule].
+     * For the proper LC construction, use the endpoints from Analysis API surface.
+     *
+     * @see org.jetbrains.kotlin.analysis.api.javaInterop.asFacadePsiClass
+     */
+    context(session: KaSession)
+    fun getLightFacade(fileSymbol: KaFileSymbol): PsiClass?
+
+    /**
+     * [PsiClass] facade for [scriptSymbol] in the context of [KaSession.useSiteModule].
+     * For the proper LC construction, use the endpoints from Analysis API surface.
+     *
+     * @see org.jetbrains.kotlin.analysis.api.javaInterop.asFacadePsiClass
+     */
+    context(session: KaSession)
+    fun getLightFacade(scriptSymbol: KaScriptSymbol): PsiClass?
+
+    /**
+     * [PsiParameter]s for [parameterSymbol] in the context of [KaSession.useSiteModule].
+     * For the proper LC construction, use the endpoints from Analysis API surface.
+     *
+     * @see org.jetbrains.kotlin.analysis.api.javaInterop.asPsiParameters
+     */
+    context(session: KaSession)
+    fun getLightClassParameters(parameterSymbol: KaParameterSymbol): List<PsiParameter>
+
+    /**
+     * [PsiTypeParameter]s for [typeParameterSymbol] in the context of [KaSession.useSiteModule].
+     * For the proper LC construction, use the endpoints from Analysis API surface.
+     *
+     * @see org.jetbrains.kotlin.analysis.api.javaInterop.asPsiTypeParameters
+     */
+    context(session: KaSession)
+    fun getLightClassTypeParameter(typeParameterSymbol: KaTypeParameterSymbol): List<PsiTypeParameter>
+
+    /**
+     * [PsiField]s for [declarationSymbol] in the context of [KaSession.useSiteModule].
+     * For the proper LC construction, use the endpoints from Analysis API surface.
+     *
+     * @see org.jetbrains.kotlin.analysis.api.javaInterop.asPsiField
+     */
+    context(session: KaSession)
+    fun getLightClassBackingField(declarationSymbol: KaSymbol): PsiField?
+
+    /**
+     * [PsiMethod]s for [functionSymbol] in the context of [KaSession.useSiteModule].
+     * For the proper LC construction, use the endpoints from Analysis API surface.
+     *
+     * @see org.jetbrains.kotlin.analysis.api.javaInterop.asPsiMethods
+     */
+    context(session: KaSession)
+    fun getLightClassMethods(functionSymbol: KaFunctionSymbol): List<PsiMethod>
 }

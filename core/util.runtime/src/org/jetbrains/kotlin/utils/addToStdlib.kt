@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -58,6 +58,24 @@ inline fun <reified T> Iterable<*>.filterIsInstanceWithChecker(additionalChecker
         }
     }
     return result
+}
+
+@OptIn(ExperimentalContracts::class)
+inline fun <reified T> requireIsInstance(obj: Any) {
+    contract {
+        returns() implies (obj is T)
+    }
+
+    require(obj is T) { "Expected ${T::class} instead of ${obj::class} for $obj" }
+}
+
+@OptIn(ExperimentalContracts::class)
+inline fun <reified T> checkIsInstance(obj: Any) {
+    contract {
+        returns() implies (obj is T)
+    }
+
+    check(obj is T) { "Expected ${T::class} instead of ${obj::class} for $obj" }
 }
 
 fun <T> Iterator<T>.nextOrNull(): T? = if (hasNext()) next() else null
@@ -375,6 +393,14 @@ inline fun <T, K> List<T>.flatAssociateBy(selector: (T) -> Collection<K>): Map<K
     }
 }
 
+inline fun <reified R> Iterable<*>.eachIsInstanceOrNull(): Iterable<R>? {
+    @Suppress("UNCHECKED_CAST")
+    return when {
+        all { it is R } -> this as Iterable<R>
+        else -> null
+    }
+}
+
 fun <E> MutableList<E>.popLast(): E = removeAt(lastIndex)
 
 fun <K : Enum<K>, V> enumMapOf(vararg pairs: Pair<K, V>): EnumMap<K, V> = EnumMap(mapOf(*pairs))
@@ -542,5 +568,27 @@ class ChainedIterator<T>(delegates: Collection<Iterator<T>>) : Iterator<T> {
     override fun next(): T {
         promote()
         return currentIterator?.next() ?: throw NoSuchElementException()
+    }
+}
+
+fun <T> Iterator<T>.skipNext() {
+    // util.runtime is compiled with the language-version=2.2
+    // will be changed to val _ = next() once the module is compiled with >= 2.5
+    next()
+}
+
+inline fun <T, K> Iterable<T>.forEachZipped(other: Iterable<K>, transform: (T, K) -> Unit) {
+    val first = iterator()
+    val second = other.iterator()
+    while (first.hasNext() && second.hasNext()) {
+        transform(first.next(), second.next())
+    }
+}
+
+inline fun <T, K> Array<out T>.forEachZipped(other: Iterable<K>, transform: (T, K) -> Unit) {
+    val second = other.iterator()
+    for (first in this) {
+        if (!second.hasNext()) break
+        transform(first, second.next())
     }
 }

@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.lombok.checkers
 
+import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -14,12 +15,25 @@ import org.jetbrains.kotlin.fir.analysis.checkers.getAllowedAnnotationTargets
 import org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
+import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
+import org.jetbrains.kotlin.fir.declarations.utils.isFinal
+import org.jetbrains.kotlin.fir.declarations.utils.isInlineOrValue
+import org.jetbrains.kotlin.fir.declarations.utils.isInner
+import org.jetbrains.kotlin.fir.declarations.utils.isSealed
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
-import org.jetbrains.kotlin.fir.resolve.getSuperClassSymbolOrAny
+import org.jetbrains.kotlin.fir.resolve.getSuperTypes
+import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
+import org.jetbrains.kotlin.fir.scopes.FirContainingNamesAwareScope
+import org.jetbrains.kotlin.fir.scopes.impl.declaredMemberScope
+import org.jetbrains.kotlin.fir.scopes.processAllProperties
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.lookupTagIfAny
 import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.lombok.LombokFirDiagnostics
 import org.jetbrains.kotlin.lombok.LombokNames
+import org.jetbrains.kotlin.resolve.AnnotationTargetList
 import org.jetbrains.kotlin.lombok.config.AccessLevel
 import org.jetbrains.kotlin.lombok.config.CallSuperMode
 import org.jetbrains.kotlin.lombok.config.ConeLombokAnnotations
@@ -33,20 +47,74 @@ import org.jetbrains.kotlin.lombok.config.LombokConfigNames.ON_CONSTRUCTOR
 import org.jetbrains.kotlin.lombok.config.LombokConfigNames.ON_PARAM
 import org.jetbrains.kotlin.lombok.config.LombokConfigNames.REPLACES
 import org.jetbrains.kotlin.lombok.config.getAccessLevel
+import org.jetbrains.kotlin.lombok.generators.hasNonTrivialSuperclass
+import org.jetbrains.kotlin.lombok.generators.isExcludedByDollarPrefix
+import org.jetbrains.kotlin.lombok.generators.kotlin.findAnnotationOnPropertyOrField
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.name.StandardClassIds
+import java.util.EnumSet
+
+/**
+ * A modifier that narrows what a class is beyond its [KotlinTarget], which knows every one of these as a plain
+ * `CLASS` alone. An annotation the plugin cannot act upon such a class with therefore has to name the modifier
+ * separately, in [ImplementedAnnotationsInfo.unsupportedClassModifiers], rather than leave it out of a target
+ * list that has no way to express it.
+ *
+ * [presentation] is the modifier as it is written in the source, which is what the diagnostic names.
+ */
+enum class ClassModifier(val presentation: String) {
+    VALUE("value"),
+    INNER("inner"),
+    ABSTRACT("abstract"),
+    SEALED("sealed"),
+}
 
 private class ImplementedAnnotationsInfo(
     val allowedTargetsMap: Set<KotlinTarget>,
     val unsupportedArguments: Set<Name> = emptySet(),
+    val unsupportedClassModifiers: EnumSet<ClassModifier> = EnumSet.noneOf(ClassModifier::class.java),
 )
+
+private fun FirRegularClass.classModifiers(): Set<ClassModifier> = buildSet {
+    if (isInlineOrValue) add(ClassModifier.VALUE)
+    if (isInner) add(ClassModifier.INNER)
+    // Only where these are modifiers the source actually carries. An interface and an annotation class are
+    // abstract by their very kind, and the kind - not a modifier - is what has to be spoken about there, which
+    // is `ANNOTATION_HAS_NO_EFFECT`'s job. The two are mutually exclusive: a sealed class carries
+    // `Modality.SEALED`, never `ABSTRACT`.
+    if (classKind == ClassKind.CLASS) {
+        if (isAbstract) add(ClassModifier.ABSTRACT)
+        if (isSealed) add(ClassModifier.SEALED)
+    }
+}
+
+fun FirRegularClass.uninstantiableClassModifier(): ClassModifier? =
+    classModifiers().firstOrNull { it in UNINSTANTIABLE_CLASS_MODIFIERS }
+
+private val UNINSTANTIABLE_CLASS_MODIFIERS = setOf(ClassModifier.INNER, ClassModifier.ABSTRACT, ClassModifier.SEALED)
+
+/**
+ * Whether an annotation written on an element of [this] shape lands on one of [targets].
+ *
+ * [AnnotationTargetList.canBeSubstituted] counts alongside the default targets, the way the platform's own
+ * `FirAnnotationChecker.checkAnnotationTarget` counts it when deciding whether an annotation is applicable at
+ * all: a Java `@Target(FIELD)` annotation such as `@ToString.Include` reaches a Kotlin property through the
+ * substituted `FIELD` target rather than through a default one. Reading the default targets alone left
+ * `ANNOTATION_HAS_NO_EFFECT` unreachable for every property-targeted Lombok annotation - the plugin found no
+ * supported target, and then suppressed itself because it could not see the target the platform had accepted.
+ */
+private fun AnnotationTargetList.isActedUponBy(targets: Set<KotlinTarget>): Boolean =
+    defaultTargets.any { it in targets } || canBeSubstituted.any { it in targets }
 
 private val implementedAnnotationInfos: Map<ClassId, ImplementedAnnotationsInfo> = buildMap {
     val logInfo = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
             KotlinTarget.CLASS_ONLY,
-            KotlinTarget.OBJECT,
+            // `STANDALONE_OBJECT` rather than the umbrella `OBJECT`, which also covers a companion object:
+            // `lombok.log.fieldIsStatic` alone decides whether the logger is static, so putting the annotation on
+            // the companion object rather than on its class buys nothing - and with `fieldIsStatic=false` it did
+            // nothing at all, neither generating nor reporting (KT-88288).
+            KotlinTarget.STANDALONE_OBJECT,
             KotlinTarget.ENUM_CLASS,
         )
     )
@@ -73,13 +141,15 @@ private val implementedAnnotationInfos: Map<ClassId, ImplementedAnnotationsInfo>
     )
     this[LombokNames.TO_STRING_INCLUDE_ID] = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
-            KotlinTarget.PROPERTY,
-            //KotlinTarget.FUNCTION, TODO: support later because Lombok also allows it on functions, KT-86021
+            KotlinTarget.MEMBER_PROPERTY,
+            KotlinTarget.COMPANION_MEMBER_PROPERTY,
+            //KotlinTarget.MEMBER_FUNCTION, TODO: support later because Lombok also allows it on functions, KT-86021
         )
     )
     this[LombokNames.TO_STRING_EXCLUDE_ID] = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
-            KotlinTarget.PROPERTY,
+            KotlinTarget.MEMBER_PROPERTY,
+            KotlinTarget.COMPANION_MEMBER_PROPERTY,
         )
     )
     this[LombokNames.NO_ARGS_CONSTRUCTOR_ID] = ImplementedAnnotationsInfo(
@@ -88,13 +158,23 @@ private val implementedAnnotationInfos: Map<ClassId, ImplementedAnnotationsInfo>
         ),
         unsupportedArguments = setOf(
             ON_CONSTRUCTOR, // Not yet supported
-        )
+        ),
+        // A value class *is* its underlying value: it has no instance to initialize field by field, and its
+        // constructors compile to static `constructor-impl` functions that must return that value. A generated
+        // constructor that only calls the superclass one leaves nothing to return, and the JVM backend used to
+        // fail outright on its instance initializer with "Unexpected IR element found during code generation"
+        // (KT-88705).
+        //
+        // An inner class's generated constructor has to keep its delegating call in FIR - `InnerClassesLowering`
+        // takes a super-delegating constructor without an `IrInstanceInitializerCall` for a `this(...)` delegation
+        // - and that call is what makes fir2ir inline the class's property initializers into it. An initializer
+        // referencing a primary constructor parameter then crashed the JVM backend with "No mapping for symbol"
+        // (KT-88659). The noarg plugin doesn't support an inner class either, for the same reason.
+        unsupportedClassModifiers = EnumSet.of(ClassModifier.VALUE, ClassModifier.INNER),
     )
     this[LombokNames.EQUALS_AND_HASH_CODE_ID] = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
             KotlinTarget.CLASS_ONLY,
-            KotlinTarget.OBJECT,
-            KotlinTarget.ENUM_CLASS,
             KotlinTarget.LOCAL_CLASS,
         ),
         unsupportedArguments = setOf(
@@ -107,8 +187,8 @@ private val implementedAnnotationInfos: Map<ClassId, ImplementedAnnotationsInfo>
     )
     this[LombokNames.EQUALS_AND_HASH_CODE_INCLUDE_ID] = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
-            KotlinTarget.PROPERTY,
-            //KotlinTarget.FUNCTION, TODO: support later because Lombok also allows it on functions, KT-86021
+            KotlinTarget.MEMBER_PROPERTY,
+            //KotlinTarget.MEMBER_FUNCTION, TODO: support later because Lombok also allows it on functions, KT-86021
         ),
         unsupportedArguments = setOf(
             REPLACES, // Not yet supported
@@ -117,24 +197,36 @@ private val implementedAnnotationInfos: Map<ClassId, ImplementedAnnotationsInfo>
     )
     this[LombokNames.EQUALS_AND_HASH_CODE_EXCLUDE_ID] = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
-            KotlinTarget.PROPERTY,
+            KotlinTarget.MEMBER_PROPERTY,
         )
     )
     this[LombokNames.BUILDER_ID] = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
-            KotlinTarget.CLASS,
+            KotlinTarget.CLASS_ONLY,
             KotlinTarget.CONSTRUCTOR,
-            KotlinTarget.FUNCTION,
-        )
+            KotlinTarget.MEMBER_FUNCTION,
+            KotlinTarget.COMPANION_MEMBER_FUNCTION,
+        ),
+        // An inner class's constructor takes the outer instance as its dispatch receiver, and the generated
+        // `build()` - a member of the builder class, which holds no such instance - has no way to pass one: the
+        // JVM backend failed outright with "Null argument in ExpressionCodegen for parameter VALUE_PARAMETER
+        // kind:DispatchReceiver" (KT-88852). Lombok refuses the shape as well, with "@Builder is not supported
+        // on non-static nested classes"; a nested class is what works, in Kotlin as in Java.
+        //
+        // An abstract or sealed class cannot be instantiated at all, so the `build()` that calls its constructor
+        // failed with `InstantiationError` at run time (KT-88814). Lombok is an error here too: "BuilderExample
+        // is abstract; cannot be instantiated". `@SuperBuilder` is what builds such a hierarchy, and it is not
+        // supported on a Kotlin class at all - `ANNOTATION_IS_NOT_SUPPORTED` covers that.
+        unsupportedClassModifiers = EnumSet.of(ClassModifier.INNER, ClassModifier.ABSTRACT, ClassModifier.SEALED),
     )
     this[LombokNames.BUILDER_DEFAULT_ID] = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
-            KotlinTarget.PROPERTY,
+            KotlinTarget.MEMBER_PROPERTY,
         )
     )
     this[LombokNames.SINGULAR_ID] = ImplementedAnnotationsInfo(
         allowedTargetsMap = setOf(
-            KotlinTarget.PROPERTY,
+            KotlinTarget.MEMBER_PROPERTY,
             KotlinTarget.VALUE_PARAMETER,
         )
     )
@@ -144,25 +236,47 @@ private val implementedAnnotationInfos: Map<ClassId, ImplementedAnnotationsInfo>
  * Reports the Lombok annotations among [annotations] that the plugin can't act upon, and validates the arguments
  * of the ones it can. Shared by [FirLombokDeclarationAnnotationChecker] and [FirLombokExpressionAnnotationChecker].
  *
- * [defaultTargets] is what the annotated element is, expressed in the terms an annotation's `@Target` speaks:
+ * [actualTargets] is what the annotated element is, expressed in the terms an annotation's `@Target` speaks:
  * [getActualTargetList] for a declaration, plain [KotlinTarget.EXPRESSION] for an expression.
+ *
+ * [annotatedClass] is the annotated declaration where it is a class, which [actualTargets] cannot say enough
+ * about on its own: every [ClassModifier] is a plain `CLASS` as far as [KotlinTarget] is concerned.
  */
 context(context: CheckerContext, reporter: DiagnosticReporter)
-fun checkLombokAnnotations(annotations: List<FirAnnotation>, defaultTargets: List<KotlinTarget>) {
+fun checkLombokAnnotations(
+    annotations: List<FirAnnotation>,
+    actualTargets: AnnotationTargetList,
+    annotatedClass: FirRegularClass? = null,
+) {
+    val classModifiers = annotatedClass?.classModifiers().orEmpty()
+
     for (annotation in annotations) {
         val classId = annotation.toAnnotationClassId(context.session) ?: continue
         val implementedAnnotationInfo = implementedAnnotationInfos[classId]
 
         if (implementedAnnotationInfo != null) {
-            val (narrowedAllowedTargets = allowedTargetsMap, unsupportedArguments) = implementedAnnotationInfo
+            val (narrowedAllowedTargets = allowedTargetsMap, unsupportedArguments, unsupportedClassModifiers) =
+                implementedAnnotationInfo
 
-            if (defaultTargets.none { narrowedAllowedTargets.contains(it) }) {
+            // A modifier the annotation cannot act upon is reported ahead of the target, being the more specific
+            // of the two: the target is a plain `CLASS` and perfectly allowed, the modifier alone is the problem.
+            val unsupportedModifier = unsupportedClassModifiers.firstOrNull { it in classModifiers }
+            if (unsupportedModifier != null) {
+                reporter.reportOn(
+                    annotation.source,
+                    LombokFirDiagnostics.ANNOTATION_IS_NOT_SUPPORTED_ON_CLASS,
+                    classId.shortClassName,
+                    unsupportedModifier.presentation,
+                )
+            } else if (!actualTargets.isActedUponBy(narrowedAllowedTargets)) {
+                // Only warn where the platform itself accepts the annotation, otherwise `WRONG_ANNOTATION_TARGET`
+                // says it already.
                 val allowedAnnotationTargets = annotation.getAllowedAnnotationTargets(context.session)
-                if (defaultTargets.any { allowedAnnotationTargets.contains(it) }) {
+                if (actualTargets.isActedUponBy(allowedAnnotationTargets)) {
                     reporter.reportOn(
                         annotation.source,
                         LombokFirDiagnostics.ANNOTATION_HAS_NO_EFFECT,
-                        defaultTargets.firstOrNull()?.description ?: "unidentified target",
+                        actualTargets.defaultTargets.firstOrNull()?.description ?: "unidentified target",
                         narrowedAllowedTargets,
                     )
                 }
@@ -209,6 +323,88 @@ fun checkLombokAnnotations(annotations: List<FirAnnotation>, defaultTargets: Lis
 }
 
 /**
+ * Validates the `@Include`/`@Exclude` pair of [annotationClassId] - `@ToString` or `@EqualsAndHashCode` - on every
+ * property of [declaredMemberScope]. Both ids are derived from the outer one exactly as [LombokNames] derives
+ * them, so the pair can never be mismatched at a call site.
+ *
+ * [onlyExplicitlyIncluded] is the feature's resolved `onlyExplicitlyIncluded` - the annotation argument, or the
+ * `lombok.<feature>.onlyExplicitlyIncluded` setting where the argument is absent - as the generator resolves it,
+ * since that is what decides whether an `@Exclude` had anything left to exclude.
+ */
+context(context: CheckerContext, reporter: DiagnosticReporter)
+fun checkIncludeAndExcludeAnnotations(
+    declaredMemberScope: FirContainingNamesAwareScope,
+    annotationClassId: ClassId,
+    onlyExplicitlyIncluded: Boolean,
+) {
+    val includeClassId = annotationClassId.createNestedClassId(LombokNames.INCLUDE_NAME)
+    val excludeClassId = annotationClassId.createNestedClassId(LombokNames.EXCLUDE_NAME)
+    val annotationName = annotationClassId.shortClassName
+
+    declaredMemberScope.processAllProperties { variableSymbol ->
+        val property = variableSymbol as? FirPropertySymbol ?: return@processAllProperties
+        val includeAnnotation = property.findAnnotationOnPropertyOrField(includeClassId)
+        val excludeAnnotation = property.findAnnotationOnPropertyOrField(excludeClassId)
+
+        // Mirrors Lombok Java behaviour: "Having both @Exclude and @Include on a member generates a warning;
+        // the member will be excluded in this case."
+        if (includeAnnotation != null && excludeAnnotation != null) {
+            includeAnnotation.source?.let {
+                reporter.reportOn(it, LombokFirDiagnostics.EXCLUDE_AND_INCLUDE_MUTUALLY_EXCLUSIVE, annotationName)
+            }
+        }
+
+        // Both of Lombok's "The @Exclude annotation is not needed" warnings, reported independently of the clash
+        // above, exactly as Lombok does - but only one of them per property: `InclusionExclusionUtils` chains
+        // them with `else if` and puts `onlyExplicitlyIncluded` first, nothing being left for `$` to explain
+        // once the whole class is opt-in (KT-88655).
+        //
+        // Lombok has a third one for a static field, which has no counterpart here: only a Kotlin declaration
+        // reaches this checker, and none of those is static in the sense `@Exclude` would be redundant for.
+        if (excludeAnnotation != null) {
+            val redundancy = when {
+                onlyExplicitlyIncluded -> LombokFirDiagnostics.EXCLUDE_IS_REDUNDANT_FOR_ONLY_EXPLICITLY_INCLUDED
+                property.isExcludedByDollarPrefix -> LombokFirDiagnostics.EXCLUDE_IS_REDUNDANT_FOR_DOLLAR_PREFIXED_PROPERTY
+                else -> null
+            }
+
+            if (redundancy != null) {
+                excludeAnnotation.source?.let { reporter.reportOn(it, redundancy, annotationName) }
+            }
+        }
+    }
+}
+
+/**
+ * The closest superclass that declares a `final` function named by [functionNames] and accepted by [isCandidate],
+ * or `null` when nothing the generator produces would have to override a final member. Interfaces are skipped:
+ * they cannot declare one.
+ *
+ * A generated member overriding a final one is not caught by the platform - the plugin adds it after those checks
+ * have run - and the JVM then refuses to load the class with "overrides final method" (KT-88420, KT-88511), so
+ * `@ToString` and `@EqualsAndHashCode` have to look for one themselves.
+ */
+context(context: CheckerContext)
+fun FirRegularClass.findSuperclassWithFinalFunction(
+    functionNames: Set<Name>,
+    isCandidate: (FirNamedFunctionSymbol) -> Boolean,
+): FirRegularClassSymbol? {
+    return symbol.getSuperTypes(context.session, lookupInterfaces = false)
+        .firstNotNullOfOrNull { superType ->
+            superType.toRegularClassSymbol(context.session)?.let { superClassSymbol ->
+                val declaredMemberScope = context.session.declaredMemberScope(superClassSymbol, memberRequiredPhase = null)
+                var isFinal = false
+                for (functionName in functionNames) {
+                    declaredMemberScope.processFunctionsByName(functionName) {
+                        isFinal = isFinal || it.isFinal && isCandidate(it)
+                    }
+                }
+                superClassSymbol.takeIf { isFinal }
+            }
+        }
+}
+
+/**
  * Mirrors Lombok behavior: when `*.callSuper=warn` is configured and the
  * annotated class has a non-trivial superclass, warn that the generated function (`toString` or `equals`/`hashCode`) will
  * not chain to it.
@@ -220,9 +416,7 @@ fun checkCallSuper(
     declaration: FirRegularClass,
     functionNames: Set<Name>,
 ) {
-    if (callSuperMode == CallSuperMode.Warn &&
-        declaration.symbol.getSuperClassSymbolOrAny(context.session).let { it != null && it.classId != StandardClassIds.Any }
-    ) {
+    if (callSuperMode == CallSuperMode.Warn && declaration.symbol.hasNonTrivialSuperclass(context.session)) {
         reporter.reportOn(
             annotationInfo.annotation.source,
             LombokFirDiagnostics.CALL_SUPER_NOT_CALLED,

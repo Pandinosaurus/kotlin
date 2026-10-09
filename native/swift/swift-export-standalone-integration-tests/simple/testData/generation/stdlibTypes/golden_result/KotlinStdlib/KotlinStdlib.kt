@@ -11,7 +11,6 @@ import kotlin.native.internal.objc.BindReverseBridgeToMethod
 import kotlin.native.internal.ImportedBridge
 import kotlinx.cinterop.*
 import kotlin.native.internal.ExportedBridge
-import kotlinx.cinterop.internal.convertBlockPtrToKotlinFunction
 
 @ImportedBridge("kotlin_CharSequence_get__TypesOfArguments__Swift_Int32____reverse_swift")
 internal external fun kotlin_CharSequence_get__TypesOfArguments__Swift_Int32____reverse_swift(self: kotlin.native.internal.NativePtr, index: Int): Char
@@ -99,14 +98,14 @@ public fun kotlin_text_Appendable_append__TypesOfArguments__Swift_Unicode_UTF16_
 public fun kotlin_ByteArray_get__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, index: Int): Byte {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.ByteArray
     val __index = index
-    val _result = run { __self.`get`(__index) }
+    val _result = __self.`get`(__index)
     return _result
 }
 
 @ExportedBridge("kotlin_ByteArray_iterator")
 public fun kotlin_ByteArray_iterator(self: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.ByteArray
-    val _result = run { __self.iterator() }
+    val _result = __self.iterator()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -115,14 +114,14 @@ public fun kotlin_ByteArray_set__TypesOfArguments__Swift_Int32_Swift_Int8__(self
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.ByteArray
     val __index = index
     val __value = value
-    val _result = run { __self.`set`(__index, __value) }
-    return run { _result; true }
+    __self.`set`(__index, __value)
+    return true
 }
 
 @ExportedBridge("kotlin_ByteArray_size_get")
 public fun kotlin_ByteArray_size_get(self: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.ByteArray
-    val _result = run { __self.size }
+    val _result = __self.size
     return _result
 }
 
@@ -130,14 +129,14 @@ public fun kotlin_ByteArray_size_get(self: kotlin.native.internal.NativePtr): In
 public fun kotlin_CharArray_get__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, index: Int): Char {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.CharArray
     val __index = index
-    val _result = run { __self.`get`(__index) }
+    val _result = __self.`get`(__index)
     return _result
 }
 
 @ExportedBridge("kotlin_CharArray_iterator")
 public fun kotlin_CharArray_iterator(self: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.CharArray
-    val _result = run { __self.iterator() }
+    val _result = __self.iterator()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -146,14 +145,14 @@ public fun kotlin_CharArray_set__TypesOfArguments__Swift_Int32_Swift_Unicode_UTF
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.CharArray
     val __index = index
     val __value = value
-    val _result = run { __self.`set`(__index, __value) }
-    return run { _result; true }
+    __self.`set`(__index, __value)
+    return true
 }
 
 @ExportedBridge("kotlin_CharArray_size_get")
 public fun kotlin_CharArray_size_get(self: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.CharArray
-    val _result = run { __self.size }
+    val _result = __self.size
     return _result
 }
 
@@ -161,14 +160,14 @@ public fun kotlin_CharArray_size_get(self: kotlin.native.internal.NativePtr): In
 public fun kotlin_CharSequence_get__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, index: Int): Char {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.CharSequence
     val __index = index
-    val _result = run { __self.`get`(__index) }
+    val _result = __self.`get`(__index)
     return _result
 }
 
 @ExportedBridge("kotlin_CharSequence_length_get")
 public fun kotlin_CharSequence_length_get(self: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.CharSequence
-    val _result = run { __self.length }
+    val _result = __self.length
     return _result
 }
 
@@ -177,49 +176,49 @@ public fun kotlin_CharSequence_subSequence__TypesOfArguments__Swift_Int32_Swift_
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.CharSequence
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.subSequence(__startIndex, __endIndex) }
+    val _result = __self.subSequence(__startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("kotlin_collections_ByteIterator_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__", nonVirtualTargetMethod = "<init>")
 public fun kotlin_collections_ByteIterator_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt: kotlin.native.internal.NativePtr): Boolean {
     val ____kt = kotlin.native.internal.ref.dereferenceExternalRCRef(__kt)!!
-    val _result = run { kotlin.native.internal.initInstance(____kt, kotlin.collections.ByteIterator()) }
-    return run { _result; true }
+    kotlin.native.internal.initInstance(____kt, kotlin.collections.ByteIterator())
+    return true
 }
 
 @ExportedBridge("kotlin_collections_ByteIterator_next")
 public fun kotlin_collections_ByteIterator_next(self: kotlin.native.internal.NativePtr): Byte {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.collections.ByteIterator
-    val _result = run { __self.next() }
+    val _result = __self.next()
     return _result
 }
 
 @ExportedBridge("kotlin_collections_ByteIterator_nextByte")
 public fun kotlin_collections_ByteIterator_nextByte(self: kotlin.native.internal.NativePtr): Byte {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.collections.ByteIterator
-    val _result = run { __self.nextByte() }
+    val _result = __self.nextByte()
     return _result
 }
 
 @ExportedBridge("kotlin_collections_CharIterator_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__", nonVirtualTargetMethod = "<init>")
 public fun kotlin_collections_CharIterator_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt: kotlin.native.internal.NativePtr): Boolean {
     val ____kt = kotlin.native.internal.ref.dereferenceExternalRCRef(__kt)!!
-    val _result = run { kotlin.native.internal.initInstance(____kt, kotlin.collections.CharIterator()) }
-    return run { _result; true }
+    kotlin.native.internal.initInstance(____kt, kotlin.collections.CharIterator())
+    return true
 }
 
 @ExportedBridge("kotlin_collections_CharIterator_next")
 public fun kotlin_collections_CharIterator_next(self: kotlin.native.internal.NativePtr): Char {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.collections.CharIterator
-    val _result = run { __self.next() }
+    val _result = __self.next()
     return _result
 }
 
 @ExportedBridge("kotlin_collections_CharIterator_nextChar")
 public fun kotlin_collections_CharIterator_nextChar(self: kotlin.native.internal.NativePtr): Char {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.collections.CharIterator
-    val _result = run { __self.nextChar() }
+    val _result = __self.nextChar()
     return _result
 }
 
@@ -227,7 +226,7 @@ public fun kotlin_collections_CharIterator_nextChar(self: kotlin.native.internal
 public fun kotlin_text_Appendable_append__TypesOfArguments__Swift_Unicode_UTF16_CodeUnit__(self: kotlin.native.internal.NativePtr, value: Char): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.Appendable
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -235,7 +234,7 @@ public fun kotlin_text_Appendable_append__TypesOfArguments__Swift_Unicode_UTF16_
 public fun kotlin_text_Appendable_append__TypesOfArguments__Swift_Optional_anyU20ExportedKotlinPackages_kotlin_CharSequence___(self: kotlin.native.internal.NativePtr, value: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.Appendable
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharSequence
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -245,7 +244,7 @@ public fun kotlin_text_Appendable_append__TypesOfArguments__Swift_Optional_anyU2
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharSequence
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.append(__value, __startIndex, __endIndex) }
+    val _result = __self.append(__value, __startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -253,7 +252,7 @@ public fun kotlin_text_Appendable_append__TypesOfArguments__Swift_Optional_anyU2
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Unicode_UTF16_CodeUnit__(self: kotlin.native.internal.NativePtr, value: Char): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -261,7 +260,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Unicode_UTF
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Optional_anyU20ExportedKotlinPackages_kotlin_CharSequence___(self: kotlin.native.internal.NativePtr, value: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharSequence
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -271,7 +270,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Optional_an
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharSequence
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.append(__value, __startIndex, __endIndex) }
+    val _result = __self.append(__value, __startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -279,7 +278,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Optional_an
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Optional_anyU20KotlinRuntimeSupport__KotlinBridgeable___(self: kotlin.native.internal.NativePtr, value: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.Any
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -287,7 +286,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Optional_an
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Bool__(self: kotlin.native.internal.NativePtr, value: Boolean): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -295,7 +294,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Bool__(self
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Int8__(self: kotlin.native.internal.NativePtr, value: Byte): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -303,7 +302,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Int8__(self
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Int16__(self: kotlin.native.internal.NativePtr, value: Short): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -311,7 +310,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Int16__(sel
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, value: Int): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -319,7 +318,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Int32__(sel
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Int64__(self: kotlin.native.internal.NativePtr, value: Long): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -327,7 +326,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Int64__(sel
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Float__(self: kotlin.native.internal.NativePtr, value: Float): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -335,7 +334,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Float__(sel
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Double__(self: kotlin.native.internal.NativePtr, value: Double): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = value
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -343,7 +342,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Double__(se
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__ExportedKotlinPackages_kotlin_CharArray__(self: kotlin.native.internal.NativePtr, value: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharArray
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -351,7 +350,7 @@ public fun kotlin_text_StringBuilder_append__TypesOfArguments__ExportedKotlinPac
 public fun kotlin_text_StringBuilder_append__TypesOfArguments__Swift_Optional_Swift_String___(self: kotlin.native.internal.NativePtr, value: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else interpretObjCPointer<kotlin.String>(value)
-    val _result = run { __self.append(__value) }
+    val _result = __self.append(__value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -361,7 +360,7 @@ public fun kotlin_text_StringBuilder_appendRange__TypesOfArguments__ExportedKotl
     val __value = kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharArray
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.appendRange(__value, __startIndex, __endIndex) }
+    val _result = __self.appendRange(__value, __startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -371,14 +370,14 @@ public fun kotlin_text_StringBuilder_appendRange__TypesOfArguments__anyU20Export
     val __value = kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharSequence
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.appendRange(__value, __startIndex, __endIndex) }
+    val _result = __self.appendRange(__value, __startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_capacity")
 public fun kotlin_text_StringBuilder_capacity(self: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
-    val _result = run { __self.capacity() }
+    val _result = __self.capacity()
     return _result
 }
 
@@ -386,7 +385,7 @@ public fun kotlin_text_StringBuilder_capacity(self: kotlin.native.internal.Nativ
 public fun kotlin_text_StringBuilder_deleteAt__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, index: Int): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
-    val _result = run { __self.deleteAt(__index) }
+    val _result = __self.deleteAt(__index)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -395,7 +394,7 @@ public fun kotlin_text_StringBuilder_deleteRange__TypesOfArguments__Swift_Int32_
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.deleteRange(__startIndex, __endIndex) }
+    val _result = __self.deleteRange(__startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -403,15 +402,15 @@ public fun kotlin_text_StringBuilder_deleteRange__TypesOfArguments__Swift_Int32_
 public fun kotlin_text_StringBuilder_ensureCapacity__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, minimumCapacity: Int): Boolean {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __minimumCapacity = minimumCapacity
-    val _result = run { __self.ensureCapacity(__minimumCapacity) }
-    return run { _result; true }
+    __self.ensureCapacity(__minimumCapacity)
+    return true
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_get__TypesOfArguments__Swift_Int32__")
 public fun kotlin_text_StringBuilder_get__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, index: Int): Char {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
-    val _result = run { __self.`get`(__index) }
+    val _result = __self.`get`(__index)
     return _result
 }
 
@@ -419,7 +418,7 @@ public fun kotlin_text_StringBuilder_get__TypesOfArguments__Swift_Int32__(self: 
 public fun kotlin_text_StringBuilder_indexOf__TypesOfArguments__Swift_String__(self: kotlin.native.internal.NativePtr, string: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __string = interpretObjCPointer<kotlin.String>(string)
-    val _result = run { __self.indexOf(__string) }
+    val _result = __self.indexOf(__string)
     return _result
 }
 
@@ -428,45 +427,45 @@ public fun kotlin_text_StringBuilder_indexOf__TypesOfArguments__Swift_String_Swi
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __string = interpretObjCPointer<kotlin.String>(string)
     val __startIndex = startIndex
-    val _result = run { __self.indexOf(__string, __startIndex) }
+    val _result = __self.indexOf(__string, __startIndex)
     return _result
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_init_allocate")
 public fun kotlin_text_StringBuilder_init_allocate(): kotlin.native.internal.NativePtr {
-    val _result = run { kotlin.native.internal.createUninitializedInstance<kotlin.text.StringBuilder>() }
+    val _result = kotlin.native.internal.createUninitializedInstance<kotlin.text.StringBuilder>()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
 public fun kotlin_text_StringBuilder_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt: kotlin.native.internal.NativePtr): Boolean {
     val ____kt = kotlin.native.internal.ref.dereferenceExternalRCRef(__kt)!!
-    val _result = run { kotlin.native.internal.initInstance(____kt, kotlin.text.StringBuilder()) }
-    return run { _result; true }
+    kotlin.native.internal.initInstance(____kt, kotlin.text.StringBuilder())
+    return true
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Int32__")
 public fun kotlin_text_StringBuilder_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Int32__(__kt: kotlin.native.internal.NativePtr, capacity: Int): Boolean {
     val ____kt = kotlin.native.internal.ref.dereferenceExternalRCRef(__kt)!!
     val __capacity = capacity
-    val _result = run { kotlin.native.internal.initInstance(____kt, kotlin.text.StringBuilder(__capacity)) }
-    return run { _result; true }
+    kotlin.native.internal.initInstance(____kt, kotlin.text.StringBuilder(__capacity))
+    return true
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_String__")
 public fun kotlin_text_StringBuilder_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_String__(__kt: kotlin.native.internal.NativePtr, content: kotlin.native.internal.NativePtr): Boolean {
     val ____kt = kotlin.native.internal.ref.dereferenceExternalRCRef(__kt)!!
     val __content = interpretObjCPointer<kotlin.String>(content)
-    val _result = run { kotlin.native.internal.initInstance(____kt, kotlin.text.StringBuilder(__content)) }
-    return run { _result; true }
+    kotlin.native.internal.initInstance(____kt, kotlin.text.StringBuilder(__content))
+    return true
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_anyU20ExportedKotlinPackages_kotlin_CharSequence__")
 public fun kotlin_text_StringBuilder_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_anyU20ExportedKotlinPackages_kotlin_CharSequence__(__kt: kotlin.native.internal.NativePtr, content: kotlin.native.internal.NativePtr): Boolean {
     val ____kt = kotlin.native.internal.ref.dereferenceExternalRCRef(__kt)!!
     val __content = kotlin.native.internal.ref.dereferenceExternalRCRef(content) as kotlin.CharSequence
-    val _result = run { kotlin.native.internal.initInstance(____kt, kotlin.text.StringBuilder(__content)) }
-    return run { _result; true }
+    kotlin.native.internal.initInstance(____kt, kotlin.text.StringBuilder(__content))
+    return true
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift_Bool__")
@@ -474,7 +473,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -483,7 +482,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -492,7 +491,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -501,7 +500,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -510,7 +509,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -519,7 +518,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -528,7 +527,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -537,7 +536,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -546,7 +545,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Expor
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharArray
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -555,7 +554,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharSequence
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -564,7 +563,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.Any
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -573,7 +572,7 @@ public fun kotlin_text_StringBuilder_insert__TypesOfArguments__Swift_Int32_Swift
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = if (value == kotlin.native.internal.NativePtr.NULL) null else interpretObjCPointer<kotlin.String>(value)
-    val _result = run { __self.insert(__index, __value) }
+    val _result = __self.insert(__index, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -584,7 +583,7 @@ public fun kotlin_text_StringBuilder_insertRange__TypesOfArguments__Swift_Int32_
     val __value = kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharSequence
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.insertRange(__index, __value, __startIndex, __endIndex) }
+    val _result = __self.insertRange(__index, __value, __startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -595,7 +594,7 @@ public fun kotlin_text_StringBuilder_insertRange__TypesOfArguments__Swift_Int32_
     val __value = kotlin.native.internal.ref.dereferenceExternalRCRef(value) as kotlin.CharArray
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.insertRange(__index, __value, __startIndex, __endIndex) }
+    val _result = __self.insertRange(__index, __value, __startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -603,7 +602,7 @@ public fun kotlin_text_StringBuilder_insertRange__TypesOfArguments__Swift_Int32_
 public fun kotlin_text_StringBuilder_lastIndexOf__TypesOfArguments__Swift_String__(self: kotlin.native.internal.NativePtr, string: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __string = interpretObjCPointer<kotlin.String>(string)
-    val _result = run { __self.lastIndexOf(__string) }
+    val _result = __self.lastIndexOf(__string)
     return _result
 }
 
@@ -612,21 +611,21 @@ public fun kotlin_text_StringBuilder_lastIndexOf__TypesOfArguments__Swift_String
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __string = interpretObjCPointer<kotlin.String>(string)
     val __startIndex = startIndex
-    val _result = run { __self.lastIndexOf(__string, __startIndex) }
+    val _result = __self.lastIndexOf(__string, __startIndex)
     return _result
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_length_get")
 public fun kotlin_text_StringBuilder_length_get(self: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
-    val _result = run { __self.length }
+    val _result = __self.length
     return _result
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_reverse")
 public fun kotlin_text_StringBuilder_reverse(self: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
-    val _result = run { __self.reverse() }
+    val _result = __self.reverse()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -635,16 +634,16 @@ public fun kotlin_text_StringBuilder_set__TypesOfArguments__Swift_Int32_Swift_Un
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __index = index
     val __value = value
-    val _result = run { __self.`set`(__index, __value) }
-    return run { _result; true }
+    __self.`set`(__index, __value)
+    return true
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_setLength__TypesOfArguments__Swift_Int32__")
 public fun kotlin_text_StringBuilder_setLength__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, newLength: Int): Boolean {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __newLength = newLength
-    val _result = run { __self.setLength(__newLength) }
-    return run { _result; true }
+    __self.setLength(__newLength)
+    return true
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_setRange__TypesOfArguments__Swift_Int32_Swift_Int32_Swift_String__")
@@ -653,7 +652,7 @@ public fun kotlin_text_StringBuilder_setRange__TypesOfArguments__Swift_Int32_Swi
     val __startIndex = startIndex
     val __endIndex = endIndex
     val __value = interpretObjCPointer<kotlin.String>(value)
-    val _result = run { __self.setRange(__startIndex, __endIndex, __value) }
+    val _result = __self.setRange(__startIndex, __endIndex, __value)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -662,7 +661,7 @@ public fun kotlin_text_StringBuilder_subSequence__TypesOfArguments__Swift_Int32_
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.subSequence(__startIndex, __endIndex) }
+    val _result = __self.subSequence(__startIndex, __endIndex)
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
@@ -671,7 +670,7 @@ public fun kotlin_text_StringBuilder_substring__TypesOfArguments__Swift_Int32_Sw
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.substring(__startIndex, __endIndex) }
+    val _result = __self.substring(__startIndex, __endIndex)
     return _result.objcPtr()
 }
 
@@ -679,7 +678,7 @@ public fun kotlin_text_StringBuilder_substring__TypesOfArguments__Swift_Int32_Sw
 public fun kotlin_text_StringBuilder_substring__TypesOfArguments__Swift_Int32__(self: kotlin.native.internal.NativePtr, startIndex: Int): kotlin.native.internal.NativePtr {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
     val __startIndex = startIndex
-    val _result = run { __self.substring(__startIndex) }
+    val _result = __self.substring(__startIndex)
     return _result.objcPtr()
 }
 
@@ -690,20 +689,13 @@ public fun kotlin_text_StringBuilder_toCharArray__TypesOfArguments__ExportedKotl
     val __destinationOffset = destinationOffset
     val __startIndex = startIndex
     val __endIndex = endIndex
-    val _result = run { __self.toCharArray(__destination, __destinationOffset, __startIndex, __endIndex) }
-    return run { _result; true }
-}
-
-@ExportedBridge("kotlin_text_StringBuilder_toString")
-public fun kotlin_text_StringBuilder_toString(self: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
-    val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
-    val _result = run { __self.toString() }
-    return _result.objcPtr()
+    __self.toCharArray(__destination, __destinationOffset, __startIndex, __endIndex)
+    return true
 }
 
 @ExportedBridge("kotlin_text_StringBuilder_trimToSize")
 public fun kotlin_text_StringBuilder_trimToSize(self: kotlin.native.internal.NativePtr): Boolean {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as kotlin.text.StringBuilder
-    val _result = run { __self.trimToSize() }
-    return run { _result; true }
+    __self.trimToSize()
+    return true
 }

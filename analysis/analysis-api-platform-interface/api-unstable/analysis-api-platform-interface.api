@@ -4,6 +4,20 @@ public abstract interface annotation class org/jetbrains/kotlin/analysis/api/pla
 public abstract interface class org/jetbrains/kotlin/analysis/api/platform/KaEngineService {
 }
 
+public abstract interface class org/jetbrains/kotlin/analysis/api/platform/KaSessionListener {
+	public static final field Companion Lorg/jetbrains/kotlin/analysis/api/platform/KaSessionListener$Companion;
+	public fun afterAcquiringSession (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;)V
+	public fun afterLeavingAnalysis (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;)V
+	public fun beforeAcquiringSession (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;)V
+	public fun beforeEnteringAnalysis (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;)V
+	public fun onAnalysisException (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;Ljava/lang/Throwable;)V
+	public fun onSessionAcquisitionException (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;Ljava/lang/Throwable;)V
+}
+
+public final class org/jetbrains/kotlin/analysis/api/platform/KaSessionListener$Companion {
+	public final fun getEP_NAME ()Lcom/intellij/openapi/extensions/ExtensionPointName;
+}
+
 public abstract interface class org/jetbrains/kotlin/analysis/api/platform/KotlinAnalysisInWriteActionListener {
 	public static final field Companion Lorg/jetbrains/kotlin/analysis/api/platform/KotlinAnalysisInWriteActionListener$Companion;
 	public abstract fun afterLeavingAnalysisInWriteAction ()V
@@ -879,11 +893,6 @@ public abstract class org/jetbrains/kotlin/analysis/api/platform/projectStructur
 	public fun <init> ()V
 	protected final fun computeSpecialModule (Lcom/intellij/psi/PsiFile;)Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;
 	protected abstract fun getNotUnderContentRootModule (Lcom/intellij/openapi/project/Project;)Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaNotUnderContentRootModule;
-}
-
-public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KotlinProjectStructureProviderBaseKt {
-	public static final fun getForcedSpecialModule (Lorg/jetbrains/kotlin/psi/KtCodeFragment;)Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaDanglingFileModule;
-	public static final fun setForcedSpecialModule (Lorg/jetbrains/kotlin/psi/KtCodeFragment;Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaDanglingFileModule;)V
 }
 
 public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/UtilsKt {

@@ -1,10 +1,8 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-data-manager")
     id("test-inputs-check")
 }
@@ -21,8 +19,7 @@ dependencies {
     api(project(":compiler:fir:fir2ir:jvm-backend"))
     implementation(project(":compiler:ir.serialization.common"))
     api(project(":compiler:fir:resolve"))
-    api(project(":compiler:fir:providers"))
-    api(project(":compiler:fir:semantics"))
+    api(project(":compiler:fir:semantics.api"))
     api(project(":compiler:fir:checkers"))
     api(project(":compiler:fir:checkers:checkers.jvm"))
     api(project(":compiler:fir:checkers:checkers.js"))
@@ -37,19 +34,15 @@ dependencies {
     implementation(project(":compiler:frontend.java"))
     implementation(project(":compiler:psi:psi-impl"))
     implementation(project(":js:js.config"))
-    implementation(project(":js:js.frontend.common"))
     implementation(project(":kotlin-util-klib-metadata"))
     implementation(project(":native:frontend.native"))
     implementation(project(":native:native.config"))
     implementation(project(":wasm:wasm.config"))
-    implementation(project(":analysis:decompiled:decompiler-to-file-stubs"))
-    implementation(project(":analysis:decompiled:decompiler-to-psi"))
     testFixturesApi(project(":analysis:analysis-api-fir"))
     testFixturesImplementation(project(":native:native.config"))
 
     implementation(project(":compiler:frontend.common"))
     implementation(project(":compiler:fir:entrypoint"))
-    implementation(project(":js:js.frontend"))
     implementation(project(":analysis:analysis-api-platform-interface"))
     implementation(project(":analysis:analysis-api"))
     implementation(project(":analysis:analysis-internal-utils"))
@@ -73,7 +66,6 @@ dependencies {
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
     testFixturesApi(testFixtures(project(":analysis:analysis-test-framework")))
     testFixturesApi(testFixtures(project(":analysis:analysis-api-impl-base")))
-    testFixturesApi(project(":analysis:analysis-internal-utils"))
     testFixturesApi(testFixtures(project(":compiler:fir:raw-fir:psi2fir")))
     testFixturesApi(kotlinTest("junit5"))
     testFixturesApi(platform(libs.junit.bom))
@@ -82,7 +74,6 @@ dependencies {
     testFixturesApi(project(":analysis:symbol-light-classes"))
     testFixturesApi(testFixtures(project(":plugins:scripting:scripting-tests")))
     testFixturesApi(project(":kotlin-scripting-common"))
-    testFixturesImplementation(testFixtures(project(":analysis:decompiled:decompiler-to-psi")))
 
     // We use 'api' instead of 'implementation' because other modules might be using these jars indirectly
     testFixturesApi(project(":plugins:plugin-sandbox"))
@@ -114,6 +105,13 @@ kotlin {
     }
 }
 
+if (!kotlinBuildProperties.isTeamcityBuild.get()) {
+    testDataManager {
+        // Ensure golden tests run first since some LL tests are complementary for the surface tests
+        mustRunAfterProjects.add(":analysis:analysis-api-fir")
+    }
+}
+
 projectTests {
     testTask(
         defineJDKEnvVariables = listOf(
@@ -123,11 +121,6 @@ projectTests {
         )
     ) {
         addClasspathProperty(jvmAbiGenPlugin, "kotlin.jvm.abi.jar.path")
-
-        if (!kotlinBuildProperties.isTeamcityBuild.get()) {
-            // Ensure golden tests run first since some LL tests are complementary for the surface tests
-            mustRunAfter(":analysis:analysis-api-fir:test")
-        }
     }
 
     testGenerator("org.jetbrains.kotlin.analysis.low.level.api.fir.TestGeneratorKt")
@@ -148,10 +141,10 @@ projectTests {
     withAnnotations()
     withMockJdkRuntime()
     withMockJdkAnnotationsJar()
-    withScriptRuntime()
     withScriptingPlugin()
     withTestScriptDefinition()
     withPluginSandboxAnnotations()
+    withPluginSandboxJar()
 
     @OptIn(KotlinCompilerDistUsage::class)
     withDist()
@@ -177,7 +170,6 @@ kotlin {
     )
 }
 
-testsJar()
 
 tasks.register("analysisLowLevelApiFirAllTests") {
     dependsOn(

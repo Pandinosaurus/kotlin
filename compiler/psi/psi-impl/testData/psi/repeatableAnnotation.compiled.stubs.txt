@@ -2,7 +2,7 @@ MyRepeatableAnnotation.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyRepeatableAnnotation, fqName=MyRepeatableAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyRepeatableAnnotation, superNames=[Annotation]]
+    CLASS[classId=/MyRepeatableAnnotation, fqName=MyRepeatableAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyRepeatableAnnotation, superNames=[Annotation]]
       MODIFIER_LIST[public final annotation]
         ANNOTATION_ENTRY[hasValueArguments=false, shortName=Repeatable]
           valueArguments: [ ]
@@ -14,6 +14,7 @@ MyRepeatableAnnotation.class:
                     REFERENCE_EXPRESSION[referencedName=kotlin]
                   REFERENCE_EXPRESSION[referencedName=annotation]
                 REFERENCE_EXPRESSION[referencedName=Repeatable]
+                  isClassRef: true
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyRepeatableAnnotation]
         MODIFIER_LIST[public]
         VALUE_PARAMETER_LIST
@@ -24,6 +25,7 @@ MyRepeatableAnnotation.class:
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Int]
+                  isClassRef: true
       SUPER_TYPE_LIST
         SUPER_TYPE_ENTRY
           TYPE_REFERENCE
@@ -31,6 +33,7 @@ MyRepeatableAnnotation.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -38,13 +41,13 @@ RepeatableAnnotation.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/RepeatableAnnotation, fqName=RepeatableAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=RepeatableAnnotation, superNames=[]]
+    CLASS[classId=/RepeatableAnnotation, fqName=RepeatableAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=RepeatableAnnotation, superNames=[]]
       MODIFIER_LIST[public final]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=RepeatableAnnotation]
         MODIFIER_LIST[public]
         VALUE_PARAMETER_LIST
       CLASS_BODY
-        CLASS[classId=/RepeatableAnnotation.ClassWithOneRepeatableAnnotation, fqName=RepeatableAnnotation.ClassWithOneRepeatableAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=false, name=ClassWithOneRepeatableAnnotation, superNames=[]]
+        CLASS[classId=/RepeatableAnnotation.ClassWithOneRepeatableAnnotation, fqName=RepeatableAnnotation.ClassWithOneRepeatableAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=false, name=ClassWithOneRepeatableAnnotation, superNames=[]]
           MODIFIER_LIST[public final]
             ANNOTATION_ENTRY[hasValueArguments=true, shortName=MyRepeatableAnnotation]
               valueArguments: [ index -> 1 ]
@@ -52,6 +55,7 @@ RepeatableAnnotation.class:
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=MyRepeatableAnnotation]
+                      isClassRef: true
               VALUE_ARGUMENT_LIST
                 VALUE_ARGUMENT[isSpread=false]
                   VALUE_ARGUMENT_NAME
@@ -61,7 +65,7 @@ RepeatableAnnotation.class:
             MODIFIER_LIST[public]
             VALUE_PARAMETER_LIST
           CLASS_BODY
-        CLASS[classId=/RepeatableAnnotation.ClassWithTwoRepeatableAnnotations, fqName=RepeatableAnnotation.ClassWithTwoRepeatableAnnotations, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=false, name=ClassWithTwoRepeatableAnnotations, superNames=[]]
+        CLASS[classId=/RepeatableAnnotation.ClassWithTwoRepeatableAnnotations, fqName=RepeatableAnnotation.ClassWithTwoRepeatableAnnotations, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=false, name=ClassWithTwoRepeatableAnnotations, superNames=[]]
           MODIFIER_LIST[public final]
             ANNOTATION_ENTRY[hasValueArguments=true, shortName=MyRepeatableAnnotation]
               valueArguments: [ index -> 1 ]
@@ -69,6 +73,7 @@ RepeatableAnnotation.class:
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=MyRepeatableAnnotation]
+                      isClassRef: true
               VALUE_ARGUMENT_LIST
                 VALUE_ARGUMENT[isSpread=false]
                   VALUE_ARGUMENT_NAME
@@ -80,6 +85,7 @@ RepeatableAnnotation.class:
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=MyRepeatableAnnotation]
+                      isClassRef: true
               VALUE_ARGUMENT_LIST
                 VALUE_ARGUMENT[isSpread=false]
                   VALUE_ARGUMENT_NAME
@@ -89,7 +95,7 @@ RepeatableAnnotation.class:
             MODIFIER_LIST[public]
             VALUE_PARAMETER_LIST
           CLASS_BODY
-        CLASS[classId=/RepeatableAnnotation.ClassWithThreeRepeatableAnnotations, fqName=RepeatableAnnotation.ClassWithThreeRepeatableAnnotations, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=false, name=ClassWithThreeRepeatableAnnotations, superNames=[]]
+        CLASS[classId=/RepeatableAnnotation.ClassWithThreeRepeatableAnnotations, fqName=RepeatableAnnotation.ClassWithThreeRepeatableAnnotations, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=false, name=ClassWithThreeRepeatableAnnotations, superNames=[]]
           MODIFIER_LIST[public final]
             ANNOTATION_ENTRY[hasValueArguments=true, shortName=MyRepeatableAnnotation]
               valueArguments: [ index -> 1 ]
@@ -97,6 +103,7 @@ RepeatableAnnotation.class:
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=MyRepeatableAnnotation]
+                      isClassRef: true
               VALUE_ARGUMENT_LIST
                 VALUE_ARGUMENT[isSpread=false]
                   VALUE_ARGUMENT_NAME
@@ -108,6 +115,7 @@ RepeatableAnnotation.class:
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=MyRepeatableAnnotation]
+                      isClassRef: true
               VALUE_ARGUMENT_LIST
                 VALUE_ARGUMENT[isSpread=false]
                   VALUE_ARGUMENT_NAME
@@ -119,6 +127,7 @@ RepeatableAnnotation.class:
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=MyRepeatableAnnotation]
+                      isClassRef: true
               VALUE_ARGUMENT_LIST
                 VALUE_ARGUMENT[isSpread=false]
                   VALUE_ARGUMENT_NAME

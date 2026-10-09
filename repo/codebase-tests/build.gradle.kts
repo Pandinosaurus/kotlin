@@ -1,12 +1,9 @@
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
 }
 
 dependencies {
@@ -25,15 +22,19 @@ dependencies {
 
     testImplementation(testFixtures("org.jetbrains.kotlin:repo-test-fixtures"))
     testImplementation("org.jetbrains.kotlin:test-federation-convention")
-    testImplementation(testFederationRuntime)
+    testImplementation(project(":repo:test-runtime"))
     testImplementation("org.jetbrains.kotlin:buildsrc-compat") {
         isTransitive = false
     }
     testImplementation(gradleTestKit())
     testImplementation(libs.intellij.asm)
+    testImplementation(libs.icu4j)
 }
 
-configureJvmToolchain(JdkMajorVersion.JDK_21_0)
+jvmToolchains {
+    jdkVersion = JdkMajorVersion.JDK_21_0
+    targetBytecodeVersion = JdkMajorVersion.JDK_21_0
+}
 
 sourceSets {
     "main" {}
@@ -53,9 +54,23 @@ open class TestSystemPropertiesProvider @Inject constructor(
     @get:Internal
     val gradleUserHome: DirectoryProperty = objectFactory.directoryProperty()
 
-    override fun asArguments(): Iterable<String> = listOf(
+    @get:Input
+    @get:Optional
+    val qualityGateMasterTasks = objectFactory.property<String>()
+
+    @get:Input
+    @get:Optional
+    val qualityGateNightlyTasks = objectFactory.property<String>()
+
+    @get:Input
+    val teamcity = objectFactory.property<Boolean>()
+
+    override fun asArguments(): Iterable<String> = listOfNotNull(
         "-DcodeOwnersTest.spaceCodeOwnersFile=${spaceCodeOwnersFile.singleFile.absolutePath}",
         "-Dgradle.user.home=${gradleUserHome.asFile.get().absolutePath}",
+        "-Dteamcity=${teamcity.get()}",
+        qualityGateMasterTasks.orNull?.let { "-Dquality.gate.master.tasks=$it" },
+        qualityGateNightlyTasks.orNull?.let { "-Dquality.gate.nightly.tasks=$it" },
     )
 }
 
@@ -69,9 +84,14 @@ projectTests {
         jvmArgumentProviders.add(objects.newInstance<TestSystemPropertiesProvider>().apply {
             spaceCodeOwnersFile.from(rootDir.resolve(".space/CODEOWNERS"))
             gradleUserHome.set(gradle.gradleUserHomeDir)
+            teamcity = kotlinBuildProperties.isTeamcityBuild
+            qualityGateMasterTasks.set(providers.gradleProperty("quality.gate.master.tasks"))
+            qualityGateNightlyTasks.set(providers.gradleProperty("quality.gate.nightly.tasks"))
         })
 
-        smokeTestConfig = SmokeTestConfig.RunAllTests
+        testFederation {
+            smokeTests { includeAll() }
+        }
         forkEvery = 1
     }
 
@@ -80,7 +100,6 @@ projectTests {
     withTestJar()
 }
 
-testsJar()
 
 tasks.register<JavaExec>("updateTestLifecycleTaskDump") {
     dependsOn(":compileAll")

@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LATEST_LV_DIFFERENCE
 // IGNORE_DEXING
 // LANGUAGE: -ErrorAboutDataClassCopyVisibilityChange, -DataClassCopyRespectsConstructorVisibility
@@ -15,9 +15,9 @@ data class Data <!DATA_CLASS_COPY_VISIBILITY_WILL_BE_CHANGED_WARNING!>private<!>
     }
 }
 
-<!CONFLICTING_JVM_DECLARATIONS!>data class VarargData <!DATA_CLASS_COPY_VISIBILITY_WILL_BE_CHANGED_WARNING!>private<!> constructor(val value: IntArray) {
-    <!CONFLICTING_JVM_DECLARATIONS!>fun copy(vararg value: Int): VarargData = null!!<!>
-}<!>
+data class <!CONFLICTING_JVM_DECLARATIONS!>VarargData <!DATA_CLASS_COPY_VISIBILITY_WILL_BE_CHANGED_WARNING!>private<!> constructor(val value: IntArray)<!> {
+    <!CONFLICTING_JVM_DECLARATIONS!>fun copy(vararg value: Int): VarargData<!> = null!!
+}
 
 data object DataObject {
     fun copy(): DataObject = null!!

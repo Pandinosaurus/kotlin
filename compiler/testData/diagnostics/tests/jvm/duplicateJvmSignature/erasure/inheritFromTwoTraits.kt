@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
 interface Foo<T> {
@@ -9,8 +9,8 @@ interface Bar<T> {
     fun foo(l: List<T>) {}
 }
 
-<!CONFLICTING_INHERITED_JVM_DECLARATIONS!>class Baz(): Foo<String>, Bar<Int> {
-}<!>
+class <!CONFLICTING_INHERITED_JVM_DECLARATIONS!>Baz()<!>: Foo<String>, Bar<Int> {
+}
 
 /* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, interfaceDeclaration, nullableType, primaryConstructor,
 typeParameter */

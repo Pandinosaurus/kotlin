@@ -7,142 +7,142 @@ KtPackageDirective(0,0): ''
 KtImportList(0,0): ''
   null
 
-KtNamedFunction(6,105): '// FILE: main.kt'
+KtNamedFunction(8,107): '// FILE: main.kt'
   null
 
-KtParameterList(31,33): '()'
+KtParameterList(33,35): '()'
   null
 
-KtBlockExpression(34,105): '{'
+KtBlockExpression(36,107): '{'
   null
 
-KtProperty(39,67): 'val p = JavaClass<Int>.field'
+KtProperty(41,69): 'val p = JavaClass<Int>.field'
   null
 
-KtDotQualifiedExpression(47,67): 'JavaClass<Int>.field'
-  KaSymbolResolutionSuccess:
+KtDotQualifiedExpression(49,69): 'JavaClass<Int>.field'
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var field: kotlin.Int!
     ]
 
-KtCallExpression(47,61): 'JavaClass<Int>'
-  KaSymbolResolutionError:
+KtCallExpression(49,63): 'JavaClass<Int>'
+  KaSimpleSymbolResolutionError:
     candidateSymbols = [
       <constructor>(): JavaClass<T>
     ]
     diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
 
-KtNameReferenceExpression(47,56): 'JavaClass'
+KtNameReferenceExpression(49,58): 'JavaClass'
   isImplicitReferenceToCompanion: false
   contextSensitiveResolutionStatus: NotAvailable
   lookupLocally: false
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /JavaClass
     ]
 
-KtTypeArgumentList(56,61): '<Int>'
+KtTypeArgumentList(58,63): '<Int>'
   null
 
-KtTypeProjection(57,60): 'Int'
+KtTypeProjection(59,62): 'Int'
   null
 
-KtTypeReference(57,60): 'Int'
-  KaSymbolResolutionSuccess:
+KtTypeReference(59,62): 'Int'
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int
     ]
 
-KtUserType(57,60): 'Int'
-  KaSymbolResolutionSuccess:
+KtUserType(59,62): 'Int'
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int
     ]
 
-KtNameReferenceExpression(57,60): 'Int'
+KtNameReferenceExpression(59,62): 'Int'
   isImplicitReferenceToCompanion: false
   contextSensitiveResolutionStatus: NotAvailable
   lookupLocally: false
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int
     ]
 
-KtNameReferenceExpression(62,67): 'field'
+KtNameReferenceExpression(64,69): 'field'
   isImplicitReferenceToCompanion: false
   contextSensitiveResolutionStatus: NotAvailable
   lookupLocally: false
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var field: kotlin.Int!
     ]
 
-KtProperty(71,103): 'val m = JavaClass<Long>.method()'
+KtProperty(73,105): 'val m = JavaClass<Long>.method()'
   null
 
-KtDotQualifiedExpression(79,103): 'JavaClass<Long>.method()'
-  KaSymbolResolutionSuccess:
+KtDotQualifiedExpression(81,105): 'JavaClass<Long>.method()'
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /JavaClass.method(): kotlin.String!
     ]
 
-KtCallExpression(79,94): 'JavaClass<Long>'
-  KaSymbolResolutionError:
+KtCallExpression(81,96): 'JavaClass<Long>'
+  KaSimpleSymbolResolutionError:
     candidateSymbols = [
       <constructor>(): JavaClass<T>
     ]
     diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
 
-KtNameReferenceExpression(79,88): 'JavaClass'
+KtNameReferenceExpression(81,90): 'JavaClass'
   isImplicitReferenceToCompanion: false
   contextSensitiveResolutionStatus: NotAvailable
   lookupLocally: false
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /JavaClass
     ]
 
-KtTypeArgumentList(88,94): '<Long>'
+KtTypeArgumentList(90,96): '<Long>'
   null
 
-KtTypeProjection(89,93): 'Long'
+KtTypeProjection(91,95): 'Long'
   null
 
-KtTypeReference(89,93): 'Long'
-  KaSymbolResolutionSuccess:
+KtTypeReference(91,95): 'Long'
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Long
     ]
 
-KtUserType(89,93): 'Long'
-  KaSymbolResolutionSuccess:
+KtUserType(91,95): 'Long'
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Long
     ]
 
-KtNameReferenceExpression(89,93): 'Long'
+KtNameReferenceExpression(91,95): 'Long'
   isImplicitReferenceToCompanion: false
   contextSensitiveResolutionStatus: NotAvailable
   lookupLocally: false
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Long
     ]
 
-KtCallExpression(95,103): 'method()'
-  KaSymbolResolutionSuccess:
+KtCallExpression(97,105): 'method()'
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /JavaClass.method(): kotlin.String!
     ]
 
-KtNameReferenceExpression(95,101): 'method'
+KtNameReferenceExpression(97,103): 'method'
   isImplicitReferenceToCompanion: false
   contextSensitiveResolutionStatus: NotAvailable
   lookupLocally: false
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /JavaClass.method(): kotlin.String!
     ]
 
-KtValueArgumentList(101,103): '()'
+KtValueArgumentList(103,105): '()'
   null

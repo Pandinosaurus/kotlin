@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.fir.scopes.FirKotlinScopeProvider
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.components.metadata
 import org.jetbrains.kotlin.library.metadata.KlibDeserializedContainerSource
+import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.library.metadata.getIncompatibility
 import org.jetbrains.kotlin.library.metadata.parseModuleHeader
 import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
@@ -48,7 +49,7 @@ class KlibBasedSymbolProvider(
         }
 
 
-    private val moduleHeaders by lazy {
+    private val moduleHeaders: Map<KotlinLibrary, KlibMetadataProtoBuf.Header?> by lazy {
         resolvedLibraries.associateWith {
             parseModuleHeader(metadataProvider(it).moduleHeaderData)
         }
@@ -56,8 +57,8 @@ class KlibBasedSymbolProvider(
 
     override val fragmentNamesInLibraries: Map<String, List<KotlinLibrary>> by lazy {
         buildMap<String, SmartList<KotlinLibrary>> {
-            for ([library, header] in moduleHeaders) {
-                for (fragmentName in header.packageFragmentNameList) {
+            for (library in resolvedLibraries) {
+                for (fragmentName in library.metadata.getPackageNames()) {
                     getOrPut(fragmentName) { SmartList() }
                         .add(library)
                 }
@@ -67,8 +68,8 @@ class KlibBasedSymbolProvider(
 
     override val knownPackagesInLibraries: Set<FqName> by lazy {
         buildSet<FqName> {
-            for ([_, header] in moduleHeaders) {
-                for (fragmentName in header.packageFragmentNameList) {
+            for (library in resolvedLibraries) {
+                for (fragmentName in library.metadata.getPackageNames()) {
                     var curPackage = FqName(fragmentName)
                     while (!curPackage.isRoot) {
                         add(curPackage)
@@ -88,7 +89,7 @@ class KlibBasedSymbolProvider(
         packageFqName: FqName
     ): KlibDeserializedContainerSource = KlibDeserializedContainerSource(
         resolvedLibrary,
-        moduleHeaders[resolvedLibrary]!!,
+        moduleHeaders[resolvedLibrary],
         deserializationConfiguration,
         packageFqName,
         resolvedLibrary.incompatibility

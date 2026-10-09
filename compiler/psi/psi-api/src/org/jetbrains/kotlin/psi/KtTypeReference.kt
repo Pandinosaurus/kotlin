@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.resolution.KtResolvable
  * //     ^____^
  * ```
  */
+@OptIn(KtImplementationDetail::class)
 class KtTypeReference : KtModifierListOwnerStub<KotlinPlaceHolderStub<KtTypeReference>>,
     KtAnnotated, KtAnnotationsContainer, KtResolvable {
 
@@ -93,6 +94,7 @@ class KtTypeReference : KtModifierListOwnerStub<KotlinPlaceHolderStub<KtTypeRefe
         return getQualifiedName(qualifier) + "." + userType.referencedName
     }
 
+    @OptIn(KtExperimentalApi::class)
     private fun getTypeText(typeElement: KtTypeElement?, nameFunction: (KtUserType) -> String?): String? {
         return when (typeElement) {
             is KtUserType -> buildString {
@@ -131,10 +133,11 @@ class KtTypeReference : KtModifierListOwnerStub<KotlinPlaceHolderStub<KtTypeRefe
                 typeElement.getLeftTypeRef()?.typeElement,
                 nameFunction
             ) + " & " + getTypeText(typeElement.getRightTypeRef()?.typeElement, nameFunction)
+            is KtUnionType -> typeElement.types.joinToString(" | ") { getTypeText(it.typeElement, nameFunction) ?: "" }
             is KtNullableType -> {
                 val innerType = typeElement.innerType
                 buildString {
-                    val parenthesisRequired = innerType is KtFunctionType
+                    val parenthesisRequired = innerType is KtFunctionType || innerType is KtUnionType
                     if (parenthesisRequired) {
                         append("(")
                     }

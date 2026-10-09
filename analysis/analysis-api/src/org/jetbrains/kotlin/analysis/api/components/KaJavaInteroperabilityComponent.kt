@@ -84,6 +84,18 @@ public interface KaJavaInteroperabilityComponent : KaSessionComponent {
 
     /**
      * Whether the given [KaType] is backed by a single JVM primitive type.
+     *
+     * This is `true` for non-nullable primitive types and for non-nullable inline value class types whose single underlying property is
+     * primitive-backed, recursively. It is `false` for nullable types, regular reference types, and types without a single primitive-backed
+     * representation.
+     *
+     * Only the inline representation counts. A full value class is compiled as a regular class on the JVM, so it is never
+     * primitive-backed, even with exactly one primary property; see [org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol.isInline].
+     *
+     * This property describes the type's underlying representation. It does not imply that every use of the type is emitted as a JVM
+     * primitive, as boxing can still be required by the use-site context.
+     *
+     * For non-JVM modules, the result describes the equivalent JVM representation inferred from the Kotlin declaration.
      */
     @KaExperimentalApi
     public val KaType.isPrimitiveBacked: Boolean
@@ -187,65 +199,6 @@ public fun KaType.asPsiType(
 }
 
 /**
- * Converts the given [PsiType] to a [KaType] in the context of the [useSitePosition].
- *
- * [useSitePosition] clarifies how to resolve some parts of the [PsiType]. For instance, it can be used to collect type parameters and
- * apply them during the conversion.
- *
- * @receiver The [PsiType] to be converted.
- *
- * @return The converted [KaType], or `null` if conversion is not possible. For example, [PsiType] might not be resolvable.
- */
-@KaExperimentalApi
-@Deprecated(
-    message = "Use the 'org.jetbrains.kotlin.analysis.api.javaInterop' endpoint instead.",
-    replaceWith = ReplaceWith("this.asKaType(useSitePosition)", "org.jetbrains.kotlin.analysis.api.javaInterop.asKaType"),
-    level = DeprecationLevel.ERROR,
-)
-@KaContextParameterApi
-context(session: KaSession)
-public fun PsiType.asKaType(useSitePosition: PsiElement): KaType? {
-    return with(session) {
-        asKaType(
-            useSitePosition = useSitePosition,
-        )
-    }
-}
-
-/**
- * Convert the given [KaType] to a JVM type descriptor with the [KaTypeMappingMode.DEFAULT].
- * To learn more about JVM descriptors, check out the
- * [JVM specification](https://docs.oracle.com/javase/specs/jvms/se24/html/jvms-4.html#jvms-4.3).
- */
-@KaExperimentalApi
-@Deprecated(
-    message = "Use the 'org.jetbrains.kotlin.analysis.api.javaInterop' endpoint instead.",
-    replaceWith = ReplaceWith("this.mapToJvmTypeDescriptor()", "org.jetbrains.kotlin.analysis.api.javaInterop.mapToJvmTypeDescriptor"),
-    level = DeprecationLevel.ERROR,
-)
-@KaContextParameterApi
-context(session: KaSession)
-public fun KaType.mapToJvmTypeDescriptor(): String {
-    return with(session) {
-        mapToJvmTypeDescriptor()
-    }
-}
-
-/**
- * Whether the given [KaType] is backed by a single JVM primitive type.
- */
-@KaExperimentalApi
-@Deprecated(
-    message = "Use the 'org.jetbrains.kotlin.analysis.api.javaInterop' endpoint instead.",
-    replaceWith = ReplaceWith("this.isPrimitiveBacked", "org.jetbrains.kotlin.analysis.api.javaInterop.isPrimitiveBacked"),
-    level = DeprecationLevel.ERROR,
-)
-@KaContextParameterApi
-context(session: KaSession)
-public val KaType.isPrimitiveBacked: Boolean
-    get() = with(session) { isPrimitiveBacked }
-
-/**
  * A [KaNamedClassSymbol] for the given [PsiClass], or `null` for anonymous classes, local classes, type parameters (which are also
  * [PsiClass]es), and Kotlin light classes.
  */
@@ -271,26 +224,6 @@ public val PsiClass.namedClassSymbol: KaNamedClassSymbol?
 context(session: KaSession)
 public val PsiMember.callableSymbol: KaCallableSymbol?
     get() = with(session) { callableSymbol }
-
-/**
- * The containing JVM class name for the given [KaCallableSymbol].
- *
- * The property works for both source and library declarations.
- * The JVM class name is a fully qualified name separated by dots, such as `foo.bar.Baz.Companion`.
- *
- * Applicable only to JVM modules, and common modules with JVM targets.
- * [containingJvmClassName] is always `null` all other kinds of modules.
- */
-@KaExperimentalApi
-@Deprecated(
-    message = "Use the 'org.jetbrains.kotlin.analysis.api.javaInterop' endpoint instead.",
-    replaceWith = ReplaceWith("this.containingJvmClassName", "org.jetbrains.kotlin.analysis.api.javaInterop.containingJvmClassName"),
-    level = DeprecationLevel.ERROR,
-)
-@KaContextParameterApi
-context(session: KaSession)
-public val KaCallableSymbol.containingJvmClassName: String?
-    get() = with(session) { containingJvmClassName }
 
 /**
  * The JVM getter method name for the given [KaPropertySymbol].

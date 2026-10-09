@@ -5,7 +5,7 @@
   "compilerType": "K2",
   "hasErrors": true,
   "filesCount": 1,
-  "linesCount": 1,
+  "linesCount": 3,
   "measuredCpuAndUserTime": false,
   "initStats": {
     "nanos": $UINT$
@@ -148,6 +148,13 @@
     {
       "parentPhaseType": IrPreLowering,
       "name": "IrValidationAfterInliningAllFunctionsKlibFirstStagePhase",
+      "time": {
+        "nanos": $UINT$
+      }
+    },
+    {
+      "parentPhaseType": IrPreLowering,
+      "name": "TailrecCheckerLowering",
       "time": {
         "nanos": $UINT$
       }

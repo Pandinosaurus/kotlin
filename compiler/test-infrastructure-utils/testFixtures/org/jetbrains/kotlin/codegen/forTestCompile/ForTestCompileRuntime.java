@@ -271,6 +271,11 @@ public class ForTestCompileRuntime {
     }
 
     @NotNull
+    public static List<File> kotlinNativeImagePluginsClasspathForTests() {
+        return getFilesFromProperty(KOTLIN_NATIVE_IMAGE_PLUGINS_CLASSPATH);
+    }
+
+    @NotNull
     public static List<File> kotlinCompilerEmbeddableClasspathForTests() {
         return getFilesFromProperty(KOTLIN_COMPILER_EMBEDDABLE_CLASSPATH);
     }
@@ -279,7 +284,7 @@ public class ForTestCompileRuntime {
     public static synchronized ClassLoader runtimeAndReflectJarClassLoader() {
         ClassLoader loader = reflectJarClassLoader.get();
         if (loader == null) {
-            loader = createClassLoader(runtimeJarForTests(), reflectJarForTests(), scriptRuntimeJarForTests(), kotlinTestJarForTests());
+            loader = createClassLoader(runtimeJarForTests(), reflectJarForTests(), kotlinTestJarForTests());
             reflectJarClassLoader = new SoftReference<>(loader);
         }
         return loader;
@@ -289,7 +294,7 @@ public class ForTestCompileRuntime {
     public static synchronized ClassLoader runtimeJarClassLoader() {
         ClassLoader loader = runtimeJarClassLoader.get();
         if (loader == null) {
-            loader = createClassLoader(runtimeJarForTests(), scriptRuntimeJarForTests(), kotlinTestJarForTests());
+            loader = createClassLoader(runtimeJarForTests(), kotlinTestJarForTests());
             runtimeJarClassLoader = new SoftReference<>(loader);
         }
         return loader;

@@ -1,5 +1,4 @@
-// LANGUAGE: +CollectionLiterals
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 
 fun cond(): Boolean = true
 fun <K> select(vararg k: K): K = k[0]

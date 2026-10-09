@@ -1,13 +1,10 @@
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-data-manager")
     id("test-inputs-check")
 }
@@ -18,7 +15,7 @@ val jvmAbiGenPlugin = configurations.create("jvmAbiGenPlugin") {
 
 dependencies {
     implementation(project(":compiler:psi:psi-api"))
-    implementation(project(":analysis:decompiled:decompiler-to-file-stubs"))
+    implementation(project(":analysis:decompiled:decompiler"))
     implementation(intellijCore())
 
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
@@ -26,9 +23,7 @@ dependencies {
     testFixturesApi(testFixtures(project(":analysis:analysis-test-framework")))
     testFixturesApi(testFixtures(project(":analysis:analysis-api-impl-base")))
     testFixturesApi(testFixtures(project(":analysis:low-level-api-fir")))
-    testFixturesApi(testFixtures(project(":analysis:decompiled:decompiler-to-file-stubs")))
-    testFixturesApi(testFixtures(project(":analysis:decompiled:decompiler-to-psi")))
-    testFixturesImplementation(project(":analysis:analysis-internal-utils"))
+    testFixturesApi(project(":analysis:decompiled:decompiler"))
     testFixturesApi(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
 
@@ -58,7 +53,11 @@ tasks.compileTestKotlin {
 
 projectTests {
     testTask(defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_11_0)) {
-        smokeTestConfig = SmokeTestConfig.Enabled(autoSmokeTestPercentage = 5)
+        testFederation {
+            smokeTests {
+                includeAutoSamples(percentage = 5)
+            }
+        }
 
         addClasspathProperty(jvmAbiGenPlugin, "kotlin.jvm.abi.jar.path")
     }
@@ -72,7 +71,6 @@ projectTests {
     withAnnotations()
     withMockJdkRuntime()
     withMockJdkAnnotationsJar()
-    withScriptRuntime()
 
     @OptIn(KotlinCompilerDistUsage::class)
     withDist()
@@ -81,4 +79,3 @@ projectTests {
     testData(project(":compiler:psi:psi-impl").isolated, "testData/psi")
 }
 
-testsJar()

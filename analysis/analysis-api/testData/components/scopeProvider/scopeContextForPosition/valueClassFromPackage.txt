@@ -13,7 +13,7 @@ scopes:
       KaNamedClassSymbol:
         anchorPsi: KtClass
         annotations: [
-          <error>()
+          null()
             psi: KtAnnotationEntry
         ]
         classId: pkg/ValueInt
@@ -27,6 +27,7 @@ scopes:
         isFun: false
         isInline: true
         isInner: false
+        isValue: true
         location: TOP_LEVEL
         modality: FINAL
         name: ValueInt

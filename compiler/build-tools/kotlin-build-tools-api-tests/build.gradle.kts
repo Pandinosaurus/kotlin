@@ -2,11 +2,9 @@ import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     kotlin("jvm")
     `jvm-test-suite`
     id("test-symlink-transformation")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -81,6 +79,15 @@ val platforms = listOf(
         "kotlin.build-tools-api.test.wasmStdlibClasspath",
     ),
     PlatformDefinition(
+        "wasmWasi",
+        {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class, "kotlin-runtime"))
+            attribute(Attribute.of("org.jetbrains.kotlin.platform.type", String::class.java), "wasm")
+            attribute(Attribute.of("org.jetbrains.kotlin.wasm.target", String::class.java), "wasi")
+        },
+        "kotlin.build-tools-api.test.wasmWasiStdlibClasspath",
+    ),
+    PlatformDefinition(
         "metadata",
         {
             attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class, "kotlin-runtime"))
@@ -96,7 +103,7 @@ dependencies {
     compileOnly(project(":compiler:build-tools:kotlin-build-tools-api"))
     compileOnly(project(":compiler:build-tools:kotlin-build-tools-compat"))
     api(testFixtures(project(":compiler:test-infrastructure-utils"))) // for `@TestDataPath`/`@TestMetadata`
-    api(testFederationRuntime)
+    api(project(":repo:test-runtime"))
 
     api(platform(libs.junit.bom))
     compileOnly(libs.junit.jupiter.engine)
@@ -107,6 +114,7 @@ dependencies {
 kotlin {
     compilerOptions {
         optIn.add("org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi")
+        optIn.add("org.jetbrains.kotlin.buildtools.api.DelicateBuildToolsApi")
         optIn.add("kotlin.ExperimentalStdlibApi")
         optIn.add("kotlin.io.path.ExperimentalPathApi")
         freeCompilerArgs.add("-Xcontext-parameters")
@@ -118,15 +126,13 @@ val compatibilityTestsVersions = listOf(
     BuildToolsVersion(KotlinToolingVersion(2, 2, 21, null)),
     BuildToolsVersion(KotlinToolingVersion(2, 3, 0, null)),
     BuildToolsVersion(KotlinToolingVersion(2, 3, 10, null)),
-    BuildToolsVersion(KotlinToolingVersion(2, 3, 20, null)),
+    BuildToolsVersion(KotlinToolingVersion(2, 3, 21, null)),
     BuildToolsVersion(KotlinToolingVersion(2, 4, 0, null)),
     BuildToolsVersion(KotlinToolingVersion(2, 4, 10, null)),
-    BuildToolsVersion(KotlinToolingVersion(2, 4, 20, "RC")),
+    BuildToolsVersion(KotlinToolingVersion(2, 4, 20, null)),
 )
 
 val compatibilityTestsExcludedVersions = listOf(
-    BuildToolsVersion(KotlinToolingVersion(2, 4, 20, "Beta1")),
-    BuildToolsVersion(KotlinToolingVersion(2, 3, 21, null)),
     BuildToolsVersion(KotlinToolingVersion(2, 2, 20, null)),
     BuildToolsVersion(KotlinToolingVersion(2, 2, 10, null)),
     BuildToolsVersion(KotlinToolingVersion(2, 2, 0, null)),
@@ -191,7 +197,7 @@ val businessLogicTestSuits = setOf(
     "testKotlinLogger",
     "testDefaultOptions",
     "testDaemonOptions",
-    "testInternalInputsTracker",
+    "testJps",
     "testAbiValidation",
     "testRestrictedArguments",
     "testArgumentParsingWarnings",
@@ -241,9 +247,7 @@ testing {
                     projectTests {
                         testTask(
                             taskName = testTask.name,
-                            javaLauncher = JdkMajorVersion.JDK_1_8,
                             skipInLocalBuild = false,
-                            garbageCollector = GarbageCollector.Parallel
                         ) {
                             ensureExecutedAgainstExpectedBuildToolsImplVersion(implVersion)
                             systemProperty("kotlin.build-tools-api.log.level", "DEBUG")
@@ -272,7 +276,6 @@ testing {
                     projectTests {
                         testTask(
                             taskName = testTask.name,
-                            javaLauncher = JdkMajorVersion.JDK_1_8,
                             skipInLocalBuild = false,
                             garbageCollector = GarbageCollector.Parallel
                         ) {
@@ -317,9 +320,9 @@ testing {
             }
         }
 
-        named<JvmTestSuite>("testInternalInputsTracker") {
+        named<JvmTestSuite>("testJps") {
             dependencies {
-                implementation(project(":compiler:build-tools:kotlin-build-tools-impl"))
+                implementation(project(":compiler:build-tools:kotlin-build-tools-api-jps"))
             }
         }
 

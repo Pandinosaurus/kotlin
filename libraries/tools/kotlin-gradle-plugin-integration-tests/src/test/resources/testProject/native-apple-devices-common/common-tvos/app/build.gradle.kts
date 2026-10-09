@@ -4,14 +4,14 @@ plugins {
 
 kotlin {
     tvosArm64()
-    tvosX64()
+    tvosSimulatorArm64()
 
     // Check that we can reenter the configuration method.
     tvosArm64 {
         binaries.framework(listOf(DEBUG))
     }
 
-    tvosX64 {
+    tvosSimulatorArm64 {
         binaries.framework(listOf(DEBUG))
     }
 

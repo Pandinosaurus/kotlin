@@ -6,7 +6,6 @@
 package kotlin.reflect.jvm.internal
 
 import org.jetbrains.kotlin.builtins.StandardNames
-import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.builtins.jvm.JvmBuiltInsSignatures
 import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
@@ -18,7 +17,9 @@ import org.jetbrains.kotlin.load.java.getPropertyNamesCandidatesByAccessorName
 import org.jetbrains.kotlin.load.kotlin.SignatureBuildingComponents
 import org.jetbrains.kotlin.load.kotlin.internalName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
+import org.jetbrains.kotlin.util.OperatorNameConventions
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import kotlin.jvm.internal.CallableReference.NO_RECEIVER
@@ -64,6 +65,12 @@ private fun KClassImpl<*>.collectDeclaredMemberNamesTransitively(result: Mutable
 
 internal fun KClassImpl<*>.computeDeclaredMembersByName(name: String): Collection<ReflectKCallable<*>> = buildList {
     val kClass = this@computeDeclaredMembersByName
+    // TODO: This is a temporary workaround for KT-89979.
+    //  Otherwise, `Array::class.members` fails with `java.lang.ClassNotFoundException: kotlin.Array`.
+    //  This explicit check hides that particular case. Direct usages of `Array::of`, `List::of` etc.
+    //  are still broken.
+    val isOperatorOfInArray = classId == StandardClassIds.Array && name == OperatorNameConventions.OF.asString()
+    if (isOperatorOfInArray) return@buildList
     if (useK1Implementation || isComplicatedBuiltinSubclass) {
         addAll(getDescriptorBasedFunctions(memberScope, DECLARED, name))
         addAll(getDescriptorBasedProperties(memberScope, DECLARED, name))
@@ -91,7 +98,6 @@ internal fun KClassImpl<*>.computeDeclaredMembersByName(name: String): Collectio
         data.value.additionalFunctions.filterTo(this) { it.name == name }
     } else {
         getDeclaredNonStaticMethodsFromJavaClass(name).filterTo(this) { isVisibleAsFunctionInCurrentClass(it) }
-        addAll(getDescriptorBasedProperties(memberScope, DECLARED, name))
         for (method in jClass.declaredMethods) {
             if (method.name == name && Modifier.isStatic(method.modifiers) && !method.isSynthetic) {
                 add(JavaKNamedFunction(kClass, method, NO_RECEIVER, KCallableOverriddenStorage.EMPTY))
@@ -99,19 +105,46 @@ internal fun KClassImpl<*>.computeDeclaredMembersByName(name: String): Collectio
         }
 
         for (field in jClass.declaredFields) {
-            if (field.isEnumConstant) continue
-            if (field.name == name && Modifier.isStatic(field.modifiers) && !field.isSynthetic) {
-                if (Modifier.isFinal(field.modifiers)) {
-                    add(JavaKProperty0<Any>(kClass, field, NO_RECEIVER, KCallableOverriddenStorage.EMPTY))
-                } else {
-                    add(JavaKMutableProperty0<Any>(kClass, field, NO_RECEIVER, KCallableOverriddenStorage.EMPTY))
+            if (field.isEnumConstant || field.isSynthetic || field.name != name) continue
+            when {
+                Modifier.isStatic(field.modifiers) -> when {
+                    Modifier.isFinal(field.modifiers) ->
+                        add(JavaFieldKProperty0<Any?>(kClass, field, NO_RECEIVER, KCallableOverriddenStorage.EMPTY))
+                    else ->
+                        add(JavaFieldKMutableProperty0<Any?>(kClass, field, NO_RECEIVER, KCallableOverriddenStorage.EMPTY))
+                }
+                else -> when {
+                    Modifier.isFinal(field.modifiers) ->
+                        add(JavaFieldKProperty1<Any?, Any?>(kClass, field, NO_RECEIVER, KCallableOverriddenStorage.EMPTY))
+                    else ->
+                        add(JavaFieldKMutableProperty1<Any?, Any?>(kClass, field, NO_RECEIVER, KCallableOverriddenStorage.EMPTY))
                 }
             }
+        }
+
+        val propertiesFromSupertypes = getPropertiesFromSupertypes(name)
+        if (propertiesFromSupertypes.isNotEmpty()) {
+            val handledProperties = hashSetOf<KProperty1<*, *>>()
+            addPropertyOverrideByMethod(propertiesFromSupertypes, this, handledProperties) {
+                getDeclaredNonStaticMethodsFromJavaClass(it)
+            }
+            // K1 also had logic about properties in supertypes, see `LazyJavaClassMemberScope.computeNonDeclaredProperties`.
+            // However, the only test where it can be observed
+            // `compiler/testData/ir/irText/firProblems/TypeParameterInClashingAccessor.kt` never worked in K1 reflection because of
+            // other problems: KT-81029.
         }
 
         if (jClass.isEnum && name == ENUM_ENTRIES_PROPERTY_NAME) {
             @Suppress("UNCHECKED_CAST")
             add(JavaEnumEntriesKProperty(kClass as KClassImpl<out Enum<*>>))
+        }
+
+        if (jClass.isAnnotation) {
+            for (method in jClass.declaredMethods) {
+                if (method.name == name && !method.isSynthetic) {
+                    add(JavaAnnotationMethodKProperty1<Any?, Any?>(kClass, method, NO_RECEIVER, KCallableOverriddenStorage.EMPTY))
+                }
+            }
         }
     }
 }
@@ -153,15 +186,19 @@ internal fun KClassImpl<*>.computeDeclaredMemberNames(): Set<String> =
         }
         data.value.additionalFunctions.mapTo(this, ReflectKCallable<*>::name)
     } else buildSet {
-        if (!jClass.isAnnotation) {
-            for (method in jClass.declaredMethods) {
-                if (!method.isSynthetic) add(method.name)
-            }
+        for (method in jClass.declaredMethods) {
+            if (!method.isSynthetic) add(method.name)
         }
         for (field in jClass.declaredFields) {
-            if (!field.isEnumConstant && Modifier.isStatic(field.modifiers) && !field.isSynthetic) add(field.name)
+            if (!field.isEnumConstant && !field.isSynthetic) add(field.name)
         }
-        memberScope.getVariableNames().mapTo(this, Name::asString)
+        val visited = hashSetOf<KClassImpl<*>>()
+        for (supertype in supertypes) {
+            // Declared method `getX` in a Java class won't be loaded as a KFunction if it overrides a property getter from the base Kotlin
+            // class (see `isVisibleAsFunctionInCurrentClass`), it will be loaded as a property getter instead. We cannot deduce the name
+            // of the property from the name of the getter (`getX` -> `x` or `X`?), so we get all property names from supertypes.
+            (supertype.classifier as? KClassImpl<*>)?.collectDeclaredMemberNamesTransitively(this, visited)
+        }
         if (jClass.isEnum) {
             add(ENUM_ENTRIES_PROPERTY_NAME)
         }
@@ -208,7 +245,7 @@ internal fun KClassImpl<*>.isVisibleAsFunctionInCurrentClass(function: JavaKName
                     else {
                         // K1 code also searched in supertypes (see searchMethodsInSupertypesWithoutBuiltinMagic), but it seems useful
                         // only for mapped builtins and their subtypes, so will be handled separately in KT-85727.
-                        getDeclaredNonStaticMethodsFromJavaClass().filter { it.name == accessorName }
+                        getDeclaredNonStaticMethodsFromJavaClass(accessorName)
                     }
                 } && (property is KMutableProperty<*> || !JvmAbi.isSetterName(function.name))
             }
@@ -217,7 +254,7 @@ internal fun KClassImpl<*>.isVisibleAsFunctionInCurrentClass(function: JavaKName
     return true
 }
 
-internal fun KClassImpl<*>.getDeclaredNonStaticMethodsFromJavaClass(name: String? = null): List<JavaKNamedFunction> {
+private fun KClassImpl<*>.getDeclaredNonStaticMethodsFromJavaClass(name: String? = null): List<JavaKNamedFunction> {
     require(kmClass == null) { "Should be called only for Java classes: $this" }
     if (jClass.isAnnotation) return emptyList()
     return jClass.declaredMethods.mapNotNull { method ->
@@ -234,7 +271,7 @@ private fun doesClassOverrideProperty(
     functions: (String) -> Collection<ReflectKFunction>,
 ): Boolean {
     // Java fields cannot be overridden.
-    if (property is JavaKProperty<*>) return false
+    if (property is JavaFieldKProperty<*>) return false
 
     val getter = property.findGetterOverride(functions)
     val setter = property.findSetterOverride(functions)
@@ -340,4 +377,39 @@ private fun Method.getJdkMethodStatus(startClass: Class<*>): JdkMemberStatus {
         queue.addAll(clazz.interfaces)
     }
     return JdkMemberStatus.NOT_CONSIDERED
+}
+
+private fun KClassImpl<*>.addPropertyOverrideByMethod(
+    propertiesFromSupertypes: List<KProperty1<*, *>>,
+    result: MutableCollection<ReflectKCallable<*>>,
+    handledProperties: MutableSet<KProperty1<*, *>>?,
+    functions: (String) -> Collection<ReflectKFunction>
+) {
+    for (property in propertiesFromSupertypes) {
+        val newProperty = createPropertyByMethods(property, functions)
+        if (newProperty != null) {
+            result.add(newProperty)
+            handledProperties?.add(property)
+            break
+        }
+    }
+}
+
+private fun KClassImpl<*>.createPropertyByMethods(
+    overriddenProperty: KProperty1<*, *>,
+    functions: (String) -> Collection<ReflectKFunction>,
+): ReflectKProperty<*>? {
+    if (!doesClassOverrideProperty(overriddenProperty, functions)) return null
+
+    val getterMethod = overriddenProperty.findGetterOverride(functions)!!
+    overriddenProperty as ReflectKProperty<*>
+    return if (overriddenProperty is KMutableProperty<*>)
+        JavaForKotlinOverrideKMutableProperty1<Any, Any>(
+            this, rawBoundReceiver = NO_RECEIVER, KCallableOverriddenStorage.EMPTY, getterMethod,
+            overriddenProperty.findSetterOverride(functions)!!, overriddenProperty,
+        )
+    else
+        JavaForKotlinOverrideKProperty1<Any, Any>(
+            this, rawBoundReceiver = NO_RECEIVER, KCallableOverriddenStorage.EMPTY, getterMethod, setterMethod = null, overriddenProperty,
+        )
 }

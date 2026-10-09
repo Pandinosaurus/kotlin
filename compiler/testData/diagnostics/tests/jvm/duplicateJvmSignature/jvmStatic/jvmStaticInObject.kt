@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // WITH_STDLIB
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
@@ -7,7 +7,7 @@ open class Base {
 }
 
 object Derived : Base() {
-    @JvmStatic <!ACCIDENTAL_OVERRIDE!>fun foo(i: Int = 0) {}<!>
+    <!ACCIDENTAL_OVERRIDE!>@JvmStatic fun foo(i: Int = 0)<!> {}
 }
 
 /* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, integerLiteral, objectDeclaration */

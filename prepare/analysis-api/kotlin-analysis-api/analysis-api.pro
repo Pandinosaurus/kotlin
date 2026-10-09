@@ -35,9 +35,6 @@
 # Used in script compilation (refineCompilationConfiguration.kt), requires intellij-analysis
 -dontwarn com.intellij.openapi.vfs.LocalFileSystem
 
-# Used in REPL
--dontwarn org.jline.**
-
 # Warnings in Guava on broken 'MethodHandle's
 -dontwarn com.google.common.hash.Hashing$Crc32cMethodHandles
 -dontwarn com.google.common.hash.ChecksumHashFunction$ChecksumMethodHandles
@@ -65,3 +62,8 @@
 # Other
 -dontwarn java.lang.invoke.MethodHandle
 -dontwarn kotlin.internal.ThrowNoWhenBranchMatchedExceptionKt # Warning: ...: can't find referenced class kotlin.internal.ThrowNoWhenBranchMatchedExceptionKt
+
+# Multiplatform parsing section
+# Is not supposed to be used in AA scenarios, so not important here
+-dontwarn fleet.com.intellij.multiplatform.util.fastutil.ints.**
+-dontwarn org.jetbrains.kotlin.kmp.parser.utils.**

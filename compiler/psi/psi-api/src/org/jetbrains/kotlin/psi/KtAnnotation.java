@@ -6,7 +6,9 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
+import kotlin.DeprecationLevel;
 import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;
@@ -26,6 +28,7 @@ import java.util.List;
  * <p>
  * For a single annotation entry, see {@link KtAnnotationEntry}.
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtAnnotation extends KtElementImplStub<KotlinPlaceHolderStub<KtAnnotation>> {
     /** A shared empty array, which can be reused to avoid unnecessary allocations. */
     public static final KtAnnotation[] EMPTY_ARRAY = new KtAnnotation[0];
@@ -68,7 +71,8 @@ public class KtAnnotation extends KtElementImplStub<KotlinPlaceHolderStub<KtAnno
             replaceWith = @ReplaceWith(
                     expression = "this.removeAnnotationEntry(entry)",
                     imports = "org.jetbrains.kotlin.idea.base.psi.removeAnnotationEntry"
-            )
+            ),
+            level = DeprecationLevel.ERROR
     )
     @Deprecated
     public void removeEntry(@NotNull KtAnnotationEntry entry) {

@@ -27,16 +27,15 @@ import kotlin.reflect.jvm.internal.types.*
 
 internal class ReflectSignatureParts(
     override val containerApplicabilityType: AnnotationQualifierApplicabilityType,
+    override val containerAnnotations: Iterable<Annotation>,
     override val containerIsVarargParameter: Boolean = false,
 ) : AbstractSignatureParts<Annotation>() {
     override val annotationTypeQualifierResolver: AbstractAnnotationTypeQualifierResolver<Annotation>
         get() = ReflectAnnotationTypeQualifierResolver
     override val enableImprovementsInStrictMode: Boolean
         get() = true
-    override val containerAnnotations: Iterable<Annotation>
-        get() = emptyList() // We don't support JSR-305 annotations in kotlin-reflect for now.
     override val containerDefaultTypeQualifiers: JavaTypeQualifiersByElementType?
-        get() = null
+        get() = null // Default qualifiers (e.g. `@ParametersAreNonnullByDefault`) are not supported in kotlin-reflect.
     override val isCovariant: Boolean
         get() = containerApplicabilityType == AnnotationQualifierApplicabilityType.METHOD_RETURN_TYPE
     override val skipRawTypeArguments: Boolean
@@ -79,7 +78,14 @@ private object ReflectAnnotationTypeQualifierResolver : AbstractAnnotationTypeQu
         get() = annotationClass.qualifiedName?.let { FqName(it) }
 
     override fun Annotation.enumArguments(onlyValue: Boolean): Iterable<String> =
-        throw KotlinReflectionInternalError("Should not be called because kotlin-reflect doesn't support JSR-305 annotations.")
+        annotationClass.java.declaredMethods.flatMap { method ->
+            if (onlyValue && method.name != "value") return@flatMap emptyList()
+            when (val value = method.invoke(this)) {
+                is Enum<*> -> listOf(value.name)
+                is Array<*> -> value.filterIsInstance<Enum<*>>().map { it.name }
+                else -> emptyList()
+            }
+        }
 
     override val isK2: Boolean
         get() = true
@@ -110,7 +116,9 @@ private fun AbstractKType.enhancePossiblyFlexible(
             lowerBound.enhanceInflexible(qualifiers, index, TypeComponentPosition.FLEXIBLE_LOWER, isRawType, isSuperTypesEnhancement)
         val upperResult =
             upperBound.enhanceInflexible(qualifiers, index, TypeComponentPosition.FLEXIBLE_UPPER, isRawType, isSuperTypesEnhancement)
-        assert(lowerResult.subtreeSize == upperResult.subtreeSize) {
+        // We don't try to create raw types exactly in the same way as in the compiler, see createRawJavaType in ConvertFromJava.kt.
+        // So, for raw types we sometimes produce trees of different sizes, but it's OK, since the underlying algorithm handles it fine.
+        assert(isRawType || lowerResult.subtreeSize == upperResult.subtreeSize) {
             "Different tree sizes of bounds: " +
                     "lower = ($lowerBound, ${lowerResult.subtreeSize}), " +
                     "upper = ($upperBound, ${upperResult.subtreeSize})"
@@ -178,7 +186,7 @@ private fun AbstractKType.enhanceInflexible(
         enhancedNullability ?: isMarkedNullable,
         lazyAnnotations, // In contrast to the compiler, we're not adding synthetic EnhancedNullability/EnhancedMutability annotations.
         abbreviation,
-        isDefinitelyNotNullType || effectiveQualifiers.definitelyNotNull,
+        isDefinitelyNotNullType || (effectiveQualifiers.definitelyNotNull && !effectiveQualifiers.isNullabilityQualifierForWarning),
         isNothingType,
         isSuspendFunctionType,
         enhancedClassifier as? MutableCollectionKClass<*>,
@@ -202,6 +210,8 @@ private fun KClassifier.enhanceMutability(
 
 private fun getEnhancedNullability(qualifiers: JavaTypeQualifiers, position: TypeComponentPosition): Boolean? {
     if (!position.shouldEnhance()) return null
+    // Warning-level annotations (e.g. `androidx.annotation.RecentlyNullable`) don't change types.
+    if (qualifiers.isNullabilityQualifierForWarning) return null
     return when (qualifiers.nullability) {
         NullabilityQualifier.NULLABLE -> true
         NOT_NULL -> false

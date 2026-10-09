@@ -4,11 +4,9 @@ import org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -44,7 +42,6 @@ dependencies {
     compileOnly(project(":core:descriptors"))
     compileOnly(project(":core:descriptors.jvm"))
     compileOnly(project(":core:language.targets.jvm"))
-    compileOnly(project(":js:js.frontend"))
     compileOnly(project(":kotlin-util-klib-metadata"))
     compileOnly(project(":compiler:frontend"))
     compileOnly(project(":compiler:backend.jvm"))
@@ -112,7 +109,6 @@ dependencies {
 }
 
 optInToUnsafeDuringIrConstructionAPI()
-optInToObsoleteDescriptorBasedAPI()
 
 kotlin {
     jvmToolchain(8)
@@ -148,11 +144,8 @@ javadocJar()
 
 projectTests {
     testTask(
-        javaLauncher = JdkMajorVersion.JDK_1_8,
         defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_11_0),
         maxHeapSize = testMaxHeapSizeLarge,
-        // Use Parallel GC because this test runs on JDK 8.
-        garbageCollector = GarbageCollector.Parallel,
     ) {
         addClasspathProperty(runtimeJar.get().outputs.files, "compose.compiler.hosted.jar.path")
         addClasspathProperty(testJsRuntime, "compose.compiler.test.js.classpath")
@@ -167,7 +160,6 @@ projectTests {
 
     withJvmStdlibAndReflect()
     withJsRuntime()
-    withScriptRuntime()
     withTestJar()
     withMockJdkAnnotationsJar()
     withMockJdkRuntime()
@@ -176,4 +168,3 @@ projectTests {
     withDist()
 }
 
-testsJar()

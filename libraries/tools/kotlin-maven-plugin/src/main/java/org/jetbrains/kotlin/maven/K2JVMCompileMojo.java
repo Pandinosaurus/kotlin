@@ -130,8 +130,9 @@ public class K2JVMCompileMojo extends KotlinCompileMojoBase<K2JVMCompilerArgumen
     @Parameter(property = "kotlin.compiler.daemon.shutdownDelayMs")
     protected Long daemonShutdownDelayMs;
 
-    @Parameter(property = "kotlin.compiler.generateCompilerRefIndex", defaultValue = "false")
-    protected boolean generateCompilerRefIndex;
+    @Parameter(property = "kotlin.compiler.generateCompilerRefIndex")
+    @Nullable
+    protected Boolean generateCompilerRefIndex;
 
     /**
      * The time the Kotlin daemon continues to live after the Maven build process finishes (without the Maven daemon)
@@ -409,19 +410,21 @@ public class K2JVMCompileMojo extends KotlinCompileMojoBase<K2JVMCompilerArgumen
             Path destination = getEffectiveDestinationDirectory(arguments);
             JvmCompilationOperation.Builder compilationOperation = jvmToolchain.jvmCompilationOperationBuilder(allSources, destination);
 
-            boolean incrementalEnabled = isIncremental();
-            if (generateCompilerRefIndex && !incrementalEnabled) {
+            boolean isIncrementalCompilationEnabled = isIncremental();
+            // Same default as in the Kotlin Gradle plugin: generate CRI unless running on CI
+            boolean isCriGenerationRequired = generateCompilerRefIndex != null ? generateCompilerRefIndex : !CiEnvironment.isCiBuild();
+            if (Boolean.TRUE.equals(generateCompilerRefIndex) && !isIncrementalCompilationEnabled) {
                 getLog().warn("Compiler reference index generation requires incremental compilation ('kotlin.compiler.incremental=true') in Maven");
             }
 
             Set<Consumer<CompilationResult>> resultHandlers = new HashSet<>();
-            if (incrementalEnabled) {
+            if (isIncrementalCompilationEnabled) {
                 resultHandlers.add(configureIncrementalCompilation(compilationOperation, arguments));
             }
 
             compilationOperation.set(
                     JvmCompilationOperation.GENERATE_COMPILER_REF_INDEX,
-                    generateCompilerRefIndex && incrementalEnabled
+                    isCriGenerationRequired && isIncrementalCompilationEnabled
             );
 
             LegacyKotlinMavenLogger kotlinMavenLogger = new LegacyKotlinMavenLogger(messageCollector, getLog());
@@ -429,7 +432,7 @@ public class K2JVMCompileMojo extends KotlinCompileMojoBase<K2JVMCompilerArgumen
                 // BTA does not support -d configured like a regular argument, it's configured on operation creation
                 arguments.setDestination(null); // TODO: KT-85393 refactor setting up arguments to avoid this hack
                 List<String> myArguments = ArgumentUtils.convertArgumentsToStringList(arguments);
-                compilationOperation.getCompilerArguments().applyArgumentStrings(myArguments);
+                compilationOperation.getCompilerArguments().applyCommandLineArguments(myArguments);
                 CompilationResult result = buildSession.executeOperation(compilationOperation.build(), executionPolicy, kotlinMavenLogger);
                 resultHandlers.forEach(handler -> handler.accept(result));
                 switch (result) {

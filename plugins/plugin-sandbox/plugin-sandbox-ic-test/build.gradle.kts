@@ -1,12 +1,12 @@
+import org.gradle.kotlin.dsl.support.serviceOf
+
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
     id("nodejs-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -46,8 +46,11 @@ sourceSets {
 projectTests {
     testTask(maxHeapSize = testMaxHeapSizeLarge) {
         useJsIrBoxTests(buildDir = layout.buildDirectory)
-        wasmNodeJsKotlinBuild {
-            setupNodeJs(nodejsVersion)
+        val buildFeatures = project.serviceOf<BuildFeatures>()
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            wasmNodeJsKotlinBuild {
+                setupNodeJs(nodejsVersion)
+            }
         }
         addAbsoluteDirectoryProperty(layout.buildDirectory, "kotlin.wasm.test.root.out.dir")
     }
@@ -65,4 +68,3 @@ projectTests {
     testData(project(":js:js.translator").isolated, "testData/moduleEmulation.js")
 }
 
-testsJar()

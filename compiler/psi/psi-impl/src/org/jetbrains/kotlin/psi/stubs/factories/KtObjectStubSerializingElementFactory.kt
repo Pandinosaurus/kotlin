@@ -2,7 +2,6 @@
  * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.psi.stubs.factories
 
@@ -14,7 +13,6 @@ import com.intellij.psi.stubs.StubOutputStream
 import com.intellij.util.io.StringRef
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.psiUtil.getSuperNames
 import org.jetbrains.kotlin.psi.psiUtil.safeFqNameForLazyResolve
@@ -49,7 +47,6 @@ internal object KtObjectStubSerializingElementFactory :
         classId = parentStub?.let { createClassId(it, psi) },
         superNameRefs = Utils.wrapStrings(psi.getSuperNames()),
         isTopLevel = psi.isTopLevel(),
-        isLocal = psi.isLocal(),
         isObjectLiteral = psi.isObjectLiteral(),
         kdocText = null,
     )
@@ -61,7 +58,6 @@ internal object KtObjectStubSerializingElementFactory :
         serializeClassId(dataStream, stub.classId)
 
         dataStream.writeBoolean(stub.isTopLevel)
-        dataStream.writeBoolean(stub.isLocal)
         dataStream.writeBoolean(stub.isObjectLiteral)
         dataStream.serializeKdocText(stub.kdocText)
 
@@ -79,7 +75,6 @@ internal object KtObjectStubSerializingElementFactory :
         val classId = deserializeClassId(dataStream)
 
         val isTopLevel = dataStream.readBoolean()
-        val isLocal = dataStream.readBoolean()
         val isObjectLiteral = dataStream.readBoolean()
         val kdocText = dataStream.deserializeKdocText()
 
@@ -96,13 +91,12 @@ internal object KtObjectStubSerializingElementFactory :
             classId = classId,
             superNameRefs = superNames,
             isTopLevel = isTopLevel,
-            isLocal = isLocal,
             isObjectLiteral = isObjectLiteral,
             kdocText = kdocText,
         )
     }
 
     override fun indexStub(stub: KotlinObjectStubImpl, sink: IndexSink) {
-        StubIndexService.getInstance().indexObject(stub, sink)
+        StubIndexService.getInstance()?.indexObject(stub, sink)
     }
 }

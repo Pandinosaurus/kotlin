@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir;
 import com.intellij.testFramework.TestDataPath;
 import org.jetbrains.kotlin.test.util.KtTestUtil;
 import org.jetbrains.kotlin.test.TestMetadata;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -44,6 +43,12 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   @TestMetadata("classinitializer.kt")
   public void testClassinitializer() {
     run("classinitializer.kt");
+  }
+
+  @Test
+  @TestMetadata("codeFragmentWithCompilerPlugin.kt")
+  public void testCodeFragmentWithCompilerPlugin() {
+    run("codeFragmentWithCompilerPlugin.kt");
   }
 
   @Test
@@ -113,6 +118,18 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   }
 
   @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueObject.kt")
+  public void testFullValueObject() {
+    run("fullValueObject.kt");
+  }
+
+  @Test
   @TestMetadata("genericClass.kt")
   public void testGenericClass() {
     run("genericClass.kt");
@@ -152,6 +169,12 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   @TestMetadata("localClass.kt")
   public void testLocalClass() {
     run("localClass.kt");
+  }
+
+  @Test
+  @TestMetadata("localClassWithCompilerPlugin.kt")
+  public void testLocalClassWithCompilerPlugin() {
+    run("localClassWithCompilerPlugin.kt");
   }
 
   @Test
@@ -206,67 +229,5 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   @TestMetadata("simple.kt")
   public void testSimple() {
     run("simple.kt");
-  }
-
-  @Nested
-  @TestMetadata("analysis/low-level-api-fir/testData/psiBasedContainingClass/repl")
-  @TestDataPath("$PROJECT_ROOT")
-  public class Repl {
-    private void run(String fileName) {
-      runTest("analysis/low-level-api-fir/testData/psiBasedContainingClass/repl/" + fileName);
-    }
-
-    @Test
-    public void testAllFilesPresentInRepl() {
-      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/psiBasedContainingClass/repl"), Pattern.compile("^(.+)\\.(kt|kts)$"), null, true);
-    }
-
-    @Test
-    @TestMetadata("classMembersRepl.repl.kts")
-    public void testClassMembersRepl_repl() {
-      run("classMembersRepl.repl.kts");
-    }
-
-    @Test
-    @TestMetadata("constructorsRepl.repl.kts")
-    public void testConstructorsRepl_repl() {
-      run("constructorsRepl.repl.kts");
-    }
-
-    @Test
-    @TestMetadata("delegatedProperty.repl.kts")
-    public void testDelegatedProperty_repl() {
-      run("delegatedProperty.repl.kts");
-    }
-
-    @Test
-    @TestMetadata("destructuring.repl.kts")
-    public void testDestructuring_repl() {
-      run("destructuring.repl.kts");
-    }
-
-    @Test
-    @TestMetadata("eval.repl.kts")
-    public void testEval_repl() {
-      run("eval.repl.kts");
-    }
-
-    @Test
-    @TestMetadata("mix.repl.kts")
-    public void testMix_repl() {
-      run("mix.repl.kts");
-    }
-
-    @Test
-    @TestMetadata("replResult.repl.kts")
-    public void testReplResult_repl() {
-      run("replResult.repl.kts");
-    }
-
-    @Test
-    @TestMetadata("topLevelFunctionWithPackageRepl.repl.kts")
-    public void testTopLevelFunctionWithPackageRepl_repl() {
-      run("topLevelFunctionWithPackageRepl.repl.kts");
-    }
   }
 }

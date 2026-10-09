@@ -1,37 +1,23 @@
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-data-manager")
     id("test-inputs-check")
 }
 
 dependencies {
-    implementation(intellijCore())
-    implementation(project(":core:descriptors.jvm"))
-    implementation(project(":core:language.targets.jvm"))
-    implementation(project(":compiler:config.jvm"))
-    implementation(project(":compiler:psi:parser"))
-    implementation(project(":compiler:psi:psi-api"))
+    api(project(":compiler:psi:psi-api"))
     api(project(":analysis:analysis-api"))
-    api(project(":analysis:analysis-api-platform-interface"))
-    api(project(":analysis:analysis-api-fir"))
-    api(project(":analysis:low-level-api-fir"))
-    api(project(":analysis:symbol-light-classes"))
-    api(project(":analysis:decompiled:light-classes-for-decompiled"))
-    api(project(":analysis:analysis-api-standalone:analysis-api-standalone-fir"))
-    testFixturesApi(testFixtures(project(":analysis:analysis-api-fir")))
-    testFixturesApi(testFixtures(project(":analysis:analysis-api-impl-base")))
+    testFixturesImplementation(testFixtures(project(":analysis:analysis-api-impl-base")))
     testFixturesApi(testFixtures(project(":analysis:analysis-test-framework")))
     testFixturesApi(testFixtures(project(":analysis:low-level-api-fir")))
-    testImplementation(testFixtures(project(":compiler:psi:psi-api")))
+    testFixturesApi(testFixtures(project(":compiler:psi:psi-api")))
+    testFixturesImplementation(project(":analysis:analysis-api-standalone:analysis-api-standalone-fir"))
 
     testFixturesApi(kotlinTest("junit5"))
     testCompileOnly(toolsJarApi())
@@ -72,14 +58,20 @@ sourceSets {
     "testFixtures" { projectDefault() }
 }
 
+if (!kotlinBuildProperties.isTeamcityBuild.get()) {
+    testDataManager {
+        // Ensure golden tests run first
+        mustRunAfterProjects.add(":analysis:analysis-api-fir")
+    }
+}
+
 projectTests {
     testTask(defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_21_0)) {
-        if (!kotlinBuildProperties.isTeamcityBuild.get()) {
-            // Ensure golden tests run first
-            mustRunAfter(":analysis:analysis-api-fir:test")
+        testFederation {
+            smokeTests {
+                includeAutoSamples(percentage = 1)
+            }
         }
-
-        smokeTestConfig = SmokeTestConfig.Enabled(autoSmokeTestPercentage = 1)
     }
 
     testCodebaseTask(dumpDirs = listOf("api", "api-unstable"))
@@ -92,8 +84,8 @@ projectTests {
     withTestJar()
     withMockJdkRuntime()
     withMockJdkAnnotationsJar()
-    withScriptRuntime()
     withPluginSandboxAnnotations()
+    withPluginSandboxJar()
     withWasmRuntime()
 
     @OptIn(KotlinCompilerDistUsage::class)
@@ -104,4 +96,3 @@ projectTests {
     testData(project(":analysis:low-level-api-fir").isolated, "testData/resolveToFirSymbolPsiClass")
 }
 
-testsJar()

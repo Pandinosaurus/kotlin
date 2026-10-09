@@ -1,6 +1,5 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     `java-library`
 }
@@ -10,6 +9,7 @@ dependencies {
         .forEach { implementation(project(it)) }
 
     implementation(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
+    implementation(libs.guava)
 }
 
 val embeddedDependencies = CompilerModules.kotlinJpsPluginEmbeddedDependencies

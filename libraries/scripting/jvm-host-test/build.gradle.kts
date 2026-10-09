@@ -2,10 +2,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
 }
 
 dependencies {
@@ -18,6 +16,7 @@ dependencies {
     testImplementation(project(":kotlin-scripting-jvm-host-unshaded"))
     testImplementation(testFixtures(project(":compiler:tests-compiler-utils")))
     testImplementation(project(":kotlin-scripting-compiler"))
+    testImplementation(project(":kotlin-script-runtime")) // checks of the legacy standard templates mapping
     testImplementation(project(":daemon-common")) // TODO: fix import (workaround for jps build)
 
     testImplementation(libs.kotlinx.coroutines.core)

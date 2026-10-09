@@ -21,6 +21,8 @@ import kotlin.random.*
  * Returns the first element.
  * 
  * @throws NoSuchElementException if the progression is empty.
+ * 
+ * @sample samples.collections.Collections.Elements.first
  */
 @SinceKotlin("1.7")
 public fun UIntProgression.first(): UInt {
@@ -33,6 +35,8 @@ public fun UIntProgression.first(): UInt {
  * Returns the first element.
  * 
  * @throws NoSuchElementException if the progression is empty.
+ * 
+ * @sample samples.collections.Collections.Elements.first
  */
 @SinceKotlin("1.7")
 public fun ULongProgression.first(): ULong {
@@ -108,7 +112,7 @@ public fun ULongProgression.lastOrNull(): ULong? {
 /**
  * Returns a random element from this range.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.5")
 @kotlin.internal.InlineOnly
@@ -119,7 +123,7 @@ public inline fun UIntRange.random(): UInt {
 /**
  * Returns a random element from this range.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.5")
 @kotlin.internal.InlineOnly
@@ -130,7 +134,7 @@ public inline fun ULongRange.random(): ULong {
 /**
  * Returns a random element from this range using the specified source of randomness.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.5")
 public fun UIntRange.random(random: Random): UInt {
@@ -144,7 +148,7 @@ public fun UIntRange.random(random: Random): UInt {
 /**
  * Returns a random element from this range using the specified source of randomness.
  * 
- * @throws IllegalArgumentException if this range is empty.
+ * @throws NoSuchElementException if this range is empty.
  */
 @SinceKotlin("1.5")
 public fun ULongRange.random(random: Random): ULong {

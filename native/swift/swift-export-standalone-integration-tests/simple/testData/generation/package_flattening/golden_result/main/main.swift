@@ -22,27 +22,31 @@ public var variable: Swift.Int32 {
 public func fun_with_keywoards(
     `repeat`: Swift.Int32
 ) -> Swift.Int32 {
-    ExportedKotlinPackages.org.kotlin.foo.fun_with_keywoards(`repeat`: `repeat`)
+    return ExportedKotlinPackages.org.kotlin.foo.fun_with_keywoards(`repeat`: `repeat`)
 }
 public func function(
     arg: Swift.Int32
 ) -> Swift.Int32 {
-    ExportedKotlinPackages.org.kotlin.foo.function(arg: arg)
-}
-public func getX(
-    _ receiver: Swift.Int32
-) -> Swift.String {
-    ExportedKotlinPackages.org.kotlin.foo.getX(receiver)
+    return ExportedKotlinPackages.org.kotlin.foo.function(arg: arg)
 }
 public func renamedParameter(
     _ input: Swift.String
 ) -> Swift.Void {
-    ExportedKotlinPackages.org.kotlin.foo.renamedParameter(input)
+    return ExportedKotlinPackages.org.kotlin.foo.renamedParameter(input)
 }
-public func y(
-    _ receiver: Swift.String
-) -> Swift.Int32 {
-    ExportedKotlinPackages.org.kotlin.foo.y(receiver)
+extension Swift.Int32 {
+    public var x: Swift.String {
+        get {
+            let receiver = self
+            return ExportedKotlinPackages.org.kotlin.foo.getX(receiver)
+        }
+    }
+}
+extension Swift.String {
+    public func y() -> Swift.Int32 {
+        let receiver = self
+        return ExportedKotlinPackages.org.kotlin.foo.y(receiver)
+    }
 }
 extension ExportedKotlinPackages.org.kotlin.foo.bar {
     public typealias Integer = Swift.Int32
@@ -53,13 +57,13 @@ extension ExportedKotlinPackages.org.kotlin.baz {
 extension ExportedKotlinPackages.org.kotlin.foo {
     public typealias Typealias = Swift.Int32
     public final class Clazz: KotlinRuntime.KotlinBase {
-        public init() {
+        public override init() {
             let __kt = org_kotlin_foo_Clazz_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { org_kotlin_foo_Clazz_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);

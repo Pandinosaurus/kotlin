@@ -43,7 +43,7 @@ import org.jetbrains.kotlin.gradle.plugin.diagnostics.UsesKotlinToolingDiagnosti
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.filterAndReportUnsupportedKotlinArchiveLibraries
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.useXcodeMessageStyle
-import org.jetbrains.kotlin.gradle.plugin.statistics.NativeCompilerOptionMetrics
+import org.jetbrains.kotlin.gradle.plugin.statistics.CompilerArgumentMetrics
 import org.jetbrains.kotlin.gradle.plugin.statistics.UsesBuildFusService
 import org.jetbrains.kotlin.gradle.plugin.tcs
 import org.jetbrains.kotlin.gradle.report.GradleBuildMetricsReporter
@@ -62,7 +62,6 @@ import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind.*
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.DefFile
-import org.jetbrains.kotlin.project.model.LanguageSettings
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 import java.io.File
 import java.nio.file.Files
@@ -148,16 +147,13 @@ abstract class AbstractKotlinNativeCompile<
     @get:Internal
     abstract val baseName: String
 
-    override val produceUnpackagedKlib: Property<Boolean> = objectFactory.propertyWithConvention(false)
-
-    @Suppress("unused")
-    @Deprecated("KT-72387: used in KSP", level = DeprecationLevel.HIDDEN)
-    internal val produceUnpackedKlib: Property<Boolean>
-        get() = produceUnpackagedKlib
-
     @get:Input
     @get:Optional
     internal abstract val explicitApiMode: Property<ExplicitApiMode>
+
+    @get:Input
+    @get:Optional
+    abstract val returnValueCheckerMode: Property<ReturnValueCheckerMode>
 
     @get:Internal
     internal val konanTarget by providerFactory.provider {
@@ -194,30 +190,6 @@ abstract class AbstractKotlinNativeCompile<
     )
     @get:Internal
     abstract val kotlinOptions: T
-
-    @Deprecated(
-        message = "Use implementations compilerOptions to get/set freeCompilerArgs",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Input
-    abstract val additionalCompilerOptions: Provider<Collection<String>>
-
-    @Deprecated(
-        message = "Use implementations compilerOptions",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val languageSettings: LanguageSettings
-        get() = compilation.languageSettings
-
-    @Suppress("DeprecatedCallableAddReplaceWith")
-    @get:Deprecated(
-        message = "Replaced with 'compilerOptions.progressiveMode'",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val progressiveMode: Boolean
-        get() = compilation.compilerOptions.options.progressiveMode.get()
     // endregion.
 
     @get:Input
@@ -227,8 +199,7 @@ abstract class AbstractKotlinNativeCompile<
     open val outputFile: Provider<File>
         get() = destinationDirectory.flatMap {
             val prefix = outputKind.prefix(konanTarget)
-            val suffix = if (produceUnpackagedKlib.get()) "" else outputKind.suffix(konanTarget)
-            val filename = "$prefix${baseName}$suffix".let {
+            val filename = "$prefix${baseName}".let {
                 when {
                     outputKind == FRAMEWORK ->
                         it.asValidFrameworkName
@@ -308,14 +279,6 @@ internal constructor(
         else "${project.name}_${compilation.compilationName}"
     }
 
-    @Deprecated(
-        message = "Please use 'compilerOptions.moduleName' to configure",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("compilerOptions.moduleName.get()")
-    )
-    @get:Internal
-    val moduleName: String get() = compilerOptions.moduleName.get()
-
     @get:Input
     val shortModuleName: String by providerFactory.provider { baseName }
 
@@ -341,62 +304,12 @@ internal constructor(
             NoopKotlinNativeProvider(project)
         )
 
-    @Deprecated(
-        message = "This property will be removed in future releases. Don't use it in your code.",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val konanDataDir: Provider<String?> = kotlinNativeProvider.flatMap { it.konanDataDir }
-
-    @Deprecated(
-        message = "This property will be removed in future releases. Don't use it in your code.",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val konanHome: Provider<String> = kotlinNativeProvider.flatMap { it.bundleDirectory }
-
     @get:Nested
     override val multiplatformStructure: K2MultiplatformStructure = objectFactory.newInstance()
 
     private val commonSourcesTree: FileTree
         get() = commonSources.asFileTree
 
-    // endregion.
-
-    // region Language settings imported from a SourceSet.
-    @Deprecated(
-        message = "Replaced with kotlinOptions.languageVersion",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("kotlinOptions.languageVersion")
-    )
-    val languageVersion: String?
-        @Optional @Input get() = compilerOptions.languageVersion.orNull?.version
-
-    @Deprecated(
-        message = "Replaced with kotlinOptions.apiVersion",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("kotlinOptions.apiVersion")
-    )
-    val apiVersion: String?
-        @Optional @Input get() = compilerOptions.apiVersion.orNull?.version
-
-    @Deprecated(
-        message = "Language features is internal Kotlin compiler flags and should not be used directly",
-        level = DeprecationLevel.ERROR,
-    )
-    val enabledLanguageFeatures: Set<String>
-        @Internal get() = compilerOptions
-            .freeCompilerArgs.get()
-            .filter { it.startsWith("-XXLanguage:+") }
-            .toSet()
-
-    @Deprecated(
-        message = "Replaced with compilerOptions.optIn",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("compilerOptions.optIn")
-    )
-    val optInAnnotationsInUse: Set<String>
-        @Internal get() = compilerOptions.optIn.get().toSet()
     // endregion.
 
     // region Kotlin options
@@ -415,16 +328,6 @@ internal constructor(
         override val options: KotlinCommonCompilerOptions
             get() = compilerOptions
     }
-
-    @Suppress("UNCHECKED_CAST")
-    @Deprecated(
-        message = "Replaced with compilerOptions.freeCompilerArgs",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("compilerOptions.freeCompilerArgs.get()")
-    )
-    @get:Input
-    override val additionalCompilerOptions: Provider<Collection<String>>
-        get() = compilerOptions.freeCompilerArgs as Provider<Collection<String>>
 
     @get:Internal
     internal val kotlinCompilerArgumentsLogLevel: Property<KotlinCompilerArgumentsLogLevel> = objectFactory
@@ -455,13 +358,6 @@ internal constructor(
     override val klibOutput: Provider<File>
         get() = outputFile
 
-    @Suppress("DeprecatedCallableAddReplaceWith")
-    @Deprecated("KTIJ-25227: Necessary override for IDEs < 2023.2", level = DeprecationLevel.ERROR)
-    override fun setupCompilerArgs(args: K2NativeCompilerArguments, defaultsOnly: Boolean, ignoreClasspathResolutionErrors: Boolean) {
-        @Suppress("DEPRECATION_ERROR")
-        super.setupCompilerArgs(args, defaultsOnly, ignoreClasspathResolutionErrors)
-    }
-
     override fun createCompilerArguments(context: CreateCompilerArgumentsContext) = context.create<K2NativeCompilerArguments> {
         val sharedCompilationData = createSharedCompilationDataOrNull()
 
@@ -484,7 +380,7 @@ internal constructor(
             args.nodefaultlibs = sharedCompilationData != null
             args.nostdlib = true
             args.exportKDoc = exportKdoc.get()
-            args.nopack = produceUnpackagedKlib.get()
+            args.nopack = true
 
             args.pluginOptions = compilerPlugins.flatMap { it.options.arguments }.toTypedArray()
 
@@ -497,6 +393,7 @@ internal constructor(
             KotlinNativeCompilerOptionsHelper.fillCompilerArguments(compilerOptions, args)
 
             explicitApiMode.orNull?.run { args.explicitApi = toCompilerValue() }
+            returnValueCheckerMode.orNull?.run { args.returnValueChecker = toCompilerValue() }
             kotlinNativeProvider.get().konanDataDir.orNull?.let {
                 args.konanDataDir = it
             }
@@ -585,11 +482,13 @@ internal constructor(
                 val output = outputFile.get()
                 output.parentFile.mkdirs()
 
+                val buildArguments = ArgumentUtils.convertArgumentsToStringList(arguments)
+
                 buildFusService.orNull?.reportFusMetrics {
-                    NativeCompilerOptionMetrics.collectMetrics(compilerOptions, separateKmpCompilation.get(), it)
+                    CompilerArgumentMetrics.collectMetrics(arguments, buildArguments.toTypedArray(), logger, it)
                 }
 
-                ArgumentUtils.convertArgumentsToStringList(arguments)
+                buildArguments
             }
 
             nativeCompilerRunner.runTool(
@@ -835,25 +734,13 @@ abstract class CInteropProcess @Inject internal constructor(params: Params) :
 
     @get:Internal
     val outputFileName: String
-        get() = with(LIBRARY) {
-            val suffix = if (produceUnpackagedKlib.get()) "" else suffix(konanTarget)
-            "$baseKlibName$suffix"
-        }
+        get() = baseKlibName
 
     @get:Input
     val moduleName: String = project.moduleName(baseKlibName)
 
     @get:Internal
     internal var isGeneratedCinterop: Boolean = false
-
-    @Deprecated(
-        "Eager outputFile was replaced with lazy outputFileProvider",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("outputFileProvider")
-    )
-    @get:Internal
-    val outputFile: File
-        get() = outputFileProvider.get()
 
     @get:Nested
     internal val kotlinNativeProvider: Property<KotlinNativeProvider> =
@@ -863,20 +750,6 @@ abstract class CInteropProcess @Inject internal constructor(params: Params) :
             // and added convention for backwards compatibility.
             NoopKotlinNativeProvider(project)
         )
-
-    @Deprecated(
-        message = "This property will be removed in future releases. Don't use it in your code.",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val konanDataDir: Provider<String?> = kotlinNativeProvider.flatMap { it.konanDataDir }
-
-    @Deprecated(
-        message = "This property will be removed in future releases. Don't use it in your code.",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val konanHome: Provider<String> = kotlinNativeProvider.flatMap { it.bundleDirectory }
 
     private val actualNativeHomeDirectory = project.nativeProperties.actualNativeHomeDirectory
     private val runnerJvmArgs = project.nativeProperties.jvmArgs
@@ -911,15 +784,6 @@ abstract class CInteropProcess @Inject internal constructor(params: Params) :
     @get:NormalizeLineEndings
     @get:Optional
     abstract val definitionFile: RegularFileProperty
-
-    @get:Internal
-    @Deprecated(
-        "This eager parameter is deprecated.",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("definitionFile")
-    )
-    val defFile: File get() = definitionFile.asFile.get()
-
 
     @get:Optional
     @get:Input
@@ -989,8 +853,6 @@ abstract class CInteropProcess @Inject internal constructor(params: Params) :
     private val allHeadersHashesFile: Provider<RegularFile> =
         destinationDirectory.dir(interopName).map { it.file("cinterop-headers-hash.json") }
 
-    override val produceUnpackagedKlib: Property<Boolean> = objectFactory.propertyWithConvention(false)
-
     init {
         outputs.upToDateWhen {
             checkHeadersChanged()
@@ -1029,9 +891,7 @@ abstract class CInteropProcess @Inject internal constructor(params: Params) :
             addArgs("-headerFilterAdditionalSearchPrefix", headerFilterDirs.map { it.absolutePath })
             addArg("-Xmodule-name", moduleName)
             addArgIfNotNull("-Xkonan-data-dir", kotlinNativeProvider.get().konanDataDir.orNull)
-            if (produceUnpackagedKlib.get()) {
-                add("-nopack")
-            }
+            add("-nopack")
             if (macroNamesCollectingMode.isPresent) {
                 addArg(MacroNamesCollectingMode.OPTION, macroNamesCollectingMode.get().value)
             }

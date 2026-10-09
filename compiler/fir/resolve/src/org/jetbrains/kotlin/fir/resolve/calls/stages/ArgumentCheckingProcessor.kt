@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.fir.resolve.inference.model.ConeReceiverConstraintPo
 import org.jetbrains.kotlin.fir.resolve.inference.model.ConeRegularLambdaArgumentConstraintPosition
 import org.jetbrains.kotlin.fir.resolve.shouldBeResolvedInContextSensitiveMode
 import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.resolve.calls.inference.ConstraintSystemBuilder
 import org.jetbrains.kotlin.resolve.calls.inference.addSubtypeConstraintIfCompatible
@@ -42,6 +43,7 @@ import org.jetbrains.kotlin.types.AbstractTypeChecker
 import org.jetbrains.kotlin.types.model.fastCorrespondingSupertypes
 import org.jetbrains.kotlin.types.model.isUnit
 import org.jetbrains.kotlin.types.model.typeConstructor
+import org.jetbrains.kotlin.util.ArrayLiteralResolution
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 
@@ -139,14 +141,30 @@ internal object ArgumentCheckingProcessor {
                 is FirPropertyAccessExpression ->
                     when {
                         atom.expression.explicitReceiver == null && atom.expression.shouldBeResolvedInContextSensitiveMode() ->
-                            preprocessSimpleNameReferenceForContextSensitiveResolution(atom, atom.expression)
+                            preprocessSimpleNameReferenceForContextSensitiveResolution(
+                                atom, atom.expression, atom.expression.calleeReference.name
+                            )
                         AnalysisFlags.ideMode.isSet() ->
                             preprocessQualifierWithContextSensitiveAlternative(atom, atom.expression)
                         else ->
                             error("Unknown kind of atom with postponed child: ${atom.expression::class}")
                     }
-                is FirResolvedQualifier if AnalysisFlags.ideMode.isSet() ->
-                    preprocessQualifierWithContextSensitiveAlternative(atom, atom.expression)
+                is FirResolvedQualifier -> {
+                    val originalName = atom.expression.originalNameForContextSensitiveResolution
+                    when {
+                        originalName != null -> {
+                            if (AbstractTypeChecker.RUN_SLOW_ASSERTIONS) {
+                                // We only set the original name when the qualifier is resolved with an error
+                                check(atom.expression.shouldBeResolvedInContextSensitiveMode(components = context.bodyResolveComponents))
+                            }
+                            preprocessSimpleNameReferenceForContextSensitiveResolution(atom, atom.expression, originalName)
+                        }
+                        AnalysisFlags.ideMode.isSet() ->
+                            preprocessQualifierWithContextSensitiveAlternative(atom, atom.expression)
+                        else ->
+                            error("Unknown kind of atom with postponed child: ${atom.expression::class}")
+                    }
+                }
                 is FirCollectionLiteral -> preprocessCollectionLiteral(atom)
                 else -> error("Unknown kind of atom with postponed child: ${atom.expression::class}")
             }
@@ -329,8 +347,16 @@ internal object ArgumentCheckingProcessor {
 
                 val nullableExpectedType = expectedType.withNullability(nullable = true, session.typeContext)
 
-                if (csBuilder.addSubtypeConstraintIfCompatible(argumentType, nullableExpectedType, position)) {
-                    reportDiagnostic(InapplicableNullableReceiver(argumentType))
+                if (csBuilder.addSubtypeConstraintIfCompatible(
+                        argumentType.applyIf(argumentType is ConeUnionType) { argumentType.primaryType },
+                        nullableExpectedType,
+                        position,
+                    )
+                ) {
+                    val actualType = (atom.expression as? FirCheckedSafeCallSubject)?.originalReceiverRef?.value?.resolvedType
+                        ?: argumentType
+
+                    reportDiagnostic(InapplicableUnsafeReceiver(actualType))
                 } else {
                     csBuilder.addSubtypeConstraint(argumentType, expectedType, position)
                     reportDiagnostic(InapplicableWrongReceiver(expectedType, argumentType))
@@ -382,7 +408,8 @@ internal object ArgumentCheckingProcessor {
 
     private fun ArgumentContext.preprocessSimpleNameReferenceForContextSensitiveResolution(
         atom: ConeResolutionAtomWithPostponedChild,
-        expression: FirPropertyAccessExpression,
+        expression: FirExpression,
+        name: Name,
     ) {
         if (expectedType == null || !LanguageFeature.ContextSensitiveResolutionUsingExpectedType.isEnabled()) {
             atom.useFallbackSubAtom()
@@ -391,7 +418,7 @@ internal object ArgumentCheckingProcessor {
         }
 
         val postponedAtom = ConeSimpleNameForContextSensitiveResolution(
-            expression, expectedType, containingCallCandidate, atom.fallbackSubAtom!!,
+            expression, name, expectedType, containingCallCandidate, atom.fallbackSubAtom!!,
         )
 
         atom.setPostponedSubAtom(postponedAtom)
@@ -616,7 +643,7 @@ internal object ArgumentCheckingProcessor {
             argumentTypeWithInvoke.unwrapLowerBound()
                 .fastCorrespondingSupertypes(expectedFunctionType.typeConstructor())
                 ?.firstOrNull() as? ConeClassLikeType ?: return null
-        }
+        }.withNullability(expectedFunctionType.isMarkedNullable, c.session.typeContext)
 
         val typeArguments =
             functionType.typeArguments.map { it.type ?: c.session.builtinTypes.nullableAnyType.coneType }

@@ -1,10 +1,8 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("test-inputs-check")
-    id("project-tests-convention")
 }
 
 projectTests {
@@ -31,6 +29,7 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
     testRuntimeOnly(testFixtures(project(":compiler:tests-common-new")))
     testImplementation(testFixtures(project(":compiler:ir.serialization.common")))
+    testImplementation(testFixtures(project(":kotlin-util-klib")))
 }
 
 optInToUnsafeDuringIrConstructionAPI()

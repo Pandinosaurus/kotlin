@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.psi.stubs.elements.KtTokenSets
  *
  * Obtain the containing file of any [KtElement] via [KtPureElement.getContainingKtFile].
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 open class KtFile(viewProvider: FileViewProvider, isCompiled: Boolean) : @Suppress("DEPRECATION") KtCommonFile(viewProvider, isCompiled),
     PsiClassOwner {
     /**
@@ -37,6 +38,7 @@ open class KtFile(viewProvider: FileViewProvider, isCompiled: Boolean) : @Suppre
     @Deprecated(
         message = "getPackageFqName should be used instead",
         replaceWith = ReplaceWith("packageFqName.asString()"),
+        level = DeprecationLevel.ERROR,
     )
     override fun getPackageName(): String {
         return packageFqName.asString()

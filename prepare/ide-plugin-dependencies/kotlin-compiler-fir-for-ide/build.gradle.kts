@@ -1,16 +1,17 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
-val firCompilerModules: Array<String> = CompilerModules.firCompilerModules
+val firCommonCompilerModules: Array<String> = CompilerModules.firCommonCompilerModules
+val jvmCompilerModules: Array<String> = CompilerModules.jvmCompilerModules
 
-val excludedFirModules = listOf(
-    ":compiler:fir:raw-fir:light-tree2fir",
+val additionalK1Modules = listOf(
+    ":core:deserialization",
+    ":core:descriptors.jvm",
 )
 
-val projects = firCompilerModules.asList() - excludedFirModules
+val projects = firCommonCompilerModules.asList() + jvmCompilerModules + additionalK1Modules
 
 publishJarsForIde(projects)

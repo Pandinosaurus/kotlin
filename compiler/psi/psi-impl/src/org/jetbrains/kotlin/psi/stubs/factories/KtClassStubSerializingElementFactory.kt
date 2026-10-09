@@ -2,7 +2,6 @@
  * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.psi.stubs.factories
 
@@ -14,7 +13,6 @@ import com.intellij.psi.stubs.StubOutputStream
 import com.intellij.util.io.StringRef
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.psiUtil.getSuperNames
 import org.jetbrains.kotlin.psi.psiUtil.safeFqNameForLazyResolve
 import org.jetbrains.kotlin.psi.stubs.StubUtils.createClassId
@@ -46,7 +44,6 @@ internal object KtClassStubSerializingElementFactory :
         val name = psi.getName()
         val superNames = psi.getSuperNames()
         val isInterface = psi.isInterface()
-        val isLocal = psi.isLocal()
         val isTopLevel = psi.isTopLevel()
         return KotlinClassStubImpl(
             parent = parentStub,
@@ -56,7 +53,6 @@ internal object KtClassStubSerializingElementFactory :
             superNameRefs = Utils.wrapStrings(superNames),
             isInterface = isInterface,
             isClsStubCompiledToJvmDefaultImplementation = false,
-            isLocal = isLocal,
             isTopLevel = isTopLevel,
             kdocText = null,
             valueClassRepresentation = null,
@@ -71,7 +67,6 @@ internal object KtClassStubSerializingElementFactory :
 
         dataStream.writeBoolean(stub.isInterface)
         dataStream.writeBoolean(stub.isClsStubCompiledToJvmDefaultImplementation)
-        dataStream.writeBoolean(stub.isLocal)
         dataStream.writeBoolean(stub.isTopLevel)
         dataStream.serializeKdocText(stub.kdocText)
 
@@ -92,7 +87,6 @@ internal object KtClassStubSerializingElementFactory :
 
         val isInterface = dataStream.readBoolean()
         val isClsStubCompiledToJvmDefaultImplementation = dataStream.readBoolean()
-        val isLocal = dataStream.readBoolean()
         val isTopLevel = dataStream.readBoolean()
         val kdocText = dataStream.deserializeKdocText()
 
@@ -112,7 +106,6 @@ internal object KtClassStubSerializingElementFactory :
             superNameRefs = superNames,
             isInterface = isInterface,
             isClsStubCompiledToJvmDefaultImplementation = isClsStubCompiledToJvmDefaultImplementation,
-            isLocal = isLocal,
             isTopLevel = isTopLevel,
             kdocText = kdocText,
             valueClassRepresentation = valueClassRepresentation,
@@ -120,6 +113,6 @@ internal object KtClassStubSerializingElementFactory :
     }
 
     override fun indexStub(stub: KotlinClassStubImpl, sink: IndexSink) {
-        StubIndexService.getInstance().indexClass(stub, sink)
+        StubIndexService.getInstance()?.indexClass(stub, sink)
     }
 }

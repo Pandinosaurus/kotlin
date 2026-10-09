@@ -1,6 +1,8 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-80492
-// LANGUAGE: +CollectionLiterals
+// LATEST_LV_DIFFERENCE
+// ^^^ AbstractFirLightTreeDiagnosticsWithLatestLanguageVersionTest does not invoke Fir2IR and IR Lowerings
+//     so cannot emit IR diagnostics
 
 class MyList<T> {
     companion object {

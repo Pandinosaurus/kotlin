@@ -19,6 +19,8 @@ public typealias DeprecatedWarningSubClass = ExportedKotlinPackages.org.kotlin.f
 public typealias DeprecatedWarningSubClass_SealedType = ExportedKotlinPackages.org.kotlin.foo.DeprecatedWarningSubClass_SealedType
 public typealias EnumClassA = ExportedKotlinPackages.org.kotlin.foo.EnumClassA
 public typealias EnumClassB = ExportedKotlinPackages.org.kotlin.foo.EnumClassB
+public typealias ExportedContainedInheritor = ExportedKotlinPackages.org.kotlin.foo.ExportedContainedInheritor
+public typealias ExportedContainedInheritor_SealedType = ExportedKotlinPackages.org.kotlin.foo.ExportedContainedInheritor_SealedType
 public typealias InterfaceC = ExportedKotlinPackages.org.kotlin.foo.InterfaceC
 public typealias InterfaceC_SealedType = ExportedKotlinPackages.org.kotlin.foo.InterfaceC_SealedType
 public typealias MyClassA = ExportedKotlinPackages.org.kotlin.foo.MyClassA
@@ -60,6 +62,8 @@ public typealias SealedInterfaceA = ExportedKotlinPackages.org.kotlin.foo.Sealed
 public typealias SealedInterfaceA_SealedType = ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA_SealedType
 public typealias SealedInterfaceB = ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceB
 public typealias SealedInterfaceB_SealedType = ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceB_SealedType
+public typealias SealedInterfaceWithContainedInheritor = ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor
+public typealias SealedInterfaceWithContainedInheritor_SealedType = ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor_SealedType
 public typealias SealedNonOptInClass = ExportedKotlinPackages.org.kotlin.foo.SealedNonOptInClass
 public typealias SealedNonOptInClass_SealedType = ExportedKotlinPackages.org.kotlin.foo.SealedNonOptInClass_SealedType
 @_spi(org$kotlin$foo$OptInA)
@@ -70,10 +74,12 @@ public typealias _InterfaceC = ExportedKotlinPackages.org.kotlin.foo._InterfaceC
 public typealias _QueryResult = ExportedKotlinPackages.org.kotlin.foo._QueryResult
 public typealias _SealedInterfaceA = ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceA
 public typealias _SealedInterfaceB = ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceB
+public typealias _SealedInterfaceWithContainedInheritor = ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceWithContainedInheritor
 public typealias __InterfaceC = ExportedKotlinPackages.org.kotlin.foo.__InterfaceC
 public typealias __QueryResult = ExportedKotlinPackages.org.kotlin.foo.__QueryResult
 public typealias __SealedInterfaceA = ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceA
 public typealias __SealedInterfaceB = ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceB
+public typealias __SealedInterfaceWithContainedInheritor = ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceWithContainedInheritor
 public final class _ExportedKotlinPackages_org_kotlin_foo_QueryResult_AsyncValue: KotlinRuntime.KotlinBase {
     public var value: (any KotlinRuntimeSupport._KotlinBridgeable)? {
         get {
@@ -88,7 +94,7 @@ public final class _ExportedKotlinPackages_org_kotlin_foo_QueryResult_AsyncValue
         { org_kotlin_foo_QueryResult_AsyncValue_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Optional_anyU20KotlinRuntimeSupport__KotlinBridgeable___(__kt, value.map { it in it.__externalRCRef() } ?? nil); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -108,7 +114,7 @@ public final class _ExportedKotlinPackages_org_kotlin_foo_QueryResult_Value: Kot
         { org_kotlin_foo_QueryResult_Value_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Optional_anyU20KotlinRuntimeSupport__KotlinBridgeable___(__kt, value.map { it in it.__externalRCRef() } ?? nil); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -132,7 +138,13 @@ extension ExportedKotlinPackages.org.kotlin.foo.QueryResult {
 @_documentation(visibility: internal)
 extension ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA where Self : ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceA {
     public func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA_SealedType {
-        .unknown(.init(self))
+        switch self {
+        case let value as ExportedKotlinPackages.org.kotlin.foo.ClassE: .classE(.init(value))
+        case let value as ExportedKotlinPackages.org.kotlin.foo.InterfaceC: .interfaceC(.init(value))
+        case let value as ExportedKotlinPackages.org.kotlin.foo.SealedClassA: .sealedClassA(value.sealedType())
+        case let value as ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceB: .sealedInterfaceB(.init(value))
+        default: .unknown(.init(self))
+        }
     }
 }
 extension ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA {
@@ -146,7 +158,21 @@ extension ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceB {
     }
 }
 @_documentation(visibility: internal)
+extension ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor where Self : ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceWithContainedInheritor {
+    public func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor_SealedType {
+        switch self {
+        case let value as ExportedKotlinPackages.org.kotlin.foo.ExportedContainedInheritor: .exportedContainedInheritor(.init(value))
+        default: .unknown(.init(self))
+        }
+    }
+}
+extension ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor {
+}
+@_documentation(visibility: internal)
 extension KotlinRuntimeSupport._KotlinExistential: ExportedKotlinPackages.org.kotlin.foo.QueryResult, ExportedKotlinPackages.org.kotlin.foo.__QueryResult where Wrapped : ExportedKotlinPackages.org.kotlin.foo._QueryResult {
+}
+@_documentation(visibility: internal)
+extension KotlinRuntimeSupport._KotlinExistential: ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor, ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceWithContainedInheritor where Wrapped : ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceWithContainedInheritor {
 }
 @_documentation(visibility: internal)
 extension KotlinRuntimeSupport._KotlinExistential: ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA, ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceA where Wrapped : ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceA {
@@ -159,6 +185,9 @@ extension KotlinRuntimeSupport._KotlinExistential: ExportedKotlinPackages.org.ko
 }
 @_documentation(visibility: internal)
 extension KotlinRuntimeSupport._KotlinExistentialPenBox: ExportedKotlinPackages.org.kotlin.foo._QueryResult {
+}
+@_documentation(visibility: internal)
+extension KotlinRuntimeSupport._KotlinExistentialPenBox: ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceWithContainedInheritor {
 }
 @_documentation(visibility: internal)
 extension KotlinRuntimeSupport._KotlinExistentialPenBox: ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceA {
@@ -211,7 +240,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             self = EnumClassA.allCases[Int(rawValue)]
         }
         public init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer!,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             switch org_kotlin_foo_EnumClassA_ordinal(__externalRCRefUnsafe) {
@@ -221,7 +250,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             default: fatalError()
             }
         }
-        public func __externalRCRef() -> Swift.UnsafeMutableRawPointer! {
+        public func __externalRCRef() -> Swift.UnsafeMutableRawPointer {
             return switch self {
             case .ONE: org_kotlin_foo_EnumClassA_ONE()
             case .TWO: org_kotlin_foo_EnumClassA_TWO()
@@ -271,7 +300,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             self = EnumClassB.allCases[Int(rawValue)]
         }
         public init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer!,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             switch org_kotlin_foo_EnumClassB_ordinal(__externalRCRefUnsafe) {
@@ -281,7 +310,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             default: fatalError()
             }
         }
-        public func __externalRCRef() -> Swift.UnsafeMutableRawPointer! {
+        public func __externalRCRef() -> Swift.UnsafeMutableRawPointer {
             return switch self {
             case .FOUR: org_kotlin_foo_EnumClassB_FOUR()
             case .FIVE: org_kotlin_foo_EnumClassB_FIVE()
@@ -412,6 +441,26 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             }
         }
     }
+    public enum SealedInterfaceWithContainedInheritor_SealedType: KotlinRuntimeSupport.SealedType {
+        case exportedContainedInheritor(ExportedKotlinPackages.org.kotlin.foo.ExportedContainedInheritor_SealedType)
+        case unknown(ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor_SealedType.Unknown)
+        public struct Unknown: KotlinRuntimeSupport.SealedType {
+            public let value: ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor
+            init(
+                _ value: ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor
+            ) {
+                self.value = value
+            }
+        }
+        public var value: ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor {
+            get {
+                switch self {
+                case let .exportedContainedInheritor(type): type.value
+                case let .unknown(type): type.value
+                }
+            }
+        }
+    }
     public enum SealedNonOptInClass_SealedType: KotlinRuntimeSupport.SealedType {
         case nonSealedNonOptInClassA(ExportedKotlinPackages.org.kotlin.foo.NonSealedNonOptInClassA_SealedType)
         @_spi(org$kotlin$foo$OptInA)
@@ -451,6 +500,9 @@ extension ExportedKotlinPackages.org.kotlin.foo {
     public protocol SealedInterfaceB: KotlinRuntime.KotlinBase, ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA, ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceB {
         func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA_SealedType
     }
+    public protocol SealedInterfaceWithContainedInheritor: KotlinRuntime.KotlinBase, ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceWithContainedInheritor {
+        func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor_SealedType
+    }
     @objc(_ExportedKotlinPackages_org_kotlin_foo_InterfaceC)
     public protocol _InterfaceC: ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceA {
     }
@@ -463,6 +515,9 @@ extension ExportedKotlinPackages.org.kotlin.foo {
     @objc(_ExportedKotlinPackages_org_kotlin_foo_SealedInterfaceB)
     public protocol _SealedInterfaceB: ExportedKotlinPackages.org.kotlin.foo._SealedInterfaceA {
     }
+    @objc(_ExportedKotlinPackages_org_kotlin_foo_SealedInterfaceWithContainedInheritor)
+    public protocol _SealedInterfaceWithContainedInheritor {
+    }
     public protocol __InterfaceC: KotlinRuntimeSupport._KotlinBridgeable, ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceA {
     }
     public protocol __QueryResult: KotlinRuntimeSupport._KotlinBridgeable {
@@ -471,6 +526,8 @@ extension ExportedKotlinPackages.org.kotlin.foo {
     }
     public protocol __SealedInterfaceB: KotlinRuntimeSupport._KotlinBridgeable, ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceA {
     }
+    public protocol __SealedInterfaceWithContainedInheritor: KotlinRuntimeSupport._KotlinBridgeable {
+    }
     public final class ClassC: ExportedKotlinPackages.org.kotlin.foo.SealedClassA {
         public init() {
             let __kt = org_kotlin_foo_ClassC_init_allocate()
@@ -478,7 +535,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_ClassC_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -494,7 +551,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_ClassD_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -504,13 +561,13 @@ extension ExportedKotlinPackages.org.kotlin.foo {
         }
     }
     public final class ClassE: KotlinRuntime.KotlinBase, ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA, ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceA {
-        public init() {
+        public override init() {
             let __kt = org_kotlin_foo_ClassE_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { org_kotlin_foo_ClassE_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -527,7 +584,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_DeprecatedErrorSubClass_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -544,7 +601,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_DeprecatedWarningSubClass_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -553,10 +610,26 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             .deprecatedWarningSubClass(.init(self))
         }
     }
+    public final class ExportedContainedInheritor: KotlinRuntime.KotlinBase, ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor, ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceWithContainedInheritor {
+        public override init() {
+            let __kt = org_kotlin_foo_ExportedContainedInheritor_init_allocate()
+            super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
+            { org_kotlin_foo_ExportedContainedInheritor_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
+        }
+        package override init(
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
+            options: KotlinRuntime.KotlinBaseConstructionOptions
+        ) {
+            super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
+        }
+        public func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceWithContainedInheritor_SealedType {
+            .exportedContainedInheritor(.init(self))
+        }
+    }
     public final class MyClassA: KotlinRuntime.KotlinBase {
         open class Inner: ExportedKotlinPackages.org.kotlin.foo.MySealedClass {
             package override init(
-                __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+                __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
                 options: KotlinRuntime.KotlinBaseConstructionOptions
             ) {
                 super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -573,13 +646,13 @@ extension ExportedKotlinPackages.org.kotlin.foo {
                 self.value = value
             }
         }
-        public init() {
+        public override init() {
             let __kt = org_kotlin_foo_MyClassA_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { org_kotlin_foo_MyClassA_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -588,7 +661,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
     public final class MyClassB: KotlinRuntime.KotlinBase {
         open class Inner: ExportedKotlinPackages.org.kotlin.foo.MySealedClass {
             package override init(
-                __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+                __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
                 options: KotlinRuntime.KotlinBaseConstructionOptions
             ) {
                 super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -605,13 +678,13 @@ extension ExportedKotlinPackages.org.kotlin.foo {
                 self.value = value
             }
         }
-        public init() {
+        public override init() {
             let __kt = org_kotlin_foo_MyClassB_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { org_kotlin_foo_MyClassB_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -619,13 +692,17 @@ extension ExportedKotlinPackages.org.kotlin.foo {
     }
     open class MySealedClass: KotlinRuntime.KotlinBase {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         open func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.MySealedClass_SealedType {
-            fatalError("must implement sealedType in subclass")
+            switch self {
+            case let value as ExportedKotlinPackages.org.kotlin.foo.MyClassA.Inner: .myClassAInner(.init(value))
+            case let value as ExportedKotlinPackages.org.kotlin.foo.MyClassB.Inner: .myClassBInner(.init(value))
+            default: fatalError("missing sealedType for \(self)")
+            }
         }
     }
     @available(*, unavailable, message: "Unavailable type(s): ExportedKotlinPackages.org.kotlin.foo.SealedClassDeprecatedError")
@@ -636,7 +713,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_NonDeprecatedSubClassA_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -653,7 +730,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_NonDeprecatedSubClassB_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -670,7 +747,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_NonSealedNonOptInClassA_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -688,7 +765,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_NonSealedNonOptInClassB_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -707,7 +784,7 @@ extension ExportedKotlinPackages.org.kotlin.foo {
             { org_kotlin_foo_NonSealedOptInClass_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -719,13 +796,17 @@ extension ExportedKotlinPackages.org.kotlin.foo {
     }
     open class SealedClassA: KotlinRuntime.KotlinBase, ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA, ExportedKotlinPackages.org.kotlin.foo.__SealedInterfaceA {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         open func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedClassA_SealedType {
-            .unknown(.init(self))
+            switch self {
+            case let value as ExportedKotlinPackages.org.kotlin.foo.ClassC: .classC(.init(value))
+            case let value as ExportedKotlinPackages.org.kotlin.foo.SealedClassB: .sealedClassB(value.sealedType())
+            default: .unknown(.init(self))
+            }
         }
         @_disfavoredOverload
         public final func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedInterfaceA_SealedType {
@@ -734,13 +815,16 @@ extension ExportedKotlinPackages.org.kotlin.foo {
     }
     open class SealedClassB: ExportedKotlinPackages.org.kotlin.foo.SealedClassA {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         open func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedClassB_SealedType {
-            fatalError("must implement sealedType in subclass")
+            switch self {
+            case let value as ExportedKotlinPackages.org.kotlin.foo.ClassD: .classD(.init(value))
+            default: fatalError("missing sealedType for \(self)")
+            }
         }
         @_disfavoredOverload
         public final override func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedClassA_SealedType {
@@ -750,62 +834,78 @@ extension ExportedKotlinPackages.org.kotlin.foo {
     @available(*, unavailable, message: "unavailable")
     open class SealedClassDeprecatedError: KotlinRuntime.KotlinBase {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         @available(*, unavailable, message: "unavailable")
         open func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedClassDeprecatedError_SealedType {
-            .unknown(.init(self))
+            switch self {
+            default: .unknown(.init(self))
+            }
         }
     }
     @available(*, deprecated, message: "deprecated")
     open class SealedClassDeprecatedWarning: KotlinRuntime.KotlinBase {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         @available(*, deprecated, message: "deprecated")
         open func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedClassDeprecatedWarning_SealedType {
-            fatalError("must implement sealedType in subclass")
+            switch self {
+            case let value as ExportedKotlinPackages.org.kotlin.foo.NonDeprecatedSubClassB: .nonDeprecatedSubClassB(.init(value))
+            default: fatalError("missing sealedType for \(self)")
+            }
         }
     }
     open class SealedClassNonDeprecated: KotlinRuntime.KotlinBase {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         open func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedClassNonDeprecated_SealedType {
-            .unknown(.init(self))
+            switch self {
+            case let value as ExportedKotlinPackages.org.kotlin.foo.DeprecatedWarningSubClass: .deprecatedWarningSubClass(.init(value))
+            default: .unknown(.init(self))
+            }
         }
     }
     open class SealedNonOptInClass: KotlinRuntime.KotlinBase {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         open func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedNonOptInClass_SealedType {
-            fatalError("must implement sealedType in subclass")
+            switch self {
+            case let value as ExportedKotlinPackages.org.kotlin.foo.NonSealedNonOptInClassA: .nonSealedNonOptInClassA(.init(value))
+            case let value as ExportedKotlinPackages.org.kotlin.foo.SealedOptInClass: .sealedOptInClass(value.sealedType())
+            default: fatalError("missing sealedType for \(self)")
+            }
         }
     }
     @_spi(org$kotlin$foo$OptInA)
     open class SealedOptInClass: ExportedKotlinPackages.org.kotlin.foo.SealedNonOptInClass {
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
         @_spi(org$kotlin$foo$OptInA)
         open func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedOptInClass_SealedType {
-            fatalError("must implement sealedType in subclass")
+            switch self {
+            case let value as ExportedKotlinPackages.org.kotlin.foo.NonSealedNonOptInClassB: .nonSealedNonOptInClassB(.init(value))
+            case let value as ExportedKotlinPackages.org.kotlin.foo.NonSealedOptInClass: .nonSealedOptInClass(.init(value))
+            default: fatalError("missing sealedType for \(self)")
+            }
         }
         @_disfavoredOverload
         public final override func sealedType() -> ExportedKotlinPackages.org.kotlin.foo.SealedNonOptInClass_SealedType {
@@ -850,6 +950,14 @@ extension ExportedKotlinPackages.org.kotlin.foo {
         public let value: ExportedKotlinPackages.org.kotlin.foo.DeprecatedWarningSubClass
         init(
             _ value: ExportedKotlinPackages.org.kotlin.foo.DeprecatedWarningSubClass
+        ) {
+            self.value = value
+        }
+    }
+    public struct ExportedContainedInheritor_SealedType: KotlinRuntimeSupport.SealedType {
+        public let value: ExportedKotlinPackages.org.kotlin.foo.ExportedContainedInheritor
+        init(
+            _ value: ExportedKotlinPackages.org.kotlin.foo.ExportedContainedInheritor
         ) {
             self.value = value
         }

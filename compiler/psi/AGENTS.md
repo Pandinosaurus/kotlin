@@ -16,7 +16,8 @@ Source Code → PSI Tree (syntax) → Analysis API (semantics) → Symbols
 
 ## Module Structure
 
-- `psi-api/` - Core PSI interfaces (`KtElement`, `KtExpression`, `KtDeclaration`)
+- `psi-api/` - Core PSI interfaces (`KtElement`, `KtExpression`, `KtDeclaration`), plus the platform interfaces the code hosting
+  the PSI implements: the binary Kotlin file types and their services in `org.jetbrains.kotlin.analysis.decompiler`
 - `psi-impl/` - Implementations and stubs for incremental compilation
 - `psi-frontend-utils/` - Compiler integration utilities
 - `psi-utils/` - Helper utilities
@@ -83,6 +84,9 @@ Converting Java PSI classes to Kotlin is NOT always possible. Before attempting:
 - `@KtExperimentalApi` — Experimental public API
 - `@KtImplementationDetail` — Internal implementation
 - `@KtNonPublicApi` — JetBrains-internal APIs
+- `@KtIdeApi` — APIs designed for and internal to the Kotlin IntelliJ plugin
+- `@KtPlatformInterface` — APIs forming a contract with the Analysis API engine and its platforms (stub building, element types, indexing)
+- `@KtSpi`/`@KtSpiExtensionPoint` — Service provider interfaces and their members, designed to be implemented rather than called
 - `@KtPsiInconsistencyHandling` — Code handling inconsistent PSI states
 
 **Java-Kotlin interop:** See the "Java-Kotlin Interoperability" section in [api-development.md](../../analysis/docs/contribution-guide/api-development.md).

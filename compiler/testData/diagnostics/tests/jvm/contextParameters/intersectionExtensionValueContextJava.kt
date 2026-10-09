@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LANGUAGE: +ContextParameters
 // IGNORE_ERRORS
 // FILE: JavaInterface.java
@@ -17,15 +17,15 @@ interface KotlinContextAndExtensionInterface {
 }
 
 // FILE: test.kt
-<!CONFLICTING_INHERITED_JVM_DECLARATIONS!>interface Intersection : KotlinContextAndExtensionInterface, JavaInterface<!>
+interface <!CONFLICTING_INHERITED_JVM_DECLARATIONS!>Intersection<!> : KotlinContextAndExtensionInterface, JavaInterface
 
 interface IntersectionWithOverride : KotlinContextAndExtensionInterface, JavaInterface {
     context(a: String)
     override val String.foo: String
-        <!ACCIDENTAL_OVERRIDE!>get() = ""<!>
+        <!ACCIDENTAL_OVERRIDE!>get()<!> = ""
 
-    context(a: String)
-    override <!ACCIDENTAL_OVERRIDE!>fun String.bar(b: String): String<!>
+    <!ACCIDENTAL_OVERRIDE!>context(a: String)
+    override fun String.bar(b: String): String<!>
 }
 
 /* GENERATED_FIR_TAGS: funWithExtensionReceiver, functionDeclaration, functionDeclarationWithContext, getter,

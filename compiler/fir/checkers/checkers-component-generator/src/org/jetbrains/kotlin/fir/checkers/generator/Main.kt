@@ -106,6 +106,7 @@ fun main(args: Array<String>) {
             }
             alias<FirFunctionTypeRef>("FunctionTypeRefChecker")
             alias<FirIntersectionTypeRef>("IntersectionTypeRefChecker")
+            alias<FirUnionTypeRef>("UnionTypeRefChecker")
         }
 
         val expressionPackage = "$basePackage.checkers.expression"
@@ -113,7 +114,6 @@ fun main(args: Array<String>) {
             alias<FirStatement>("BasicExpressionChecker", false).let {
                 visitAlso<FirExpression>(it)
                 visitAlso<FirVarargArgumentsExpression>(it)
-                visitAlso<FirFunctionTypeConversionExpression>(it)
                 visitAlso<FirWrappedExpression>(it)
                 visitAlso<FirWrappedArgumentExpression>(it)
                 visitAlso<FirSpreadArgumentExpression>(it)
@@ -125,6 +125,7 @@ fun main(args: Array<String>) {
                 visitAlso<FirCheckedSafeCallSubject>(it)
                 visitAlso<FirErrorExpression>(it)
                 visitAlso<FirQualifiedErrorAccessExpression>(it)
+                visitAlso<FirNumericClassConversion>(it)
             }
             alias<FirQualifiedAccessExpression>("QualifiedAccessExpressionChecker")
             alias<FirCall>("CallChecker", false).let {
@@ -179,6 +180,7 @@ fun main(args: Array<String>) {
             alias<FirCollectionLiteral>("CollectionLiteralChecker")
             alias<FirClassReferenceExpression>("ClassReferenceExpressionChecker")
             alias<FirInaccessibleReceiverExpression>("InaccessibleReceiverChecker")
+            alias<FirFunctionTypeConversionExpression>("FunctionTypeConversionExpressionChecker")
         }
 
         val declarationPackage = "$basePackage.checkers.declaration"
@@ -218,7 +220,9 @@ fun main(args: Array<String>) {
             alias<FirEnumEntry>("EnumEntryChecker")
             alias<FirAnonymousObject>("AnonymousObjectChecker")
             alias<FirAnonymousInitializer>("AnonymousInitializerChecker")
-            alias<FirReceiverParameter>("ReceiverParameterChecker")
+            alias<FirReceiverParameter>("ReceiverParameterChecker").let {
+                visitAlso<FirScriptReceiverParameter>(it)
+            }
 
             additional(
                 fieldName = "controlFlowAnalyserCheckers",

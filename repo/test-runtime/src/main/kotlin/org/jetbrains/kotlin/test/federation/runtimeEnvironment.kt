@@ -1,0 +1,61 @@
+/*
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
+ */
+
+package org.jetbrains.kotlin.testFederation
+
+import org.jetbrains.kotlin.testFederation.TestSubset.*
+
+internal const val TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE_KEY = "test.federation.auto.smoke.test.percentage"
+internal const val TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE_ENV_KEY = "TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE"
+internal const val TEST_FEDERATION_SUBSETS_KEY = "test.federation.subsets"
+internal const val TEST_FEDERATION_SUBSETS_ENV_KEY = "TEST_FEDERATION_SUBSETS"
+const val TEST_FEDERATION_NIGHTLY_KEY = "test.federation.nightly"
+const val TEST_FEDERATION_NIGHTLY_ENV_KEY = "TEST_FEDERATION_NIGHTLY"
+const val TEST_FEDERATION_DOMAINS_KEY = "test.federation.domains"
+const val TEST_FEDERATION_DOMAINS_ENV_KEY = "TEST_FEDERATION_DOMAINS"
+
+/**
+ * Use this property to shrink dynamic variants of your tests unless the `AllTests` subset is requested.
+ */
+val testFederationAllTestsRequested: Boolean
+    get() = AllTests in testFederationSubsets
+
+/**
+ * Provides the list of [Domain]s for the test task currently being executed.
+ */
+val testFederationDomains: Set<Domain> =
+    resolve(TEST_FEDERATION_DOMAINS_KEY, TEST_FEDERATION_DOMAINS_ENV_KEY)?.let(Domain::fromArgumentString).orEmpty()
+
+/**
+ * Provides the requested test subsets.
+ * Defaults to `AllTests` when [TEST_FEDERATION_SUBSETS_KEY] is not explicitly configured.
+ */
+internal val testFederationSubsets: Set<TestSubset> =
+    resolve(TEST_FEDERATION_SUBSETS_KEY, TEST_FEDERATION_SUBSETS_ENV_KEY)?.toTestSubsets() ?: setOf(AllTests)
+
+private fun String.toTestSubsets(): Set<TestSubset> {
+    val trimmed = trim()
+    return when {
+        trimmed.isBlank() -> emptySet()
+        else -> trimmed.split(",").map { TestSubset.valueOf(it.trim()) }.toSet()
+    }
+}
+
+/**
+ * Reports whether nightly tests are enabled in the runtime configuration. Defaults to `false` when not configured.
+ * The Gradle convention supplies this value and separately excludes nightly tags when nightly tests are disabled.
+ * Local Gradle runs enable nightly tests by default; other test filters still apply.
+ */
+val testFederationNightly: Boolean = run {
+    resolve(TEST_FEDERATION_NIGHTLY_KEY, TEST_FEDERATION_NIGHTLY_ENV_KEY)?.toBoolean() ?: false
+}
+
+internal val autoSmokeTestPercentage: Int = run {
+    resolve(TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE_KEY, TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE_ENV_KEY)?.toInt() ?: -1
+}
+
+private fun resolve(key: String, envKey: String): String? =
+    System.getProperty(key) ?: System.getenv(envKey)
+

@@ -71,3 +71,17 @@ typealias TA = A
 companion fun TA.aliasFun() = "aliasFun"
 companion fun TA.aliasToClassFun() = "aliasToClassFun"
 companion fun B.classToAliasFun() = "classToAliasFun"
+
+open class Grandparent {}
+open class BaseClass : Grandparent() {}
+interface Interface {}
+class Derived : BaseClass(), Interface {
+   companion {
+       fun funMovedToParentClass() = "moved.v1"
+       val propMovedToParentClass = 42
+       fun funMovedToGrandparentClass() = "moved.v1"
+       val propMovedToGrandparentClass = 42
+       fun funMovedToParentInterface() = "moved.v1"
+       val propMovedToParentInterface = 42
+   }
+}

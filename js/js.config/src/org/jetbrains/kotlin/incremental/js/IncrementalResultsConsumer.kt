@@ -16,16 +16,12 @@
 
 package org.jetbrains.kotlin.incremental.js
 
+import org.jetbrains.kotlin.name.CallableId
 import java.io.File
 
 interface IncrementalResultsConsumer {
-    /** processes new header metadata (serialized [JsProtoBuf.Header]) */
-    fun processHeader(headerMetadata: ByteArray)
-
     /** processes new package part metadata and binary tree for compiled source file */
-    fun processPackagePart(sourceFile: File, packagePartMetadata: ByteArray, binaryAst: ByteArray, inlineData: ByteArray)
-
-    fun processPackageMetadata(packageName: String, metadata: ByteArray)
+    fun processPackagePart(sourceFile: File, packagePartMetadata: ByteArray)
 
     fun processIrFile(
         sourceFile: File,
@@ -36,9 +32,26 @@ interface IncrementalResultsConsumer {
         declarations: ByteArray,
         bodies: ByteArray,
         fqn: ByteArray,
-        fileMetadata: ByteArray,
         debugInfo: ByteArray?,
         fileEntries: ByteArray?,
+    )
+
+    fun processIrInlineFile(
+        sourceFile: File,
+        fileData: ByteArray,
+        types: ByteArray,
+        signatures: ByteArray,
+        strings: ByteArray,
+        declarations: ByteArray,
+        bodies: ByteArray,
+        fqn: ByteArray,
+        debugInfo: ByteArray?,
+        fileEntries: ByteArray?,
+    )
+
+    fun processIrInlineIds(
+        sourceFile: File,
+        ids: List<CallableId>,
     )
 }
 
@@ -48,25 +61,11 @@ interface IncrementalNextRoundChecker {
 }
 
 open class IncrementalResultsConsumerImpl : IncrementalResultsConsumer {
-    lateinit var headerMetadata: ByteArray
-        private set
-
     val packageParts: Map<File, TranslationResultValue>
         field = hashMapOf<File, TranslationResultValue>()
 
-    override fun processHeader(headerMetadata: ByteArray) {
-        this.headerMetadata = headerMetadata
-    }
-
-    override fun processPackagePart(sourceFile: File, packagePartMetadata: ByteArray, binaryAst: ByteArray, inlineData: ByteArray) {
-        packageParts.put(sourceFile, TranslationResultValue(packagePartMetadata, binaryAst, inlineData))
-    }
-
-    val packageMetadata: Map<String, ByteArray>
-        field = hashMapOf<String, ByteArray>()
-
-    override fun processPackageMetadata(packageName: String, metadata: ByteArray) {
-        packageMetadata[packageName] = metadata
+    override fun processPackagePart(sourceFile: File, packagePartMetadata: ByteArray) {
+        packageParts.put(sourceFile, TranslationResultValue(packagePartMetadata))
     }
 
 //    class IrFileData(fileData: ByteArray, symbols: ByteArray, types: ByteArray, strings: ByteArray, bodies: ByteArray, declarations: ByteArray)
@@ -82,12 +81,60 @@ open class IncrementalResultsConsumerImpl : IncrementalResultsConsumer {
         declarations: ByteArray,
         bodies: ByteArray,
         fqn: ByteArray,
-        fileMetadata: ByteArray,
         debugInfo: ByteArray?,
         fileEntries: ByteArray?,
     ) {
         irFileData[sourceFile] = IrTranslationResultValue(
-            fileData, types, signatures, strings, declarations, bodies, fqn, fileMetadata, debugInfo, fileEntries
+            fileData, types, signatures, strings, declarations, bodies, fqn, debugInfo, fileEntries
         )
+    }
+
+    val irInlineFileData: Map<File, IrTranslationResultValue>
+        field = hashMapOf<File, IrTranslationResultValue>()
+
+    override fun processIrInlineFile(
+        sourceFile: File,
+        fileData: ByteArray,
+        types: ByteArray,
+        signatures: ByteArray,
+        strings: ByteArray,
+        declarations: ByteArray,
+        bodies: ByteArray,
+        fqn: ByteArray,
+        debugInfo: ByteArray?,
+        fileEntries: ByteArray?,
+    ) {
+        irInlineFileData[sourceFile] = IrTranslationResultValue(
+            fileData, types, signatures, strings, declarations, bodies, fqn, debugInfo, fileEntries
+        )
+    }
+
+    val inlineFunctionRepresentationData: Map<File, List<IrInlineFunctionRepresentation>>
+        field = hashMapOf<File, List<IrInlineFunctionRepresentation>>()
+
+    override fun processIrInlineIds(
+        sourceFile: File,
+        ids: List<CallableId>,
+    ) {
+        if (ids.isEmpty()) return
+        val fileHash = irInlineFileData[sourceFile]?.hash() ?: error("There is no inline data associated with $sourceFile")
+        inlineFunctionRepresentationData[sourceFile] = buildMap {
+            ids.forEach { callableId -> getOrPut(callableId) { mutableListOf() }.add(fileHash) }
+        }.map { IrInlineFunctionRepresentation(it.key, it.value) }
+    }
+
+    private fun IrTranslationResultValue.hash(): Long {
+        val hashCodes = listOfNotNull<Long>(
+            this.fileData.contentHashCode().toLong(),
+            this.types.contentHashCode().toLong(),
+            this.signatures.contentHashCode().toLong(),
+            this.strings.contentHashCode().toLong(),
+            this.declarations.contentHashCode().toLong(),
+            this.bodies.contentHashCode().toLong(),
+            this.fqn.contentHashCode().toLong(),
+            this.debugInfo?.contentHashCode()?.toLong(),
+            this.fileEntries?.contentHashCode()?.toLong(),
+        )
+        return hashCodes.reduce { acc, hashCode -> acc * 31 + hashCode }
     }
 }

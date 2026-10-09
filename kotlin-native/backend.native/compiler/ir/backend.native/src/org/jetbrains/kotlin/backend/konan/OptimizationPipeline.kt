@@ -253,7 +253,7 @@ abstract class LlvmOptimizationPipeline(
     private val targetMachine: LLVMTargetMachineRef by targetMachineDelegate
 
     fun execute(llvmModule: LLVMModuleRef) {
-        initLLVMOnce()
+        LLVMKotlinInitializeTargets() // makes sure that the targets are initialized once
         executeCustomPreprocessing(config, llvmModule)
         val passDescription = passes.joinToString(",")
         logger?.log {
@@ -299,24 +299,6 @@ abstract class LlvmOptimizationPipeline(
             LLVMDisposeTargetMachine(targetMachine)
         }
         arena.clear()
-    }
-
-    companion object {
-        private var isInitialized: Boolean = false
-
-        private fun initLLVMTargets() {
-            memScoped {
-                LLVMKotlinInitializeTargets()
-            }
-        }
-
-        @Synchronized
-        fun initLLVMOnce() {
-            if (!isInitialized) {
-                initLLVMTargets()
-                isInitialized = true
-            }
-        }
     }
 }
 
@@ -418,6 +400,12 @@ class ModuleCallsCheckerPipeline(config: LlvmPipelineConfig, performanceManager:
         LlvmOptimizationPipeline(config, performanceManager, logger) {
     override val pipelineName = "llvm-calls-checker-module"
     override val passes = listOf("kotlin-calls-checker-module")
+}
+
+class CallsCheckerPipeline(config: LlvmPipelineConfig, performanceManager: PerformanceManager?, logger: LoggingContext? = null) :
+        LlvmOptimizationPipeline(config, performanceManager, logger) {
+    override val pipelineName = "llvm-calls-checker"
+    override val passes = listOf("function(kotlin-calls-checker)")
 }
 
 internal fun RelocationModeFlags.currentRelocationMode(context: NativeBackendPhaseContext): RelocationModeFlags.Mode =

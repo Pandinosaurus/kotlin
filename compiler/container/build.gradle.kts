@@ -1,10 +1,8 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("test-inputs-check")
-    id("project-tests-convention")
 }
 
 dependencies {
@@ -29,7 +27,6 @@ sourceSets {
 
 optInToK1Deprecation()
 
-testsJar {}
 
 projectTests {
     testTask()

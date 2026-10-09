@@ -24,6 +24,8 @@ import org.jetbrains.kotlin.gradle.plugin.konan.KonanCliRunnerIsolatedClassLoade
 import org.jetbrains.kotlin.gradle.plugin.konan.prepareAsOutput
 import org.jetbrains.kotlin.gradle.plugin.konan.registerIsolatedClassLoadersServiceIfAbsent
 import org.jetbrains.kotlin.gradle.plugin.konan.runKonanTool
+import org.jetbrains.kotlin.isAppleTargetName
+import org.jetbrains.kotlin.isWholeXcodeProvisioningEnabled
 import org.jetbrains.kotlin.konan.target.PlatformManager
 import org.jetbrains.kotlin.nativeDistribution.NativeDistribution
 import org.jetbrains.kotlin.nativeDistribution.asNativeDistribution
@@ -53,6 +55,10 @@ open class KonanCacheTask @Inject constructor(
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)
     val klib: DirectoryProperty = objectFactory.directoryProperty()
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    val klibFiles: ConfigurableFileCollection = objectFactory.fileCollection()
 
     @get:Input
     val target: Property<String> = objectFactory.property(String::class.java)
@@ -94,6 +100,12 @@ open class KonanCacheTask @Inject constructor(
     @get:Input
     val withOptimizations: Property<Boolean> = objectFactory.property(Boolean::class.java)
 
+    @get:Input
+    val useProvisionedXcode: Property<Boolean> = objectFactory.property(Boolean::class.java)
+            .convention(project.isWholeXcodeProvisioningEnabled()
+                    .let { wholeXcodeProvisioningEnabled -> target.map { wholeXcodeProvisioningEnabled && isAppleTargetName(it) } }
+            )
+
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
     @Suppress("unused") // used only by Gradle machinery via reflection.
@@ -120,11 +132,18 @@ open class KonanCacheTask @Inject constructor(
                 add("-Xbinary=enableReleaseBinaryCache=true")
             } else {
                 add("-g")
+                add("-ea") // The Gradle plugin enables assertions for debuggable binaries.
             }
             add("-target")
             add(target.get())
             add("-produce")
             add("static_cache")
+            add("-nostdlib") // the stdlib must be passed explicitly via `klibFiles`
+            add("-no-default-libs") // the necessary platform libs must be passed explicitly via `klibFiles`
+            klibFiles.forEach {
+                add("-library")
+                add(it.canonicalPath)
+            }
             add("-Xadd-cache=${klibFile.absolutePath}")
             add("-Xcache-directory=${cacheDirectory.get().asFile.absolutePath}")
             PlatformManager(compilerDistribution.get().root.asFile.absolutePath).apply {
@@ -133,6 +152,9 @@ open class KonanCacheTask @Inject constructor(
             add("-Xdebug-prefix-map=${cacheDirectory.get().asFile.absolutePath}=out")
             if (makePerFileCache.get()) {
                 add("-Xmake-per-file-cache")
+            }
+            if (useProvisionedXcode.get()) {
+                add("-Xoverride-konan-properties=useProvisionedXcode=true")
             }
         }
         val workQueue = workerExecutor.noIsolation()

@@ -9,7 +9,6 @@ description = "Kotlin Compiler"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     // HACK: java plugin makes idea import dependencies on this project as source (with empty sources however),
     // this prevents reindexing of kotlin-compiler.jar after build on every change in compiler modules
@@ -23,6 +22,16 @@ val fatJarContents = configurations.create("fatJarContents") {
     isCanBeResolved = true
     isCanBeConsumed = false
     attributes {
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+    }
+}
+val compilerSources = configurations.create("compilerSources") {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+        attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.SOURCES))
         attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
     }
 }
@@ -106,6 +115,7 @@ val distLibraryProjects = listOfNotNull(
 
 val distCompilerPluginProjects = listOf(
     ":kotlin-allopen-compiler-plugin",
+    ":kotlin-atomicfu-compiler-plugin",
     ":plugins:parcelize:parcelize-compiler",
     ":plugins:parcelize:parcelize-runtime",
     ":kotlin-noarg-compiler-plugin",
@@ -135,7 +145,6 @@ configurations.all {
 
 dependencies {
     api(kotlinStdlib("jdk8"))
-    api(project(":kotlin-script-runtime"))
     api(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
     api(libs.kotlinx.coroutines.core)
     api(project(":compiler:build-tools:kotlin-build-tools-api"))
@@ -145,9 +154,11 @@ dependencies {
     compilerVersion(project(":compiler:compiler.version"))
     proguardLibraries(project(":compiler:compiler.version"))
     CompilerModules.compilerModules
-        .filter { it != ":compiler:compiler.version" } // Version will be added directly to the final jar excluding proguard and relocation
         .forEach {
-            fatJarContents(project(it)) { isTransitive = false }
+            compilerSources(project(it)) { isTransitive = false }
+            if (it != ":compiler:compiler.version") { // Version will be added directly to the final jar excluding proguard and relocation
+                fatJarContents(project(it)) { isTransitive = false }
+            }
         }
 
     libraries(kotlinStdlib("jdk8"))
@@ -197,12 +208,12 @@ dependencies {
     buildNumber(project(":prepare:build.version", configuration = "buildVersion"))
 
     fatJarContents(commonDependency("javax.inject"))
-    fatJarContents(variantOf(libs.jline) { classifier("jdk8") })
     fatJarContents(commonDependency("org.fusesource.jansi", "jansi"))
     fatJarContents(protobufFull())
     fatJarContents(commonDependency("com.google.code.findbugs", "jsr305"))
     fatJarContents(libs.vavr)
     fatJarContents(commonDependency("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm")) { isTransitive = false }
+    fatJarContents(project(":kotlin-tooling-core")) { isTransitive = false }
 
     fatJarContents(intellijCore())
     fatJarContents(commonDependency("org.jetbrains.intellij.deps.jna:jna")) { isTransitive = false }
@@ -212,6 +223,7 @@ dependencies {
     fatJarContents(libs.intellij.asm) { isTransitive = false }
     fatJarContents(libs.guava) { isTransitive = false }
     fatJarContents(libs.guava.failureaccess) { isTransitive = false }
+    fatJarContents(libs.opentelemetry.api) { isTransitive = false }
     //Gson is needed for kotlin-build-statistics. Build statistics could be enabled for JPS and Gradle builds. Gson will come from inteliij or KGP.
     proguardLibraries(commonDependency("com.google.code.gson:gson")) { isTransitive = false }
 
@@ -313,7 +325,6 @@ val proguard = tasks.register<CacheableProguardTask>("proguard") {
             !org/apache/log4j/net/SMTP*,
             !org/apache/log4j/or/jms/MessageRenderer*,
             !org/jdom/xpath/Jaxen*,
-            !org/jline/builtins/ssh/**,
             !org/mozilla/javascript/xml/impl/xmlbeans/**,
             !net/sf/cglib/**,
             !META-INF/maven**,
@@ -354,7 +365,7 @@ val proguard = tasks.register<CacheableProguardTask>("proguard") {
 }
 
 val pack: TaskProvider<out DefaultTask> = if (kotlinBuildProperties.proguard) proguard else packCompiler
-val distDir = rootProject.extra["distDir"] as String
+val distDir = "$rootDir/dist"
 
 val jar = runtimeJar {
     dependsOn(pack)
@@ -380,13 +391,7 @@ val jar = runtimeJar {
 }
 
 sourcesJar {
-    from {
-        CompilerModules.compilerModules.map {
-            project(it).mainSourceSet.allSource
-        }
-    }
-
-    dependsOn(":compiler:fir:checkers:generateCheckersComponents", ":compiler:ir.tree:generateTree")
+    addEmbeddedSources("compilerSources")
 }
 
 javadocJar()

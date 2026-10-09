@@ -59,7 +59,7 @@ fun box() {
     }
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:52 box:
 // test.kt:53 box: mainVar:int=1:int
 // library.kt:38 box: mainVar:int=1:int, $i$f$flaf\1\53:int=0:int
@@ -162,9 +162,9 @@ fun box() {
 // library.kt:35 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=0:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (1, 1)
 // library.kt:30 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=0:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (10, 10, 4, 4, 4)
 // library.kt:20 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=0:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (33, 33)
-// library.kt:21 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (12, 12, 12, 12, 12, 12, 13, 13)
+// library.kt:21 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (12, 12, 12, 13, 13)
 // library.kt:31 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (1, 1)
-// library.kt:23 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (8, 8, 8, 8, 8, 8, 9, 9)
+// library.kt:23 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (8, 8, 8, 9, 9)
 // library.kt:31 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (1, 1, 1)
 // library.kt:25 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (1, 1)
 // library.kt:7 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=0:i32, $barVar:i32=0:i32, $barLamdbdaVar:i32=0:i32 (10, 10, 4, 4, 4)
@@ -196,9 +196,9 @@ fun box() {
 // library.kt:35 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (1, 1)
 // library.kt:30 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (10, 10, 4, 4, 4)
 // library.kt:20 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (33, 33)
-// library.kt:21 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (12, 12, 12, 12, 12, 12, 13, 13)
+// library.kt:21 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (12, 12, 12, 13, 13)
 // library.kt:31 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (1, 1)
-// library.kt:23 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (8, 8, 8, 8, 8, 8, 9, 9)
+// library.kt:23 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (8, 8, 8, 9, 9)
 // library.kt:31 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (1, 1, 1)
 // library.kt:25 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (1, 1)
 // library.kt:7 $box: $mainVar:i32=1:i32, $flafVar:i32=1:i32, $fooVar:i32=1:i32, $bazVar:i32=3:i32, $baz1Var:i32=3:i32, $baz2Var:i32=3:i32, $baz1LambdaVar:i32=1:i32, $baz1LambdaVar1:i32=1:i32, $fooLamdbdaVar:i32=2:i32, $barVar:i32=2:i32, $barLamdbdaVar:i32=3:i32 (10, 10, 4, 4, 4)

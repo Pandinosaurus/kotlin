@@ -5,20 +5,15 @@
 
 package org.jetbrains.kotlin.fir.backend.generators
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.fir.backend.*
-import org.jetbrains.kotlin.fir.backend.utils.ConversionTypeOrigin
-import org.jetbrains.kotlin.fir.backend.utils.convertWithOffsets
-import org.jetbrains.kotlin.fir.backend.utils.createWhenForSafeFall
-import org.jetbrains.kotlin.fir.backend.utils.varargElementType
-import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
-import org.jetbrains.kotlin.fir.declarations.FirConstructor
-import org.jetbrains.kotlin.fir.declarations.FirFunction
-import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration
-import org.jetbrains.kotlin.fir.declarations.isRestrictSuspensionReceiver
+import org.jetbrains.kotlin.fir.backend.utils.*
+import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.*
 import org.jetbrains.kotlin.fir.expressions.*
+import org.jetbrains.kotlin.fir.isSubstitutionOrIntersectionOverride
 import org.jetbrains.kotlin.fir.references.FirResolvedCallableReference
 import org.jetbrains.kotlin.fir.render
 import org.jetbrains.kotlin.fir.resolve.FirSamResolver
@@ -29,26 +24,28 @@ import org.jetbrains.kotlin.fir.resolve.substitution.AbstractConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.resolve.typeParameterSymbol
-import org.jetbrains.kotlin.fir.types.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirLocalPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
 import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
-import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
-import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
-import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
-import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.util.implicitCastIfNeededTo
+import org.jetbrains.kotlin.ir.util.isKMutableProperty
 import org.jetbrains.kotlin.ir.util.isSuspendFunction
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
+import org.jetbrains.kotlin.utils.addToStdlib.runUnless
 
 /**
  * A generator that converts callable references or arguments that needs an adapter in between. This covers:
@@ -61,6 +58,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.runIf
  */
 class AdapterGenerator(
     private val c: Fir2IrComponents,
+    private val visitor: Fir2IrVisitor,
     private val conversionScope: Fir2IrConversionScope
 ) : Fir2IrComponents by c {
 
@@ -124,18 +122,44 @@ class AdapterGenerator(
         val callableReferenceAccess: FirCallableReferenceAccess,
         val adaptedType: IrSimpleType,
         explicitReceiverExpression: IrExpression?,
+        val startOffset: Int,
+        val endOffset: Int,
     ) {
         val firAdaptee: FirCallableDeclaration =
             callableReferenceAccess.toResolvedCallableReference()?.resolvedSymbol?.fir as FirCallableDeclaration
         val substitutor: ConeSubstitutor =
             callableReferenceAccess.createConeSubstitutorFromTypeArguments(session) ?: ConeSubstitutor.Empty
-        val boundDispatchReceiver: IrExpression? =
-            callableReferenceAccess.findBoundReceiver(explicitReceiverExpression, isDispatch = true)
+        val boundDispatchReceiver: IrExpression? = when {
+            // Dispatch receivers for other snippets' declarations are injected later by ReplSnippetToClassTransformer.
+            conversionScope.isFromAnotherReplSnippet(firAdaptee.symbol, session) -> IrErrorCallExpressionImpl(
+                UNDEFINED_OFFSET, UNDEFINED_OFFSET, builtins.nothingType,
+                description = "No REPL snippet class instance."
+            )
+            else -> findBoundReceiver(explicitReceiverExpression, isDispatch = true)
+        }
         val boundExtensionReceiver: IrExpression? =
-            callableReferenceAccess.findBoundReceiver(explicitReceiverExpression, isDispatch = false)
+            findBoundReceiver(explicitReceiverExpression, isDispatch = false)
 
         val boundReceiver: IrExpression? get() = boundDispatchReceiver ?: boundExtensionReceiver
         val hasBoundReceiver: Boolean get() = boundDispatchReceiver != null || boundExtensionReceiver != null
+
+        val origin = runIf(callableReferenceAccess.source?.kind is KtFakeSourceElementKind.DelegatedPropertyAccessor) {
+            IrStatementOrigin.PROPERTY_REFERENCE_FOR_DELEGATE
+        }
+        val isForLocalDelegate = firAdaptee.symbol.let { it is FirLocalPropertySymbol && it.delegate != null }
+
+        private fun findBoundReceiver(
+            explicitReceiverExpression: IrExpression?,
+            isDispatch: Boolean,
+        ): IrExpression? {
+            val firReceiver = if (isDispatch) callableReferenceAccess.dispatchReceiver else callableReferenceAccess.extensionReceiver
+            if (firReceiver == null) {
+                return null
+            }
+            with(callGenerator) {
+                return callableReferenceAccess.findIrReceiver(explicitReceiverExpression, isDispatch)
+            }
+        }
     }
 
     internal fun generateRichFunctionReference(
@@ -143,21 +167,19 @@ class AdapterGenerator(
         type: IrSimpleType,
         explicitReceiverExpression: IrExpression?,
         irFunctionSymbol: IrFunctionSymbol,
-        contextArguments: List<IrExpression>
-    ): IrRichFunctionReference {
+    ): IrRichFunctionReference = callableReferenceAccess.convertWithOffsets { startOffset, endOffset ->
         val context =
-            AdaptedCallableReferenceContext(callableReferenceAccess, type, explicitReceiverExpression)
-        val function = context.firAdaptee as FirFunction
-        return callableReferenceAccess.convertWithOffsets { startOffset, endOffset ->
+            AdaptedCallableReferenceContext(callableReferenceAccess, type, explicitReceiverExpression, startOffset, endOffset)
+        with(context) {
+            val function = firAdaptee as FirFunction
+
             IrRichFunctionReferenceImpl(
                 startOffset, endOffset, type,
                 reflectionTargetSymbol = irFunctionSymbol,
                 overriddenFunctionSymbol = findInvokeSymbol(callableReferenceAccess.resolvedType as ConeClassLikeType)!!,
-                invokeFunction = context.buildCallableReferenceAdapterFunction(
-                    startOffset,
-                    endOffset,
-                    adapteeSymbol = irFunctionSymbol,
-                ),
+                invokeFunction = buildCallableReferenceAdapterFunction(isSetter = false, createCall = { adapterFunction ->
+                    createAdapteeCallForCallableReference(irFunctionSymbol, adapterFunction, isSetter = false)
+                }),
                 hasUnitConversion = needCoercionToUnit(type, function),
                 hasSuspendConversion = needSuspendConversion(type, function),
                 hasVarargConversion = (callableReferenceAccess.calleeReference as? FirResolvedCallableReference)?.mappedArguments
@@ -166,13 +188,7 @@ class AdapterGenerator(
                     function.receiverParameter?.typeRef?.coneType?.isRestrictSuspensionReceiver() == true ||
                             function.dispatchReceiverType?.isRestrictSuspensionReceiver() == true ||
                             function.contextParameters.any { it.returnTypeRef.coneType.isRestrictSuspensionReceiver() },
-            ).apply {
-                for (contextArgument in contextArguments) {
-                    boundValues.add(contextArgument)
-                }
-
-                context.boundReceiver?.let(boundValues::add)
-            }
+            ).apply { bindValues() }
         }
     }
 
@@ -180,120 +196,99 @@ class AdapterGenerator(
         callableReferenceAccess: FirCallableReferenceAccess,
         type: IrType,
         explicitReceiverExpression: IrExpression?,
-        irPropertySymbol: IrPropertySymbol,
+        irPropertySymbol: IrDeclarationWithAccessorsSymbol,
         referencedPropertyGetterSymbol: IrSimpleFunctionSymbol,
         referencedPropertySetterSymbol: IrSimpleFunctionSymbol?,
-        contextArguments: List<IrExpression>,
-        isForDelegate: Boolean,
-    ): IrRichPropertyReferenceImpl {
+    ): IrRichPropertyReferenceImpl = callableReferenceAccess.convertWithOffsets { startOffset, endOffset ->
         val context = AdaptedCallableReferenceContext(
             callableReferenceAccess,
             type as IrSimpleType,
-            explicitReceiverExpression
+            explicitReceiverExpression,
+            startOffset, endOffset
         )
 
-        return callableReferenceAccess.convertWithOffsets { startOffset, endOffset ->
+        with(context) {
             IrRichPropertyReferenceImpl(
                 startOffset, endOffset, type,
                 reflectionTargetSymbol = irPropertySymbol,
-                getterFunction = context.buildCallableReferenceAdapterFunction(
-                    startOffset,
-                    endOffset,
-                    referencedPropertyGetterSymbol,
-                    isForDelegate = isForDelegate,
-                ),
+                getterFunction = buildCallableReferenceAdapterFunction(isSetter = false, createCall = { adapterFunction ->
+                    createAdapteeCallForCallableReference(referencedPropertyGetterSymbol, adapterFunction, isSetter = false)
+                }),
                 setterFunction = referencedPropertySetterSymbol?.let {
-                    context.buildCallableReferenceAdapterFunction(
-                        startOffset,
-                        endOffset,
-                        it,
-                        isSetter = true,
-                        isForDelegate = isForDelegate,
-                    )
+                    buildCallableReferenceAdapterFunction(isSetter = true, createCall = { adapterFunction ->
+                        createAdapteeCallForCallableReference(it, adapterFunction, isSetter = true)
+                    })
                 },
-                origin = runIf(isForDelegate) { IrStatementOrigin.PROPERTY_REFERENCE_FOR_DELEGATE },
-            ).apply {
-                for (contextArgument in contextArguments) {
-                    boundValues.add(contextArgument)
-                }
-
-                context.boundReceiver?.let(boundValues::add)
-            }
+                origin = context.origin,
+            ).apply { bindValues() }
         }
     }
 
-    internal fun generateAdaptedCallableReference(
+    internal fun generateRichPropertyReferenceForField(
         callableReferenceAccess: FirCallableReferenceAccess,
+        type: IrType,
         explicitReceiverExpression: IrExpression?,
-        adapteeSymbol: IrFunctionSymbol,
-        type: IrSimpleType
-    ): IrExpression {
-        return callableReferenceAccess.convertWithOffsets { startOffset, endOffset ->
-            val context = AdaptedCallableReferenceContext(callableReferenceAccess, type, explicitReceiverExpression)
-            val irAdapterFunction = context.buildCallableReferenceAdapterFunction(startOffset, endOffset, adapteeSymbol, isForRichReference = false)
+        irPropertySymbol: IrDeclarationWithAccessorsSymbol,
+        irFieldSymbol: IrFieldSymbol,
+    ): IrRichPropertyReferenceImpl = callableReferenceAccess.convertWithOffsets { startOffset, endOffset ->
+        val context = AdaptedCallableReferenceContext(
+            callableReferenceAccess,
+            type as IrSimpleType,
+            explicitReceiverExpression,
+            startOffset, endOffset,
+        )
 
-            require(irAdapterFunction.typeParameters.isEmpty()) {
-                "Internal error: function adapter ${irAdapterFunction.symbol} " +
-                        "has unexpected type parameters: ${irAdapterFunction.typeParameters.map { it.symbol }}\n" +
-                        "They should already be used to determine exact return type and value parameters types"
-            }
-            val irAdapterRef = IrFunctionReferenceImpl(
-                startOffset, endOffset, type, irAdapterFunction.symbol, typeArgumentsCount = 0,
-                null, IrStatementOrigin.ADAPTED_FUNCTION_REFERENCE
-            ).apply {
-                context.boundReceiver?.let {
-                    arguments[0] = it
-                }
 
-                reflectionTarget = adapteeSymbol
-            }
-            IrBlockImpl(startOffset, endOffset, type, IrStatementOrigin.ADAPTED_FUNCTION_REFERENCE).apply {
-                statements.add(irAdapterFunction)
-                statements.add(irAdapterRef)
-            }
+        with(context) {
+            IrRichPropertyReferenceImpl(
+                startOffset, endOffset, type,
+                reflectionTargetSymbol = irPropertySymbol,
+                getterFunction = context.buildCallableReferenceAdapterFunction(isSetter = false, createCall = { adapterFunction ->
+                    val fieldReceiver = runUnless(firAdaptee.isStatic) {
+                        val receiver = adapterFunction.parameters[0]
+                        IrGetValueImpl(startOffset, endOffset, receiver.type, receiver.symbol)
+                    }
+                    IrGetFieldImpl(startOffset, endOffset, irFieldSymbol, firAdaptee.returnTypeRef.coneType.toIrType(), fieldReceiver)
+                }),
+                setterFunction = runIf(type.isKMutableProperty()) {
+                    buildCallableReferenceAdapterFunction(isSetter = true, createCall = { adapterFunction ->
+                        val fieldReceiver = runUnless(firAdaptee.isStatic) {
+                            val receiver = adapterFunction.parameters[0]
+                            IrGetValueImpl(startOffset, endOffset, receiver.type, receiver.symbol)
+                        }
+                        val param = adapterFunction.parameters.last()
+                        val value = IrGetValueImpl(startOffset, endOffset, param.type, param.symbol)
+                        IrSetFieldImpl(startOffset, endOffset, irFieldSymbol, receiver = fieldReceiver, value = value, c.builtins.unitType)
+                    })
+                },
+            ).apply { bindValues() }
         }
     }
 
-    private fun AdaptedCallableReferenceContext.buildCallableReferenceAdapterFunction(
-        startOffset: Int,
-        endOffset: Int,
-        adapteeSymbol: IrFunctionSymbol,
-        isForRichReference: Boolean = true,
-        isSetter: Boolean = false,
-        isForDelegate: Boolean = false,
+    private inline fun AdaptedCallableReferenceContext.buildCallableReferenceAdapterFunction(
+        isSetter: Boolean,
+        crossinline createCall: (IrSimpleFunction) -> IrExpression,
     ): IrSimpleFunction {
-        val irAdapterFunction = createAdapterFunctionForCallableReference(startOffset, endOffset, isForRichReference, isSetter)
-        val irCall = createAdapteeCallForCallableReference(adapteeSymbol, irAdapterFunction, isSetter)
+        val irAdapterFunction = createAdapterFunctionForCallableReference(isSetter)
 
-        if (!isForDelegate) {
-            irAdapterFunction.body = IrFactoryImpl.createBlockBody(startOffset, endOffset) {
-                if (isSetter || adaptedType.arguments.last().typeOrNull?.isUnit() == true) {
-                    statements.add(Fir2IrImplicitCastInserter.coerceToUnitIfNeeded(irCall))
-                } else {
-                    statements.add(IrReturnImpl(startOffset, endOffset, builtins.nothingType, irAdapterFunction.symbol, irCall))
-                }
+        if (!isForLocalDelegate) {
+            irAdapterFunction.body = IrFactoryImpl.createBlockBody(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
+                val irCall = createCall(irAdapterFunction)
+                statements += IrReturnImpl(
+                    UNDEFINED_OFFSET,
+                    UNDEFINED_OFFSET,
+                    builtins.nothingType,
+                    irAdapterFunction.symbol,
+                    when {
+                        irAdapterFunction.returnType.isUnit() -> Fir2IrImplicitCastInserter.coerceToUnitIfNeeded(irCall)
+                        else -> Fir2IrImplicitCastInserter.implicitCastOrExpression(irCall, irAdapterFunction.returnType)
+                    })
             }
         }
         return irAdapterFunction
     }
 
-    private fun FirCallableReferenceAccess.findBoundReceiver(
-        explicitReceiverExpression: IrExpression?,
-        isDispatch: Boolean
-    ): IrExpression? {
-        val firReceiver = if (isDispatch) dispatchReceiver else extensionReceiver
-        if (firReceiver == null) {
-            return null
-        }
-        with(callGenerator) {
-            return findIrReceiver(explicitReceiverExpression, isDispatch)
-        }
-    }
-
     private fun AdaptedCallableReferenceContext.createAdapterFunctionForCallableReference(
-        startOffset: Int,
-        endOffset: Int,
-        isForRichReference: Boolean,
         isSetter: Boolean,
     ): IrSimpleFunction {
         val parameterTypes = adaptedType.arguments.dropLast(1).map { it.typeOrNull ?: builtins.anyNType }
@@ -330,7 +325,6 @@ class AdapterGenerator(
                         Name.identifier("c$index"),
                         substitutor.substituteOrSelf(contextParameter.returnTypeRef.coneType).toIrType(),
                         IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE,
-                        IrParameterKind.Regular,
                     )
                 }
 
@@ -343,7 +337,6 @@ class AdapterGenerator(
                             Name.identifier("receiver"),
                             it.type,
                             IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE,
-                            if (isForRichReference) IrParameterKind.Regular else IrParameterKind.ExtensionReceiver,
                         )
                     }
                 }
@@ -354,7 +347,6 @@ class AdapterGenerator(
                         Name.identifier("p$index"),
                         parameterType,
                         IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE,
-                        IrParameterKind.Regular,
                     )
                 }
 
@@ -364,7 +356,6 @@ class AdapterGenerator(
                         Name.identifier("value"),
                         adaptedType.arguments.last().typeOrNull ?: builtins.anyNType,
                         IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE,
-                        IrParameterKind.Regular,
                     )
                 }
             }
@@ -378,7 +369,6 @@ class AdapterGenerator(
         name: Name,
         type: IrType,
         origin: IrDeclarationOrigin,
-        kind: IrParameterKind,
     ): IrValueParameter =
         IrFactoryImpl.createValueParameter(
             startOffset = adapterFunction.startOffset,
@@ -392,7 +382,7 @@ class AdapterGenerator(
             isCrossinline = false,
             isNoinline = false,
             isHidden = false,
-            kind = kind,
+            kind = IrParameterKind.Regular,
         ).also { irAdapterValueParameter ->
             irAdapterValueParameter.parent = adapterFunction
         }
@@ -404,12 +394,16 @@ class AdapterGenerator(
         adapteeSymbol: IrFunctionSymbol,
         adapterFunction: IrFunction,
         isSetter: Boolean,
-    ): IrExpression = callableReferenceAccess.convertWithOffsets { startOffset, endOffset ->
-        val type = if (isSetter) {
-            builtins.unitType
+    ): IrExpression {
+        val firType = if (isSetter) {
+            // Synthetic property setters can have non-Unit return types
+            (firAdaptee as FirProperty).setter?.returnTypeRef?.coneType
         } else {
-            substitutor.substituteOrSelf(firAdaptee.returnTypeRef.coneType).toIrType()
+            firAdaptee.returnTypeRef.coneType
         }
+        val type = firType?.let { substitutor.substituteOrSelf(it).toIrType() } ?: builtins.unitType
+
+
         val irCall = when (adapteeSymbol) {
             is IrConstructorSymbol ->
                 IrConstructorCallImpl.fromSymbolOwner(startOffset, endOffset, type, adapteeSymbol)
@@ -463,6 +457,18 @@ class AdapterGenerator(
                 // Not sure if it's important that the origin is null for bound receivers.
                 // Let's preserve it to minimize changes.
                 origin = IrStatementOrigin.ADAPTED_FUNCTION_REFERENCE.takeIf { hasBoundReceiver },
+            )
+
+            // If the dispatch receiver is bound, cast to the type of the receiver expression.
+            // If not, prefer the type argument as it could be a subtype of the dispatch receiver type.
+            // Finally, just take the dispatch receiver type.
+            val dispatchReceiverType = callableReferenceAccess.dispatchReceiver?.resolvedType?.toIrType()
+                ?: (adaptedType.arguments[0] as? IrTypeProjection)?.type
+                ?: firAdaptee.dispatchReceiverType!!.toIrType()
+
+            irCall.arguments[0] = Fir2IrImplicitCastInserter.implicitCastOrExpression(
+                irCall.arguments[0]!!,
+                dispatchReceiverType
             )
         }
 
@@ -533,9 +539,18 @@ class AdapterGenerator(
             }
         }
 
-        with(callGenerator) {
+        return with(callGenerator) {
             irCall.applyTypeArguments(callableReferenceAccess)
         }
+    }
+
+    context(context: AdaptedCallableReferenceContext)
+    private fun IrRichCallableReference<*>.bindValues() {
+        for (contextArgument in context.callableReferenceAccess.contextArguments.map { visitor.convertToIrExpression(it) }) {
+            boundValues.add(contextArgument)
+        }
+
+        context.boundReceiver?.let(boundValues::add)
     }
 
     internal fun IrExpression.applyFunctionTypeConversion(
@@ -559,28 +574,14 @@ class AdapterGenerator(
         val samType = samFirType.toIrType(ConversionTypeOrigin.DEFAULT)
 
         // Make sure the converted IrType owner indeed has a single abstract method, since FunctionReferenceLowering relies on it.
-        fun IrExpression.generateSamConversion() =
-            IrTypeOperatorCallImpl(
-                this.startOffset, this.endOffset, samType, IrTypeOperator.SAM_CONVERSION, samType,
-                castArgumentToFunctionalInterfaceForSamType(
-                    argument = this,
-                    argumentConeType = argument.expression.resolvedType,
-                    samType = samFirType
-                )
+        return IrTypeOperatorCallImpl(
+            this.startOffset, this.endOffset, samType, IrTypeOperator.SAM_CONVERSION, samType,
+            castArgumentToFunctionalInterfaceForSamType(
+                argument = this,
+                argumentConeType = argument.expression.resolvedType,
+                samType = samFirType
             )
-
-        return if (this is IrBlock && (origin == IrStatementOrigin.ADAPTED_FUNCTION_REFERENCE || origin == IrStatementOrigin.FUNCTION_TYPE_EXPRESSION_CONVERSION)) {
-            // The IR for adapted callable references should be
-            // BLOCK ADAPTED_FUNCTION_REFERENCE(FUN ADAPTER_FOR_CALLABLE_REFERENCE, TYPE_OP SAM_CONVERSION(FUNCTION_REFERENCE))
-            // Therefore, we need to insert the cast as the last statement of the block, not around the block itself.
-            val lastIndex = statements.lastIndex
-            val samConversion = (statements[lastIndex] as IrExpression).generateSamConversion()
-            statements[lastIndex] = samConversion
-            this.type = samConversion.type
-            this
-        } else {
-            generateSamConversion()
-        }
+        )
     }
 
     // See org.jetbrains.kotlin.psi2ir.generators.ArgumentsGenerationUtilsKt.castArgumentToFunctionalInterfaceForSamType (K1 counterpart)
@@ -591,7 +592,7 @@ class AdapterGenerator(
     ): IrExpression {
         // The rule for SAM conversions is: the argument must be a subtype of the required function type.
         // We handle intersection types, captured types, etc. by approximating both expected and actual types.
-        val approximatedConeKotlinFunctionType = getFunctionTypeForPossibleSamType(samType)?.approximateForIrOrSelf() ?: return argument
+        val approximatedConeKotlinFunctionType = getFunctionTypeForPossibleSamType(samType).approximateForIrOrSelf()
 
         // This line is not present in the K1 counterpart because there is InsertImplicitCasts::cast that effectively removes
         // such unnecessary casts. At the same time, many IR lowerings assume that there are no such redundant casts and many
@@ -666,8 +667,10 @@ class AdapterGenerator(
         return substitutor.substituteOrSelf(resolvedBounds.first().coneType)
     }
 
-    internal fun getFunctionTypeForPossibleSamType(parameterType: ConeKotlinType): ConeKotlinType? {
-        return samResolver.getSamInfoForPossibleSamType(parameterType)?.functionalType
+    internal fun getFunctionTypeForPossibleSamType(parameterType: ConeKotlinType): ConeKotlinType {
+        val conversionInfo = samResolver.getSamInfoForPossibleSamType(parameterType)
+        checkNotNull(conversionInfo) { "No SAM info found for ${parameterType.renderForDebugging()}" }
+        return conversionInfo.functionalType
     }
 
     /**
@@ -707,25 +710,48 @@ class AdapterGenerator(
         val functionTypeBeforeConversion = kind.originalArgumentAsFunctionType
         check(functionTypeBeforeConversion.functionTypeKind(session) != null)
 
-        val invokeSymbol = findInvokeSymbol(functionTypeBeforeConversion, originalArgumentType) ?: return this
+        val invokeSymbol = findInvokeSymbol(functionTypeBeforeConversion, originalArgumentType)
+        checkNotNull(invokeSymbol) {
+            "Invoke symbol not found for " +
+                    "functionTypeBeforeConversion = '${functionTypeBeforeConversion.renderForDebugging()}', " +
+                    "originalArgumentType = '${originalArgumentType.renderForDebugging()}'"
+        }
+
         val expectedIrType = expectedType.toIrType() as IrSimpleType
+        val expectedIrTypeNonNullable = expectedIrType.withNullability(false)
+        val adapteeParameterType = functionTypeBeforeConversion.withNullability(false, session.typeContext).toIrType()
         return argument.convertWithOffsets { startOffset, endOffset ->
             val irAdapterFunction = createAdapterFunctionForArgument(
                 startOffset,
                 endOffset,
-                expectedIrType,
-                adapteeParameterType = functionTypeBeforeConversion.toIrType(),
-                originalArgumentType.isMarkedNullable,
+                expectedIrTypeNonNullable,
+                adapteeParameterType = adapteeParameterType,
                 invokeSymbol,
                 isSuspendFunctionTypeExpected,
             )
-            val irAdapterRef = IrFunctionReferenceImpl(
-                startOffset, endOffset, expectedIrType, irAdapterFunction.symbol, irAdapterFunction.typeParameters.size,
-                null, IrStatementOrigin.FUNCTION_TYPE_EXPRESSION_CONVERSION
-            )
-            IrBlockImpl(startOffset, endOffset, expectedIrType, IrStatementOrigin.FUNCTION_TYPE_EXPRESSION_CONVERSION).apply {
-                statements.add(irAdapterFunction)
-                statements.add(irAdapterRef.apply { arguments[0] = this@applyConversionBetweenFunctionTypes })
+
+            fun createConversionReference(boundReceiver: IrExpression): IrRichFunctionReference {
+                return IrRichFunctionReferenceImpl(
+                    startOffset, endOffset, expectedIrTypeNonNullable,
+                    reflectionTargetSymbol = null,
+                    overriddenFunctionSymbol = findInvokeSymbol(expectedType)!!,
+                    invokeFunction = irAdapterFunction,
+                    origin = IrStatementOrigin.FUNCTION_TYPE_EXPRESSION_CONVERSION,
+                ).apply { boundValues.add(boundReceiver) }
+            }
+
+            if (originalArgumentType.canBeNull(session)) {
+                IrBlockImpl(startOffset, endOffset, expectedIrType).apply {
+                    val [tempVariable, tempVariableSymbol] = conversionScope.createTemporaryVariable(this@applyConversionBetweenFunctionTypes)
+                    statements.add(tempVariable)
+
+                    val boundReceiver = IrGetValueImpl(startOffset, endOffset, tempVariableSymbol)
+                        .implicitCastIfNeededTo(adapteeParameterType)
+                    val conversionReference = createConversionReference(boundReceiver)
+                    statements.add(createWhenForSafeFall(expectedIrType, tempVariableSymbol, conversionReference))
+                }
+            } else {
+                createConversionReference(this@applyConversionBetweenFunctionTypes)
             }
         }
     }
@@ -751,8 +777,49 @@ class AdapterGenerator(
                 shouldCalculateReturnTypesOfFakeOverrides = true
             )
         }?.let {
-            declarationStorage.getIrFunctionSymbol(it) as? IrSimpleFunctionSymbol
+            val fakeOverrideOwnerLookupTag = runIf(it.isSubstitutionOrIntersectionOverride) {
+                it.dispatchReceiverType!!.classLikeLookupTagIfAny
+            }
+            declarationStorage.getIrFunctionSymbol(it, fakeOverrideOwnerLookupTag) as? IrSimpleFunctionSymbol
         }
+    }
+
+    fun IrExpression.applyNumericClassCoercionIfNeeded(conversionNode: FirNumericClassConversion): IrExpression {
+        val expectedType = conversionNode.resolvedType
+        val expectedTypeSymbol = expectedType.toSymbol(session) ?: return this
+
+        return when (expectedTypeSymbol.hasAnnotation(StandardClassIds.Annotations.NumericClass, session)) {
+            true -> applyBuiltinToNumericClassCoercionIfNeeded(conversionNode)
+            false -> applyNumericClassToBuiltinCoercionIfNeeded(conversionNode)
+        }
+    }
+
+    private fun IrExpression.applyBuiltinToNumericClassCoercionIfNeeded(conversionNode: FirNumericClassConversion): IrExpression {
+        val expression = conversionNode.originalExpression
+        val expectedType = conversionNode.resolvedType
+
+        val [firSymbol, irSymbol] = builtins.getCinteropConvertFunctionOver(expression.resolvedType)
+            ?: error("No conversion function found for ${expression.resolvedType}")
+
+        with(callGenerator) {
+            return IrCallImpl(startOffset, endOffset, expectedType.toIrType(), irSymbol)
+                .apply { arguments[0] = this@applyBuiltinToNumericClassCoercionIfNeeded }
+                .applyTypeArguments(
+                    typeArguments = listOf(expectedType),
+                    typeParameters = firSymbol.typeParameterSymbols.map { it.fir },
+                )
+        }
+    }
+
+    private fun IrExpression.applyNumericClassToBuiltinCoercionIfNeeded(conversionNode: FirNumericClassConversion): IrExpression {
+        val expression = conversionNode.originalExpression
+        val expectedType = conversionNode.resolvedType
+
+        val irFunction = builtins.getMemberConversionFunction(expression.resolvedType, expectedType)
+            ?: error("No conversion function found for ${expression.resolvedType}")
+
+        return IrCallImpl(startOffset, endOffset, expectedType.toIrType(), irFunction)
+            .apply { arguments[0] = this@applyNumericClassToBuiltinCoercionIfNeeded }
     }
 
     private fun createAdapterFunctionForArgument(
@@ -760,7 +827,6 @@ class AdapterGenerator(
         endOffset: Int,
         type: IrSimpleType,
         adapteeParameterType: IrType,
-        argumentIsNullable: Boolean,
         invokeSymbol: IrSimpleFunctionSymbol,
         isSuspend: Boolean,
     ): IrSimpleFunction {
@@ -789,7 +855,6 @@ class AdapterGenerator(
                     Name.identifier($$"$callee"),
                     adapteeParameterType,
                     IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_SUSPEND_CONVERSION,
-                    IrParameterKind.ExtensionReceiver,
                 )
 
                 parameterTypes.mapIndexedTo(this) { index, parameterType ->
@@ -798,16 +863,11 @@ class AdapterGenerator(
                         Name.identifier("p$index"),
                         parameterType,
                         IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_SUSPEND_CONVERSION,
-                        IrParameterKind.Regular,
                     )
                 }
             }
             irAdapterFunction.body = IrFactoryImpl.createBlockBody(startOffset, endOffset) {
-                var irCall = createAdapteeCallForArgument(startOffset, endOffset, irAdapterFunction, invokeSymbol)
-
-                if (argumentIsNullable) {
-                    irCall = createWhenForSafeFall(irCall.type, irAdapterFunction.parameters[0].symbol, irCall)
-                }
+                val irCall = createAdapteeCallForArgument(startOffset, endOffset, irAdapterFunction, invokeSymbol)
 
                 if (returnType.isUnit()) {
                     statements.add(irCall)
@@ -843,31 +903,17 @@ class AdapterGenerator(
         irReferenceType: IrType
     ): IrExpression =
         callableReference.convertWithOffsets { startOffset: Int, endOffset: Int ->
-            //  {
-            //      fun <ADAPTER_FUN>(function: <FUN_TYPE>): <FUN_INTERFACE_TYPE> =
-            //          <FUN_INTERFACE_TYPE>(function!!)
-            //      ::<ADAPTER_FUN>
-            //  }
-
+            //  fun <ADAPTER_FUN>(function: <FUN_TYPE>): <FUN_INTERFACE_TYPE> =
+            //      <FUN_INTERFACE_TYPE>(function!!)
             val irAdapterFun = generateFunInterfaceConstructorAdapter(startOffset, endOffset, callableSymbol, irReferenceType)
 
-            val irAdapterRef = IrFunctionReferenceImpl(
+            IrRichFunctionReferenceImpl(
                 startOffset, endOffset,
                 type = irReferenceType,
-                symbol = irAdapterFun.symbol,
-                typeArgumentsCount = irAdapterFun.typeParameters.size,
-                reflectionTarget = irAdapterFun.symbol,
+                reflectionTargetSymbol = irAdapterFun.symbol,
+                overriddenFunctionSymbol = findInvokeSymbol(callableReference.resolvedType as ConeClassLikeType)!!,
+                invokeFunction = irAdapterFun,
                 origin = IrStatementOrigin.FUN_INTERFACE_CONSTRUCTOR_REFERENCE
-            )
-
-            IrBlockImpl(
-                startOffset, endOffset,
-                irReferenceType,
-                IrStatementOrigin.FUN_INTERFACE_CONSTRUCTOR_REFERENCE,
-                listOf(
-                    irAdapterFun,
-                    irAdapterRef
-                )
             )
         }
 
@@ -914,7 +960,6 @@ class AdapterGenerator(
                 functionParameter.name,
                 irFunctionType,
                 IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE,
-                IrParameterKind.Regular,
             )
             irAdapterFunction.parameters = listOf(irFunctionParameter)
             irAdapterFunction.body = IrFactoryImpl.createBlockBody(

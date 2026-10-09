@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.utils.reproducibilityCompilerFlags
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     id("base")
     id("platform-manager")
@@ -55,10 +54,13 @@ private val cachePlatformLibsSemaphore = gradle.sharedServices.registerIfAbsent(
 // endregion
 
 if (HostManager.host == KonanTarget.MACOS_ARM64) {
-    project.configureJvmToolchain(JdkMajorVersion.JDK_17_0)
+    project.jvmToolchains {
+        jdkVersion = JdkMajorVersion.JDK_17_0
+    }
 }
 
 val cacheableTargetNames = platformManager.hostPlatform.cacheableTargets
+val nativeDependenciesExtension = project.extensions.getByType<NativeDependenciesExtension>()
 
 val updateDefFileDependenciesTask = tasks.register("updateDefFileDependencies")
 val updateDefFileTasksPerFamily = if (HostManager.hostIsMac) {
@@ -105,7 +107,6 @@ enabledTargets(platformManager).forEach { target ->
                 this.klibFiles.from(tasks.named(interopTaskName(defFileToLibName(targetName, defName), targetName)))
             }
 
-            val nativeDependenciesExtension = project.extensions.getByType<NativeDependenciesExtension>()
             val reproducibilityCompilerFlags = reproducibilityCompilerFlags(project, nativeDependenciesExtension).flatMap {
                 listOf("-compiler-option", it)
             }.toTypedArray()
@@ -123,6 +124,8 @@ enabledTargets(platformManager).forEach { target ->
                 val fmodulesCache = project.layout.buildDirectory.dir("clangModulesCache").get().asFile.toRelativeString(project.layout.projectDirectory.asFile)
                 this.extraOpts.addAll("-compiler-option", "-fmodules-cache-path=$fmodulesCache")
             }
+
+            dependsOn(nativeDependenciesExtension.targetDependency(target))
 
             usesService(compilePlatformLibsSemaphore)
         }
@@ -156,10 +159,16 @@ enabledTargets(platformManager).forEach { target ->
                     mustRunAfter(":kotlin-native:distInvalidateStaleCaches")
                     inputs.dir(dist.map { it.stdlibCache(targetName, withOptimizations) }) // manually depend on the contents of stdlib cache
 
+                    // Explicitly depend on stdlib Sync task to pass the stdlib as the explicit CLI dependency to the compiler.
+                    klibFiles.from(project(":kotlin-native:runtime").tasks.named<Sync>("nativeStdlib").map { it.destinationDir })
+
                     // Also, all the depended upon platform libs must have installed their klibs and caches into the native distribution above.
                     df.config.depends.forEach { dep ->
                         inputs.dir(tasks.named<KonanCacheTask>(cacheTaskName(targetName, dep, withOptimizations)).map { it.outputDirectory })
-                        inputs.dir(tasks.named<Sync>(defFileToLibName(targetName, dep)).map { it.destinationDir })
+
+                        // Set explicit dependencies on other platform libs that should be built prior to the current one.
+                        // `this.klibFiles` is transformed to a set of `-library ...` arguments later in `KonanCacheTask`.
+                        klibFiles.from(tasks.named<Sync>(defFileToLibName(targetName, dep)).map { it.destinationDir })
                     }
 
                     this.klib.fileProvider(libTask.map { it.outputs.files.singleFile })
@@ -167,6 +176,7 @@ enabledTargets(platformManager).forEach { target ->
                     this.withOptimizations.set(withOptimizations)
                     this.cacheDirectory.set(dist.map { it.cachesRoot(targetName, withOptimizations) })
                     this.cacheName.set(artifactName)
+                    dependsOn(nativeDependenciesExtension.targetDependency(target))
 
                     usesService(cachePlatformLibsSemaphore)
                 }

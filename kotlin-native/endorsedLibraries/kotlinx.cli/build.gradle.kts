@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.*
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("test-inputs-check")
     id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
@@ -15,20 +14,12 @@ kotlin {
                 implementation(project(":kotlin-stdlib-common"))
             }
             kotlin.srcDir("src/main/kotlin")
-            compilerOptions {
-                freeCompilerArgs.add("-Xname-based-destructuring=complete")
-                freeCompilerArgs.add("-Xcollection-literals")
-            }
         }
         commonTest {
             dependencies {
                 implementation(project(":kotlin-test"))
             }
             kotlin.srcDir("src/tests")
-            compilerOptions {
-                freeCompilerArgs.add("-Xname-based-destructuring=complete")
-                freeCompilerArgs.add("-Xcollection-literals")
-            }
         }
         jvm {
             compilations["main"].defaultSourceSet {
@@ -53,6 +44,9 @@ kotlin {
                 }
             }
         }
+    }
+    compilerOptions {
+        freeCompilerArgs.addAll(dogfoodedExperimentalFeatures)
     }
 }
 

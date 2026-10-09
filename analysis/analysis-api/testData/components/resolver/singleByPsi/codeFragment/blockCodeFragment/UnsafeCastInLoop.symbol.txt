@@ -2,8 +2,8 @@ KtNameReferenceExpression(216,219): 'inc'
   isImplicitReferenceToCompanion: false
   contextSensitiveResolutionStatus: NotAvailable
   lookupLocally: false
-  KaSymbolResolutionError:
+  KaSimpleSymbolResolutionError:
     candidateSymbols = [
       kotlin/Int.inc(<dispatch receiver>: kotlin.Int): kotlin.Int
     ]
-    diagnostic = ERROR<UNSAFE_CALL: Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'Int?'.>
+    diagnostic = ERROR<UNSAFE_CALL: Unsafe call on receiver of nullable type 'Int?'. Consider using a safe call '?.' or non-null asserted call '!!.'.>

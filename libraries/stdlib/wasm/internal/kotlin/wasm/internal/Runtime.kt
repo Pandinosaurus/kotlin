@@ -63,21 +63,120 @@ internal fun nullableDoubleIeee754Equals(lhs: Double?, rhs: Double?): Boolean {
     return wasm_f64_eq(lhs, rhs)
 }
 
-private var TRUE: Boolean? = null
-private var FALSE: Boolean? = null
-
-@UsedFromCompilerGeneratedCode
-internal fun getBoxedBoolean(x: Boolean): Boolean? =
-    if (x) {
-        TRUE ?: boxBoolean(true).also { TRUE = it }
-    } else {
-        FALSE ?: boxBoolean(false).also { FALSE = it }
-    }
-
 @ExcludedFromCodegen
 @UsedFromCompilerGeneratedCode
-internal fun boxBoolean(x: Boolean): Boolean? =
+internal fun <T> createBoxIntrinsic(x: T): Any =
     implementedAsIntrinsic
+
+private var TRUE: Any? = null
+private var FALSE: Any? = null
+
+@UsedFromCompilerGeneratedCode
+internal fun getOrBoxBoolean(x: Boolean): Any {
+    val result = if (x) TRUE else FALSE
+    if (result !== null) return result
+
+    val boxedTrue = createBoxIntrinsic<Boolean>(true)
+    TRUE = boxedTrue
+
+    val boxedFalse = createBoxIntrinsic<Boolean>(false)
+    FALSE = boxedFalse
+
+    return if (x) boxedTrue else boxedFalse
+}
+
+private var BoxedBytesCache: WasmAnyArray? = null
+@UsedFromCompilerGeneratedCode
+internal fun getOrBoxByte(x: Byte): Any {
+    var cache = BoxedBytesCache
+    if (cache === null) {
+        cache = WasmAnyArray(256)
+        BoxedBytesCache = cache
+    }
+
+    val index = x.toInt() + 128
+    val cached: Any? = cache.get(index)
+    if (cached !== null) return cached
+    val boxed: Any = createBoxIntrinsic<Byte>(x)
+    cache.set(index, boxed)
+    return boxed
+}
+
+private var BoxedShortsCache: WasmAnyArray? = null
+@UsedFromCompilerGeneratedCode
+internal fun getOrBoxShort(x: Short): Any {
+    if (x < (-128).toShort() || x > 127.toShort()) return createBoxIntrinsic<Short>(x)
+
+    var cache = BoxedShortsCache
+    if (cache === null) {
+        cache = WasmAnyArray(256)
+        BoxedShortsCache = cache
+    }
+
+    val index = x.toInt() + 128
+    val cached: Any? = cache.get(index)
+    if (cached !== null) return cached
+    val boxed: Any = createBoxIntrinsic<Short>(x)
+    cache.set(index, boxed)
+    return boxed
+}
+
+private var BoxedIntsCache: WasmAnyArray? = null
+@UsedFromCompilerGeneratedCode
+internal fun getOrBoxInt(x: Int): Any {
+    if (x < -128 || x > 127) return createBoxIntrinsic<Int>(x)
+
+    var cache = BoxedIntsCache
+    if (cache === null) {
+        cache = WasmAnyArray(256)
+        BoxedIntsCache = cache
+    }
+
+    val index = x + 128
+    val cached: Any? = cache.get(index)
+    if (cached !== null) return cached
+    val boxed: Any = createBoxIntrinsic<Int>(x)
+    cache.set(index, boxed)
+    return boxed
+}
+
+private var BoxedLongsCache: WasmAnyArray? = null
+@UsedFromCompilerGeneratedCode
+internal fun getOrBoxLong(x: Long): Any {
+    if (x < -128L || x > 127L) return createBoxIntrinsic<Long>(x)
+
+    var cache = BoxedLongsCache
+    if (cache === null) {
+        cache = WasmAnyArray(256)
+        BoxedLongsCache = cache
+    }
+
+    val index = x.toInt() + 128
+    val cached: Any? = cache.get(index)
+    if (cached !== null) return cached
+    val boxed: Any = createBoxIntrinsic<Long>(x)
+    cache.set(index, boxed)
+    return boxed
+}
+
+private var BoxedCharsCache: WasmAnyArray? = null
+@UsedFromCompilerGeneratedCode
+internal fun getOrBoxChar(x: Char): Any {
+    val index = x.code
+    if (index > 127) return createBoxIntrinsic<Char>(x)
+
+    var cache = BoxedCharsCache
+    if (cache === null) {
+        cache = WasmAnyArray(128)
+        BoxedCharsCache = cache
+    }
+
+    val cached: Any? = cache.get(index)
+    if (cached !== null) return cached
+    val boxed: Any = createBoxIntrinsic<Char>(x)
+    cache.set(index, boxed)
+    return boxed
+}
 
 @ExcludedFromCodegen
 @UsedFromCompilerGeneratedCode
@@ -105,40 +204,9 @@ internal fun <R> wasm_call_ref(f: Function<R>): R =
 internal class Void private constructor()
 
 // This is the only way to introduce Void type.
+@UsedFromCompilerGeneratedCode
 @WasmOp(WasmOp.DROP)
 internal fun consumeAnyIntoVoid(a: Any?): Void =
-    implementedAsIntrinsic
-
-@WasmOp(WasmOp.DROP)
-internal fun consumeBooleanIntoVoid(a: Boolean): Void =
-    implementedAsIntrinsic
-
-@WasmOp(WasmOp.DROP)
-internal fun consumeByteIntoVoid(a: Byte): Void =
-    implementedAsIntrinsic
-
-@WasmOp(WasmOp.DROP)
-internal fun consumeShortIntoVoid(a: Short): Void =
-    implementedAsIntrinsic
-
-@WasmOp(WasmOp.DROP)
-internal fun consumeCharIntoVoid(a: Char): Void =
-    implementedAsIntrinsic
-
-@WasmOp(WasmOp.DROP)
-internal fun consumeIntIntoVoid(a: Int): Void =
-    implementedAsIntrinsic
-
-@WasmOp(WasmOp.DROP)
-internal fun consumeLongIntoVoid(a: Long): Void =
-    implementedAsIntrinsic
-
-@WasmOp(WasmOp.DROP)
-internal fun consumeFloatIntoVoid(a: Float): Void =
-    implementedAsIntrinsic
-
-@WasmOp(WasmOp.DROP)
-internal fun consumeDoubleIntoVoid(a: Double): Void =
     implementedAsIntrinsic
 
 @ExcludedFromCodegen

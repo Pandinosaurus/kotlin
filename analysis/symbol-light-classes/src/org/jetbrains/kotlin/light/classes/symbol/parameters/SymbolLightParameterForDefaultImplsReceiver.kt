@@ -10,21 +10,35 @@ import com.intellij.psi.PsiModifierList
 import com.intellij.psi.PsiType
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.kotlin.analysis.api.components.asPsiType
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.defaultType
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.light.classes.symbol.annotations.ComputeAllAtOnceAnnotationsBox
 import org.jetbrains.kotlin.light.classes.symbol.annotations.SymbolLightSimpleAnnotation
-import org.jetbrains.kotlin.light.classes.symbol.cachedValue
 import org.jetbrains.kotlin.light.classes.symbol.classes.SymbolLightClassForInterface
+import org.jetbrains.kotlin.light.classes.symbol.classes.SymbolLightClassForInterfaceDefaultImpls
 import org.jetbrains.kotlin.light.classes.symbol.methods.SymbolLightMethodBase
 import org.jetbrains.kotlin.light.classes.symbol.modifierLists.SymbolLightClassModifierList
-import org.jetbrains.kotlin.light.classes.symbol.nonExistentType
+import org.jetbrains.kotlin.light.classes.symbol.utils.cachedValue
+import org.jetbrains.kotlin.light.classes.symbol.utils.nonExistentType
 import org.jetbrains.kotlin.psi.KtParameter
 
+/**
+ * The `$this` parameter of a static method in [SymbolLightClassForInterfaceDefaultImpls], which takes the interface instance that the
+ * interface member is called on, i.e., its dispatch receiver.
+ *
+ * The JVM backend generates it as the first parameter, before the context parameters and the extension receiver, see
+ * `org.jetbrains.kotlin.backend.jvm.JvmCachedDeclarations.getDefaultImplsFunction`, so [SymbolLightParameterList] adds it first.
+ * Its type is the interface type with the type parameters of the interface as arguments, which the static method declares as its own,
+ * and it is always [NotNull].
+ *
+ * The parameter has no declaration of its own, so it is backed by the symbol of the interface.
+ */
 internal class SymbolLightParameterForDefaultImplsReceiver(containingDeclaration: SymbolLightMethodBase) :
-    SymbolLightParameterBase(containingDeclaration) {
+    SymbolLightParameterBase<KaNamedClassSymbol>(containingDeclaration) {
     private val _type by lazyPub {
-        (method.containingClass.containingClass as SymbolLightClassForInterface).withClassSymbol {
+        containingInterface.withClassSymbol {
             val ktType = it.defaultType
             ktType.asPsiType(
                 containingDeclaration,
@@ -34,6 +48,9 @@ internal class SymbolLightParameterForDefaultImplsReceiver(containingDeclaration
             ) ?: nonExistentType()
         }
     }
+
+    private val containingInterface: SymbolLightClassForInterface
+        get() = method.containingClass.containingClass as SymbolLightClassForInterface
 
     override fun getNameIdentifier(): PsiIdentifier? = null
 
@@ -60,4 +77,7 @@ internal class SymbolLightParameterForDefaultImplsReceiver(containingDeclaration
 
     override val kotlinOrigin: KtParameter?
         get() = null
+
+    override val symbolPointer: KaSymbolPointer<KaNamedClassSymbol>
+        get() = containingInterface.symbolPointer
 }

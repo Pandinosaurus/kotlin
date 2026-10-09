@@ -1,3 +1,4 @@
+import TestCompilePaths.PARCELIZE_COMPILER_PLUGIN_CLASSPATH
 import org.jetbrains.kotlin.build.androidsdkprovisioner.ProvisioningType
 import java.util.zip.ZipFile
 
@@ -5,12 +6,10 @@ description = "Parcelize compiler plugin"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("android-sdk-provisioner")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -112,7 +111,6 @@ sourceSets {
 runtimeJar()
 sourcesJar()
 javadocJar()
-testsJar()
 
 val projectDir = layout.projectDirectory
 val robolectricDependencyDir = layout.buildDirectory.dir("robolectricDependencies")
@@ -132,7 +130,7 @@ projectTests {
             provideToThisTaskAsSystemProperty(ProvisioningType.PLATFORM_JAR)
         }
 
-        addClasspathProperty(parcelizeRuntimeForTests, "parcelizeRuntime.classpath")
+        addClasspathProperty(parcelizeRuntimeForTests, PARCELIZE_COMPILER_PLUGIN_CLASSPATH)
         addClasspathProperty(robolectricClasspath, "robolectric.classpath")
         addClasspathProperty(layoutLib, "layoutLib.path")
         addClasspathProperty(layoutLibApi, "layoutLibApi.path")
@@ -156,5 +154,4 @@ projectTests {
     withJvmStdlibAndReflect()
     withTestJar()
     withMockJdkAnnotationsJar()
-    withScriptRuntime()
 }

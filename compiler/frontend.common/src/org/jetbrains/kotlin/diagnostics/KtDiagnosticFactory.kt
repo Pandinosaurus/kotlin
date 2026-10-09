@@ -8,7 +8,7 @@
 package org.jetbrains.kotlin.diagnostics
 
 import org.jetbrains.kotlin.AbstractKtSourceElement
-import org.jetbrains.kotlin.KtPsiSourceElement
+import org.jetbrains.kotlin.KtMissingSourceElement
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSourceLocation
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.LanguageFeature
@@ -76,22 +76,34 @@ class KtDiagnosticFactory0(
         context: DiagnosticBaseContext,
     ): KtSimpleDiagnostic? {
         val effectiveSeverity = getEffectiveSeverity(context.languageVersionSettings) ?: return null
-        return when (element) {
-            is KtPsiSourceElement -> KtPsiSimpleDiagnostic(
-                element,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-            else -> KtRegularSimpleDiagnostic(
-                element,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-        }
+        return KtSimpleDiagnostic(
+            element,
+            effectiveSeverity,
+            this,
+            positioningStrategy ?: defaultPositioningStrategy,
+            context,
+        )
+    }
+
+    @InternalDiagnosticFactoryMethod
+    fun onOrFallback(
+        element: AbstractKtSourceElement?,
+        positioningStrategy: AbstractSourceElementPositioningStrategy?,
+        context: DiagnosticBaseContext,
+    ): KtDiagnostic? {
+        return on(
+            element ?: return createFallbackDiagnostic(
+                KtSimpleDiagnostic(
+                    KtMissingSourceElement,
+                    severity,
+                    this,
+                    defaultPositioningStrategy,
+                    context
+                )
+            ),
+            positioningStrategy,
+            context,
+        )
     }
 }
 
@@ -110,24 +122,38 @@ class KtDiagnosticFactory1<A>(
         context: DiagnosticBaseContext,
     ): KtDiagnosticWithParameters1<A>? {
         val effectiveSeverity = getEffectiveSeverity(context.languageVersionSettings) ?: return null
-        return when (element) {
-            is KtPsiSourceElement -> KtPsiDiagnosticWithParameters1(
-                element,
-                a,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-            else -> KtRegularDiagnosticWithParameters1(
-                element,
-                a,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-        }
+        return KtDiagnosticWithParameters1(
+            element,
+            a,
+            effectiveSeverity,
+            this,
+            positioningStrategy ?: defaultPositioningStrategy,
+            context,
+        )
+    }
+
+    @InternalDiagnosticFactoryMethod
+    fun onOrFallback(
+        element: AbstractKtSourceElement?,
+        a: A,
+        positioningStrategy: AbstractSourceElementPositioningStrategy?,
+        context: DiagnosticBaseContext,
+    ): KtDiagnostic? {
+        return on(
+            element ?: return createFallbackDiagnostic(
+                KtDiagnosticWithParameters1(
+                    KtMissingSourceElement,
+                    a,
+                    severity,
+                    this,
+                    defaultPositioningStrategy,
+                    context
+                )
+            ),
+            a,
+            positioningStrategy,
+            context,
+        )
     }
 }
 
@@ -147,26 +173,42 @@ class KtDiagnosticFactory2<A, B>(
         context: DiagnosticBaseContext,
     ): KtDiagnosticWithParameters2<A, B>? {
         val effectiveSeverity = getEffectiveSeverity(context.languageVersionSettings) ?: return null
-        return when (element) {
-            is KtPsiSourceElement -> KtPsiDiagnosticWithParameters2(
-                element,
-                a,
-                b,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-            else -> KtRegularDiagnosticWithParameters2(
-                element,
-                a,
-                b,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-        }
+        return KtDiagnosticWithParameters2(
+            element,
+            a,
+            b,
+            effectiveSeverity,
+            this,
+            positioningStrategy ?: defaultPositioningStrategy,
+            context,
+        )
+    }
+
+    @InternalDiagnosticFactoryMethod
+    fun onOrFallback(
+        element: AbstractKtSourceElement?,
+        a: A,
+        b: B,
+        positioningStrategy: AbstractSourceElementPositioningStrategy?,
+        context: DiagnosticBaseContext,
+    ): KtDiagnostic? {
+        return on(
+            element ?: return createFallbackDiagnostic(
+                KtDiagnosticWithParameters2(
+                    KtMissingSourceElement,
+                    a,
+                    b,
+                    severity,
+                    this,
+                    defaultPositioningStrategy,
+                    context
+                )
+            ),
+            a,
+            b,
+            positioningStrategy,
+            context,
+        )
     }
 }
 
@@ -187,28 +229,46 @@ class KtDiagnosticFactory3<A, B, C>(
         context: DiagnosticBaseContext,
     ): KtDiagnosticWithParameters3<A, B, C>? {
         val effectiveSeverity = getEffectiveSeverity(context.languageVersionSettings) ?: return null
-        return when (element) {
-            is KtPsiSourceElement -> KtPsiDiagnosticWithParameters3(
-                element,
-                a,
-                b,
-                c,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-            else -> KtRegularDiagnosticWithParameters3(
-                element,
-                a,
-                b,
-                c,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-        }
+        return KtDiagnosticWithParameters3(
+            element,
+            a,
+            b,
+            c,
+            effectiveSeverity,
+            this,
+            positioningStrategy ?: defaultPositioningStrategy,
+            context,
+        )
+    }
+
+    @InternalDiagnosticFactoryMethod
+    fun onOrFallback(
+        element: AbstractKtSourceElement?,
+        a: A,
+        b: B,
+        c: C,
+        positioningStrategy: AbstractSourceElementPositioningStrategy?,
+        context: DiagnosticBaseContext,
+    ): KtDiagnostic? {
+        return on(
+            element ?: return createFallbackDiagnostic(
+                KtDiagnosticWithParameters3(
+                    KtMissingSourceElement,
+                    a,
+                    b,
+                    c,
+                    severity,
+                    this,
+                    defaultPositioningStrategy,
+                    context
+                )
+            ),
+            a,
+            b,
+            c,
+            positioningStrategy,
+            context,
+        )
     }
 }
 
@@ -230,30 +290,51 @@ class KtDiagnosticFactory4<A, B, C, D>(
         context: DiagnosticBaseContext,
     ): KtDiagnosticWithParameters4<A, B, C, D>? {
         val effectiveSeverity = getEffectiveSeverity(context.languageVersionSettings) ?: return null
-        return when (element) {
-            is KtPsiSourceElement -> KtPsiDiagnosticWithParameters4(
-                element,
-                a,
-                b,
-                c,
-                d,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-            else -> KtRegularDiagnosticWithParameters4(
-                element,
-                a,
-                b,
-                c,
-                d,
-                effectiveSeverity,
-                this,
-                positioningStrategy ?: defaultPositioningStrategy,
-                context,
-            )
-        }
+        return KtDiagnosticWithParameters4(
+            element,
+            a,
+            b,
+            c,
+            d,
+            effectiveSeverity,
+            this,
+            positioningStrategy ?: defaultPositioningStrategy,
+            context,
+        )
+    }
+
+
+    @InternalDiagnosticFactoryMethod
+    fun onOrFallback(
+        element: AbstractKtSourceElement?,
+        a: A,
+        b: B,
+        c: C,
+        d: D,
+        positioningStrategy: AbstractSourceElementPositioningStrategy?,
+        context: DiagnosticBaseContext,
+    ): KtDiagnostic? {
+        return on(
+            element ?: return createFallbackDiagnostic(
+                KtDiagnosticWithParameters4(
+                    KtMissingSourceElement,
+                    a,
+                    b,
+                    c,
+                    d,
+                    severity,
+                    this,
+                    defaultPositioningStrategy,
+                    context
+                )
+            ),
+            a,
+            b,
+            c,
+            d,
+            positioningStrategy,
+            context,
+        )
     }
 }
 

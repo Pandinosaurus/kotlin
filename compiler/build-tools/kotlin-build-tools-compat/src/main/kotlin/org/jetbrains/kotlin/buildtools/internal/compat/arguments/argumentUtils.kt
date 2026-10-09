@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.buildtools.internal.compat.arguments
 import org.jetbrains.kotlin.buildtools.api.CompilerArgumentsParseException
 import org.jetbrains.kotlin.cli.common.arguments.CommonToolArguments
 import java.nio.file.Path
-import kotlin.enums.enumEntries
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.declaredMemberProperties
@@ -37,7 +36,7 @@ internal fun <T> CommonToolArguments.getUsingReflection(propertyName: String): T
 internal fun Path.absolutePathStringOrThrow(): String = toFile().absolutePath
 
 internal inline fun <reified T : Enum<T>> Enum<*>.toApiEnum(): T =
-    enumEntries<T>().firstOrNull { it.name == name }
+    enumValues<T>().firstOrNull { it.name == name }
         ?: throw CompilerArgumentsParseException(
             "Value '$name' of ${T::class.simpleName} is not available in the loaded kotlin-build-tools-api, " +
                     "but exists in kotlin-build-tools-compat. " +
@@ -45,7 +44,7 @@ internal inline fun <reified T : Enum<T>> Enum<*>.toApiEnum(): T =
         )
 
 internal inline fun <reified T : Enum<T>> Enum<*>.toImplEnum(): T =
-    enumEntries<T>().firstOrNull { it.name == name }
+    enumValues<T>().firstOrNull { it.name == name }
         ?: throw CompilerArgumentsParseException(
             "Value '$name' of ${T::class.simpleName} is not supported by kotlin-build-tools-compat. " +
                     "Use matching kotlin-build-tools-api and kotlin-build-tools-compat versions."
@@ -68,4 +67,34 @@ internal fun List<String>.checkNoneContains(other: CharSequence) {
                     "If you need its support, please let us know: https://youtrack.jetbrains.com/issue/KT-85553"
         )
     }
+}
+
+internal fun <A : CommonToolArguments> parseCommandLineArguments(
+    args: List<String>,
+    result: A,
+    overrideArguments: Boolean = false,
+    implClassloader: ClassLoader,
+) {
+    val parseCommandLineArgumentsClass =
+        implClassloader.loadClass("org.jetbrains.kotlin.buildtools.api.internal.backports.ParseCommandLineArgumentsKt")
+
+    fun parseCommandLineArguments(arguments: List<String>, compilerArgs: Any, overrideArguments: Boolean): Any? {
+        return parseCommandLineArgumentsClass.getMethod(
+            "parseCommandLineArguments",
+            List::class.java,
+            implClassloader.loadClass("org.jetbrains.kotlin.cli.common.arguments.CommonToolArguments"),
+            Boolean::class.java
+        ).invoke(null, arguments, compilerArgs, overrideArguments)
+    }
+
+    fun validateArgumentsAllErrors(errors: Any?): List<String> {
+        @Suppress("UNCHECKED_CAST")
+        return parseCommandLineArgumentsClass.getMethod(
+            "validateArgumentsAllErrors",
+            implClassloader.loadClass("org.jetbrains.kotlin.buildtools.api.internal.backports.ArgumentParseErrors"),
+        ).invoke(null, errors) as List<String>
+    }
+
+    val errors = parseCommandLineArguments(args, result, overrideArguments)
+    validateArgumentsAllErrors(errors).firstOrNull()?.let { throw CompilerArgumentsParseException(it) }
 }

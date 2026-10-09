@@ -19,15 +19,15 @@ package androidx.compose.compiler.plugins.kotlin.facade
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.psi.search.ProjectScope
+import org.jetbrains.kotlin.KtPsiSourceElement
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
-import org.jetbrains.kotlin.cli.jvm.compiler.AllJavaSourcesInProjectScope
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.cli.jvm.compiler.PsiBasedProjectFileSearchScope
+import org.jetbrains.kotlin.jvm.environment.JvmClasspath
 import org.jetbrains.kotlin.cli.jvm.compiler.VfsBasedProjectEnvironment
+import org.jetbrains.kotlin.cli.jvm.compiler.javaInterop
 import org.jetbrains.kotlin.cli.pipeline.jvm.JvmFir2IrPipelinePhase.convertToIrAndActualizeForJvm
 import org.jetbrains.kotlin.codegen.ClassBuilderFactories
 import org.jetbrains.kotlin.codegen.state.GenerationState
@@ -35,7 +35,7 @@ import org.jetbrains.kotlin.compiler.plugin.getCompilerExtensions
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.languageVersionSettings
-import org.jetbrains.kotlin.diagnostics.KtPsiDiagnostic
+import org.jetbrains.kotlin.diagnostics.KtDiagnosticWithSource
 import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
 import org.jetbrains.kotlin.diagnostics.impl.DiagnosticsCollectorImpl
 import org.jetbrains.kotlin.fir.DependencyListForCliModule
@@ -66,8 +66,8 @@ class FirAnalysisResult(
     val reporter: BaseDiagnosticsCollector,
 ) : AnalysisResult {
     override val diagnostics: Map<String, List<AnalysisResult.Diagnostic>>
-        get() = reporter.diagnostics.filterIsInstance<KtPsiDiagnostic>().groupBy(
-            keySelector = { it.psiElement.containingFile.name },
+        get() = reporter.diagnostics.filterIsInstance<KtDiagnosticWithSource>().filter { it.element is KtPsiSourceElement }.groupBy(
+            keySelector = { (it.element as KtPsiSourceElement).psi.containingFile.name },
             valueTransform = { AnalysisResult.Diagnostic(it.factoryName, it.textRanges) }
         )
 }
@@ -86,12 +86,10 @@ class K2CompilerFacade(environment: KotlinCoreEnvironment) : KotlinCompilerFacad
     ): FirSession {
         return FirJvmSessionFactory.createSourceSession(
             moduleData,
-            PsiBasedProjectFileSearchScope(AllJavaSourcesInProjectScope(project)),
             createIncrementalCompilationSymbolProviders = { null },
             configuration.getCompilerExtensions(FirExtensionRegistrar),
             configuration,
             context,
-            needRegisterJavaElementFinder = true,
             kmpModuleKind = KmpModuleKind.SingleModule,
             init = {
                 registerComponent(
@@ -114,12 +112,11 @@ class K2CompilerFacade(environment: KotlinCoreEnvironment) : KotlinCompilerFacad
             VirtualFileManager.getInstance().getFileSystem(StandardFileSystems.FILE_PROTOCOL),
             environment::createPackagePartProvider
         )
-        val librariesScope = PsiBasedProjectFileSearchScope(ProjectScope.getLibrariesScope(project))
-
         val context = FirJvmSessionFactory.Context(
             configuration,
             projectEnvironment,
-            librariesScope
+            JvmClasspath.ProjectLibraries(),
+            projectEnvironment.javaInterop(configuration),
         )
 
         val sharedLibrarySession = FirJvmSessionFactory.createSharedLibrarySession(

@@ -1,15 +1,15 @@
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 val fe10CompilerModules: Array<String> = CompilerModules.fe10CompilerModules
-val jvmCompilerModules: Array<String> = CompilerModules.jvmCompilerModules
 
 val excludedCompilerModules = listOf(
     ":compiler:incremental-compilation-impl",
+    ":core:deserialization",
+    ":core:descriptors.jvm",
 )
 
 val extraCompilerModules = listOf(
@@ -17,6 +17,6 @@ val extraCompilerModules = listOf(
     ":compiler:frontend.java",
 )
 
-val projects = fe10CompilerModules.asList() - excludedCompilerModules + jvmCompilerModules + extraCompilerModules
+val projects = fe10CompilerModules.asList() - excludedCompilerModules + extraCompilerModules
 
 publishJarsForIde(projects)

@@ -12,21 +12,25 @@ FooKt.class:
           TYPE_REFERENCE
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=I1]
+                isClassRef: true
       TYPE_REFERENCE
         USER_TYPE
           REFERENCE_EXPRESSION[referencedName=T]
+            isClassRef: true
       TYPE_REFERENCE
         NULLABLE_TYPE
           USER_TYPE
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=kotlin]
             REFERENCE_EXPRESSION[referencedName=String]
+              isClassRef: true
       TYPE_CONSTRAINT_LIST
         TYPE_CONSTRAINT
           REFERENCE_EXPRESSION[referencedName=T]
           TYPE_REFERENCE
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=I2]
+                isClassRef: true
       PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=true, isGetter=true, mayHaveContract=false]
         MODIFIER_LIST[public final]
         VALUE_PARAMETER_LIST
@@ -36,7 +40,7 @@ I1.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/I1, fqName=I1, isClsStubCompiledToJvmDefaultImplementation=true, isInterface=true, isLocal=false, isTopLevel=true, name=I1, superNames=[]]
+    CLASS[classId=/I1, fqName=I1, isClsStubCompiledToJvmDefaultImplementation=true, isInterface=true, isTopLevel=true, name=I1, superNames=[]]
       MODIFIER_LIST[public]
       CLASS_BODY
 
@@ -45,6 +49,6 @@ I2.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/I2, fqName=I2, isClsStubCompiledToJvmDefaultImplementation=true, isInterface=true, isLocal=false, isTopLevel=true, name=I2, superNames=[]]
+    CLASS[classId=/I2, fqName=I2, isClsStubCompiledToJvmDefaultImplementation=true, isInterface=true, isTopLevel=true, name=I2, superNames=[]]
       MODIFIER_LIST[public]
       CLASS_BODY

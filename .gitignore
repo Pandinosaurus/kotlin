@@ -25,6 +25,7 @@ build/
 !**/src/**/build
 !**/test/**/build
 !**/tests-gen/**/build
+!/third-party/java8-annotations/org/chromium/build
 *.iml
 !**/testData/**/*.iml
 .idea/artifacts
@@ -65,6 +66,8 @@ kotlin-ide/
 .npmrc
 /.idea/AndroidProjectSystem.xml
 **/.junie/memory/
+**/.junie/plans/
+.output
 .claude/local.md
 .claude/CLAUDE.md
 .claude/settings.local.json

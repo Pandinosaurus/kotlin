@@ -7,9 +7,11 @@ package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.tasks.compile.JavaCompile
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
+import org.jetbrains.kotlin.gradle.dsl.ReturnValueCheckerMode
 import org.jetbrains.kotlin.gradle.internal.KOTLIN_BUILD_TOOLS_API_IMPL
 import org.jetbrains.kotlin.gradle.internal.KOTLIN_MODULE_GROUP
 import org.jetbrains.kotlin.gradle.plugin.COMPILER_CLASSPATH_CONFIGURATION_NAME
@@ -233,7 +235,7 @@ class KotlinCompileApiTest {
         androidExtension.compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
         androidExtension.compilerOptions.javaParameters.set(true)
         androidExtension.explicitApi = ExplicitApiMode.Strict
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION_ERROR")
         androidExtension.sourceSets.register("main")
         androidExtension.target.withSourcesJar(false)
         androidExtension.target.compilations.register("main")
@@ -246,7 +248,7 @@ class KotlinCompileApiTest {
             ExplicitApiMode.Strict,
             (androidTask.get() as KotlinCompile).explicitApiMode.get()
         )
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION_ERROR")
         assertNotNull(androidExtension.sourceSets.findByName("main"))
     }
 

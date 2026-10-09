@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.cli.CliDiagnostics.COMPILER_ARGUMENTS_ERROR
 import org.jetbrains.kotlin.cli.CliDiagnostics.COMPILER_ARGUMENTS_WARNING
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
+import org.jetbrains.kotlin.cli.common.getRuntimeJdkVersion
 import org.jetbrains.kotlin.cli.common.getLibraryFromHome
 import org.jetbrains.kotlin.cli.jvm.config.JvmClasspathRoot
 import org.jetbrains.kotlin.cli.jvm.config.JvmModulePathRoot
@@ -24,6 +25,7 @@ import java.io.File
 fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArguments) {
     put(JVMConfigurationKeys.INCLUDE_RUNTIME, arguments.includeRuntime)
     put(JVMConfigurationKeys.NO_REFLECT, arguments.noReflect)
+    put(JVMConfigurationKeys.NO_STDLIB, arguments.noStdlib)
 
     putIfNotNull(JVMConfigurationKeys.FRIEND_PATHS, arguments.friendPaths?.asList())
 
@@ -41,7 +43,7 @@ fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArgu
             this.report(COMPILER_ARGUMENTS_ERROR, "Unknown JDK release version: $releaseTargetArg")
         } else {
             //don't use release flag if it equals to compilation JDK version
-            if (value != getJavaVersion() || arguments.jdkHome != null) {
+            if (value != getRuntimeJdkVersion() || arguments.jdkHome != null) {
                 put(JVMConfigurationKeys.JDK_RELEASE, value)
             }
             if (jvmTargetArg != null && !isCompatibleJvmTargetAndRelease(jvmTargetArg, releaseTargetArg)) {
@@ -91,15 +93,11 @@ fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArgu
 
     val jvmTarget = get(JVMConfigurationKeys.JVM_TARGET) ?: JvmTarget.DEFAULT
 
-    when (ValhallaSupportMode.fromStringOrNull(arguments.valhallaSupport)) {
-        ValhallaSupportMode.NONE, null -> {}
-        else ->
-            if (jvmTarget.majorVersion < JvmTarget.JVM_27.majorVersion || !arguments.enableJvmPreview) {
-                this.report(
-                    COMPILER_ARGUMENTS_ERROR,
-                    "Project Valhalla support ('-Xvalhalla-support') requires JVM target 27 or later and the '-Xjvm-enable-preview' flag."
-                )
-            }
+    if (arguments.valhallaValueClasses && !isJvmTargetValhallaCompatible(jvmTarget, arguments.enableJvmPreview)) {
+        this.report(
+            COMPILER_ARGUMENTS_ERROR,
+            "Valhalla value classes ('-Xvalhalla-value-classes') require JVM target 28 or later and the '-Xjvm-enable-preview' flag."
+        )
     }
 
     val stringConcat = arguments.stringConcat
@@ -226,7 +224,6 @@ fun CompilerConfiguration.configureStandardLibs(paths: KotlinPaths?, arguments: 
     configureStandardLibs(
         paths,
         KotlinPaths::stdlibPath,
-        KotlinPaths::scriptRuntimePath,
         KotlinPaths::reflectPath,
         arguments
     )
@@ -235,7 +232,6 @@ fun CompilerConfiguration.configureStandardLibs(paths: KotlinPaths?, arguments: 
 fun <PathProvider : Any> CompilerConfiguration.configureStandardLibs(
     paths: PathProvider?,
     stdlibPath: (PathProvider) -> File,
-    scriptRuntimePath: (PathProvider) -> File,
     reflectPath: (PathProvider) -> File,
     arguments: K2JVMCompilerArguments,
 ) {
@@ -251,7 +247,6 @@ fun <PathProvider : Any> CompilerConfiguration.configureStandardLibs(
 
     if (!arguments.noStdlib) {
         addRoot("kotlin.stdlib", PathUtil.KOTLIN_JAVA_STDLIB_JAR, stdlibPath, "'-no-stdlib'")
-        addRoot("kotlin.script.runtime", PathUtil.KOTLIN_JAVA_SCRIPT_RUNTIME_JAR, scriptRuntimePath, "'-no-stdlib'")
     }
     // "-no-stdlib" implies "-no-reflect": otherwise we would be able to transitively read stdlib classes through kotlin-reflect,
     // which is likely not what user wants since s/he manually provided "-no-stdlib"
@@ -293,7 +288,6 @@ fun CompilerConfiguration.configureAdvancedJvmOptions(arguments: K2JVMCompilerAr
         }
     }
 
-    put(JVMConfigurationKeys.DO_NOT_CLEAR_BINDING_CONTEXT, arguments.doNotClearBindingContext)
     put(JVMConfigurationKeys.DISABLE_CALL_ASSERTIONS, arguments.noCallAssertions)
     put(JVMConfigurationKeys.DISABLE_RECEIVER_ASSERTIONS, arguments.noReceiverAssertions)
     put(JVMConfigurationKeys.DISABLE_PARAM_ASSERTIONS, arguments.noParamAssertions)
@@ -361,6 +355,3 @@ private fun CompilerConfiguration.parseBackendThreads(stringValue: String): Int 
     }
     return value
 }
-
-private fun getJavaVersion(): Int =
-    System.getProperty("java.specification.version")?.substringAfter('.')?.toIntOrNull() ?: 6

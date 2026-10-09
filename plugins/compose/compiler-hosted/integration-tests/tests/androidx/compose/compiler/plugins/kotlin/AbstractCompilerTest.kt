@@ -150,6 +150,7 @@ abstract class AbstractCompilerTest {
         additionalPaths: List<File> = listOf(),
         additionalConfigurationParameters: (CompilerConfiguration) -> Unit = {},
         forcedFirSetting: Boolean? = null,
+        registerExtensions: (Project.(CompilerConfiguration) -> Unit)? = null,
     ): GeneratedClassLoader {
         val classLoader = if (additionalPaths.isNotEmpty()) {
             URLClassLoader(
@@ -160,7 +161,7 @@ abstract class AbstractCompilerTest {
             defaultClassLoader
         }
         return GeneratedClassLoader(
-            createCompilerFacade(additionalPaths, forcedFirSetting, additionalConfigurationParameters)
+            createCompilerFacade(additionalPaths, forcedFirSetting, additionalConfigurationParameters, registerExtensions)
                 .compile(platformSourceFiles, commonSourceFiles).factory,
             classLoader
         )
@@ -221,6 +222,6 @@ object Classpath {
     fun composeFoundationTextJar() = jarFor<androidx.compose.foundation.text.KeyboardActions>()
     fun composeFoundationLayoutJar() = jarFor<androidx.compose.foundation.layout.RowScope>()
 
-    inline fun <reified T> jarFor() = File(PathUtil.getJarPathForClass(T::class.java))
+    inline fun <reified T : Any> jarFor() = File(PathUtil.getJarPathForClass(T::class.java))
     fun jarFor(className: String) = File(PathUtil.getJarPathForClass(Class.forName(className)))
 }

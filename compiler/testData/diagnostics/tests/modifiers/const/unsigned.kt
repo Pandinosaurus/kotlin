@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LANGUAGE_FEATURE_TOGGLED: IntrinsicConstEvaluation
 // WITH_STDLIB
 // DIAGNOSTICS: -REDUNDANT_CALL_OF_CONVERSION_METHOD
@@ -72,5 +72,10 @@ const val equals1 = byteVal.equals(byteVal)
 const val equals2 = byteVal.equals(shortVal)
 const val equals3 = byteVal.equals(intVal)
 const val equals4 = byteVal.equals(longVal)
+
+const val notEquals1 = byteVal != byteVal
+const val notEquals2 = shortVal != shortVal
+const val notEquals3 = intVal != intVal
+const val notEquals4 = longVal != longVal
 
 /* GENERATED_FIR_TAGS: const, propertyDeclaration, unsignedLiteral */

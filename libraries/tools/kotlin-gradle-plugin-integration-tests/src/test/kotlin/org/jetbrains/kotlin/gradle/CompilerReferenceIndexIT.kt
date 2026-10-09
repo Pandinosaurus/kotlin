@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.testFederation.AffectedByBuildToolsApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.div
 import kotlin.io.path.invariantSeparatorsPathString
@@ -28,14 +28,32 @@ import kotlin.io.path.readBytes
 import kotlin.io.path.relativeTo
 import kotlin.test.*
 
-@OptIn(ExperimentalBuildToolsApi::class)
+@OptIn(ExperimentalBuildToolsApi::class, EnvironmentalVariablesOverride::class)
 @DisplayName("Gradle / Compiler Reference Index")
-@AffectedByBuildToolsApi
+@MustRunOnChangesInBuildToolsApi
 class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
+
+    // Env variables for CI detection are the same as in [org.jetbrains.kotlin.gradle.fus.internal.isCiBuild]
+    private val ciEnvironmentVariables = setOf(
+        "CI",
+        "JENKINS_URL",
+        "HUDSON_URL",
+        "TEAMCITY_VERSION",
+        "CIRCLE_BUILD_URL",
+        "bamboo_resultsUrl",
+        "GITHUB_ACTIONS",
+        "GITLAB_CI",
+        "TRAVIS_JOB_ID",
+        "BITRISE_BUILD_URL",
+        "GO_SERVER_URL",
+        "TF_BUILD",
+        "BUILDKITE",
+    )
+
+    private val localEnvironment = EnvironmentalVariables { it - ciEnvironmentVariables }
 
     override val defaultBuildOptions: BuildOptions = super.defaultBuildOptions.copy(
         runViaBuildToolsApi = true,
-        generateCompilerRefIndex = true,
     )
 
     private val defaultInProcessBuildOptions: BuildOptions = defaultBuildOptions.copy(
@@ -58,6 +76,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
                 "daemon" -> defaultDaemonBuildOptions
                 else -> return
             },
+            environmentVariables = localEnvironment,
         ) {
             kotlinSourcesDir().source("main.kt") {
                 //language=kotlin
@@ -72,7 +91,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
                 if (strategy == "in-process") assertOutputContains("Generating Compiler Reference Index...")
             }
 
-            val [lookups, fileIdsToPaths, subtypes] = deserializeCriData()
+            val (lookups, fileIdsToPaths, subtypes) = deserializeCriData()
             assertTrue(lookups.isNotEmpty(), "Expected non-empty CRI lookup entries")
             assertTrue(fileIdsToPaths.isNotEmpty(), "Expected non-empty CRI fileIdToPath entries")
             assertTrue(subtypes.isNotEmpty(), "Expected non-empty CRI subtype entries")
@@ -86,6 +105,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
             "kotlinProject",
             gradleVersion,
             buildOptions = defaultInProcessBuildOptions,
+            environmentVariables = localEnvironment,
         ) {
             val source1Filename = "file1.kt"
             val source2Filename = "file2.kt"
@@ -100,7 +120,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
 
             build("assemble")
 
-            val [initialLookups, initialFileIdsToPaths, initialSubtypes] = deserializeCriData()
+            val (initialLookups, initialFileIdsToPaths, initialSubtypes) = deserializeCriData()
 
             val requiredSource1Path = (kotlinSourcesDir() / source1Filename).relativeTo(projectPath).invariantSeparatorsPathString
             val source1FileIdToPath = assertNotNull(initialFileIdsToPaths.singleOrNull { it.path == requiredSource1Path })
@@ -136,7 +156,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
 
             build("assemble")
 
-            val [modifiedLookups, modifiedFileIdsToPaths, modifiedSubtypes] = deserializeCriData()
+            val (modifiedLookups, modifiedFileIdsToPaths, modifiedSubtypes) = deserializeCriData()
 
             // TODO KT-82000 Find better approach for generating CRI data with IC instead of appending new data
             // after the incremental compilation there will be 2 entries for the same source file
@@ -161,7 +181,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
             // force rebuild to clean stale CRI data
             build("assemble", "--rerun-tasks")
 
-            val [afterRebuildLookups, afterRebuildFileIdsToPaths, afterRebuildSubtypes] = deserializeCriData()
+            val (afterRebuildLookups, afterRebuildFileIdsToPaths, afterRebuildSubtypes) = deserializeCriData()
 
             assertNotNull(afterRebuildFileIdsToPaths.singleOrNull { it.path == requiredSource2Path })
 
@@ -177,18 +197,36 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
     }
 
     @GradleTest
-    @DisplayName("CRI generation can't be enabled without BTA. KT-83161")
-    fun testCriWithoutBta(gradleVersion: GradleVersion) {
+    @DisplayName("CI disables implicit CRI generation, but explicit CRI enables it")
+    fun testCiEnvironmentDisablesImplicitCriGeneration(gradleVersion: GradleVersion) {
         project(
             "kotlinProject",
             gradleVersion,
+            environmentVariables = EnvironmentalVariables { it - ciEnvironmentVariables + ("CI" to "true") },
         ) {
-            build("assemble", buildOptions = buildOptions.copy(runViaBuildToolsApi = false)) {
-                assertHasDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
-            }
-            build("assemble", buildOptions = buildOptions.copy(runViaBuildToolsApi = true)) {
+            val lookups = projectPath / "build/kotlin/compileKotlin/cacheable" / DATA_PATH / LOOKUPS_FILENAME
+
+            build("assemble") {
                 assertNoDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
             }
+            assertFileNotExists(lookups)
+
+            build(
+                "assemble",
+                buildOptions = buildOptions.copy(generateCompilerRefIndex = true),
+            )
+            assertFileExists(lookups)
+        }
+    }
+
+    @GradleTest
+    @DisplayName("TeamCity system property disables implicit CRI generation")
+    fun testTeamCitySystemPropertyCriDefault(gradleVersion: GradleVersion) {
+        project("kotlinProject", gradleVersion, environmentVariables = localEnvironment) {
+            val lookups = projectPath / "build/kotlin/compileKotlin/cacheable" / DATA_PATH / LOOKUPS_FILENAME
+
+            build("assemble", "-DTEAMCITY_VERSION=1.0.0")
+            assertFileNotExists(lookups)
         }
     }
 
@@ -214,7 +252,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
     @DisplayName("Enabling CRI does not fail Kotlin/Native compile tasks. KT-86118")
     fun testEnablingCriDoesNotFailNativeCompile(gradleVersion: GradleVersion) {
         nativeProject("native-simple-project", gradleVersion) {
-            build("assemble") {
+            build("assemble", buildOptions = buildOptions.copy(generateCompilerRefIndex = true)) {
                 assertNoDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
             }
         }
@@ -228,9 +266,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
             generateCompilerRefIndex = true,
         ).disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
         project("jvm-and-js-hmpp", gradleVersion, buildOptions = options) {
-            build("compileKotlinJvm") {
-                assertHasDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
-            }
+            build("compileKotlinJvm")
             build("compileKotlinJs") {
                 assertNoDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
             }

@@ -20,7 +20,7 @@ internal interface ReflectKFunction : ReflectKCallable<Any?>, KFunction<Any?>, K
 
     val isPrimaryConstructor: Boolean
 
-    override fun findJavaDeclaration(): GenericDeclaration? = container.findMethodBySignature(signature)
+    override fun findJavaDeclaration(): GenericDeclaration? = originalContainer.findMethodBySignature(signature)
 }
 
 internal fun ReflectKFunction.extractContinuationArgument(): Type? {
@@ -77,7 +77,7 @@ internal fun patchJvmDescriptorByExtraBoxing(function: ReflectKFunction, jvmDesc
 internal fun ReflectKFunction.getFunctionWithDefaultParametersForValueClassOverride(): ReflectKFunction? {
     if (
         valueParameters.none { (it as? ReflectKParameter)?.declaresDefaultValue == true } &&
-        (container as? KClass<*>)?.isValue == true &&
+        (container as? KClassImpl<*>)?.isJvmInlineValue == true &&
         Modifier.isStatic(caller.member!!.modifiers)
     ) {
         // firstOrNull is used to mimic the wrong behavior of regular class reflection as KT-40327 is not fixed.

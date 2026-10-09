@@ -1,8 +1,5 @@
-import org.gradle.internal.os.OperatingSystem
-
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
@@ -16,7 +13,6 @@ dependencies {
     compileOnly(kotlin("stdlib", coreDepsVersion))
     api(project(":kotlin-util-io"))
     api(project(":kotlin-util-klib"))
-    api(platform(project(":kotlin-gradle-plugins-bom")))
 
     testImplementation(kotlin("stdlib", coreDepsVersion))
     testImplementation(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
@@ -38,7 +34,6 @@ configureKotlinCompileTasksGradleCompatibility()
 
 tasks {
     withType<Test>().configureEach {
-        inputs.property("os.name", OperatingSystem.current().name)
         useJUnitPlatform()
     }
 }

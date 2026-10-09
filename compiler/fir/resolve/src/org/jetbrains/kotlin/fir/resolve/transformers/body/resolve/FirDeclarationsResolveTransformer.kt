@@ -60,6 +60,7 @@ import org.jetbrains.kotlin.resolve.calls.inference.buildCurrentSubstitutor
 import org.jetbrains.kotlin.resolve.calls.inference.components.TypeVariableDirectionCalculator
 import org.jetbrains.kotlin.resolve.calls.inference.model.ProvideDelegateFixationPosition
 import org.jetbrains.kotlin.types.model.TypeConstructorMarker
+import org.jetbrains.kotlin.util.ArrayLiteralResolution
 import org.jetbrains.kotlin.util.OnlyForDefaultLanguageFeatureDisabled
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.util.PrivateForInline
@@ -209,6 +210,11 @@ open class FirDeclarationsResolveTransformer(
                     if (!initializerIsAlreadyResolved) {
                         val resolutionMode = withExpectedType(property.returnTypeRef)
                         property.transformInitializer(transformer, resolutionMode)
+                        val initializer = property.initializer
+                        val expectedType = property.returnTypeRef.coneTypeOrNull
+                        if (initializer != null && expectedType != null) {
+                            property.replaceInitializer(initializer.wrapIntoNumericClassConversionIfNeeded(expectedType, session))
+                        }
                         property.replaceBodyResolveState(FirPropertyBodyResolveState.INITIALIZER_RESOLVED)
                     }
 
@@ -335,7 +341,7 @@ open class FirDeclarationsResolveTransformer(
         if (property.returnTypeRef is FirResolvedTypeRef) {
             val typeArguments = (type as ConeClassLikeType).typeArguments
             val extensionType = property.receiverParameter?.typeRef?.coneType
-            val dispatchType = context.containingRegularClass?.let { containingClass ->
+            val dispatchType = context.containingClassDeclarations.lastOrNull()?.let { containingClass ->
                 containingClass.symbol.constructStarProjectedType(containingClass.typeParameters.size)
             }
             propertyReferenceAccess.replaceConeTypeOrNull(
@@ -695,6 +701,11 @@ open class FirDeclarationsResolveTransformer(
                 val resolutionMode = withExpectedType(variable.returnTypeRef)
                 if (variable.initializer != null && variable.bodyResolveState < FirPropertyBodyResolveState.INITIALIZER_RESOLVED) {
                     variable.transformInitializer(transformer, resolutionMode)
+                    val initializer = variable.initializer
+                    val expectedType = variable.returnTypeRef.coneTypeOrNull
+                    if (initializer != null && expectedType != null) {
+                        variable.replaceInitializer(initializer.wrapIntoNumericClassConversionIfNeeded(expectedType, session))
+                    }
                     storeVariableReturnType(variable)
                 }
                 variable.transformBackingField(transformer, withExpectedType(variable.returnTypeRef))
@@ -893,7 +904,7 @@ open class FirDeclarationsResolveTransformer(
         }
     }
 
-    open fun withReplSnippet(
+    fun withReplSnippet(
         snippet: FirReplSnippet,
         action: () -> FirReplSnippet,
     ): FirReplSnippet = context.withReplSnippet(snippet) {
@@ -1031,7 +1042,9 @@ open class FirDeclarationsResolveTransformer(
                 namedFunction.resolveLocalFunctionAnnotations()
             }
 
-            if (containingDeclaration != null && containingDeclaration !is FirClass && containingDeclaration !is FirFile && (containingDeclaration !is FirScript || namedFunction.status.visibility == Visibilities.Local)) {
+            // A local function may still have a class or a file as the container, e.g., inside their annotation arguments
+            val isLocal = namedFunction.status.visibility == Visibilities.Local
+            if (containingDeclaration != null && isLocal) {
                 // For class members everything should be already prepared
                 prepareSignatureForBodyResolve(namedFunction)
                 namedFunction.transformStatus(this, namedFunction.resolveStatus().mode())
@@ -1274,10 +1287,15 @@ open class FirDeclarationsResolveTransformer(
         val result = context.withValueParameter(valueParameter, session) {
             transformDeclarationContent(
                 valueParameter,
-                withExpectedType(
-                    valueParameter.returnTypeRef,
-                    arrayLiteralPosition = if (insideAnnotationConstructorDeclaration) ArrayLiteralPosition.AnnotationParameter else null
-                )
+                if (useArrayLiteralResolution()) {
+                    @OptIn(ArrayLiteralResolution::class)
+                    withExpectedType(
+                        valueParameter.returnTypeRef,
+                        arrayLiteralPosition = runIf(insideAnnotationConstructorDeclaration) { ArrayLiteralPosition.AnnotationParameter },
+                    )
+                } else {
+                    withExpectedType(valueParameter.returnTypeRef)
+                }
             ) as FirValueParameter
         }
 

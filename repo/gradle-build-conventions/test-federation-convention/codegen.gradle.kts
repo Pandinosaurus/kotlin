@@ -71,7 +71,7 @@ private object DomainSourcesGenerator {
                     this += "|    override val domain = Domain.${domain.name}"
                     this += "|    override val include: List<String> = listOf(${domain.includes.joinToString { "\"$it\"" }})"
                     this += "|    override val exclude: List<String> = listOf(${domain.excludes.joinToString { "\"$it\"" }})"
-                    this += "|    override val fullyAffectedBy: List<DomainInfo> by lazy { listOf(${domain.fullyAffectedBy.joinToString { "${it}DomainInfo" }}) }"
+                    this += "|    override val mustRunAllTestsOnChangesIn: List<DomainInfo> by lazy { listOf(${domain.mustRunAllTestsOnChangesIn.joinToString { "${it}DomainInfo" }}) }"
                     this += "|}"
                     this += "|"
                 }
@@ -86,6 +86,36 @@ private object DomainSourcesGenerator {
                 this += "|}"
             }.trimMargin()
         )
+
+        outputDir.asFile.toPath().resolve("testSubsets.kt").createParentDirectories().writeText(
+            buildString {
+                this += "|// This file is generated automatically. DO NOT MODIFY IT MANUALLY"
+                this += "|// See 'codegen.gradle.kts'"
+                this += "|"
+                this += "|package org.jetbrains.kotlin.testFederation"
+                this += "|"
+                this += "|enum class TestSubset {"
+                this += "|    AllTests,"
+                this += "|    SmokeTests,"
+                for (domain in domains) {
+                    this += "|    ContractTestsFor${domain.name},"
+                }
+                this += "|    ;"
+                this += "|}"
+                this += "|"
+                this += "|fun contractTestsSubsetOf(domain: Domain): TestSubset = when (domain) {"
+                for (domain in domains) {
+                    this += "|    Domain.${domain.name} -> TestSubset.ContractTestsFor${domain.name}"
+                }
+                this += "|}"
+                this += "|"
+                this += "|val contractSubsets = setOf("
+                for (domain in domains) {
+                    this += "|    TestSubset.ContractTestsFor${domain.name},"
+                }
+                this += "|)"
+            }.trimMargin()
+        )
     }
 
     private fun JsonNode.toDomainDTO(key: String): DomainDTO {
@@ -93,7 +123,7 @@ private object DomainSourcesGenerator {
             name = key,
             includes = get("include")?.valueStream()?.toList().orEmpty().map { it.asText() },
             excludes = get("exclude")?.valueStream()?.toList().orEmpty().map { it.asText() },
-            fullyAffectedBy = get("fullyAffectedBy")?.valueStream()?.toList().orEmpty().map { it.asText() },
+            mustRunAllTestsOnChangesIn = get("mustRunAllTestsOnChangesIn")?.valueStream()?.toList().orEmpty().map { it.asText() },
         )
     }
 
@@ -101,7 +131,7 @@ private object DomainSourcesGenerator {
         val name: String,
         val includes: List<String>,
         val excludes: List<String>,
-        val fullyAffectedBy: List<String>,
+        val mustRunAllTestsOnChangesIn: List<String>,
     )
 
     private operator fun StringBuilder.plusAssign(s: String) {

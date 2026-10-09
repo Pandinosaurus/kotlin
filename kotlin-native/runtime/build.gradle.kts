@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.PlatformInfo
 import org.jetbrains.kotlin.bitcode.CompileToBitcodeExtension
 import org.jetbrains.kotlin.cacheFlavor
 import org.jetbrains.kotlin.cpp.CppUsage
+import org.jetbrains.kotlin.dependencies.NativeDependenciesExtension
 import org.jetbrains.kotlin.gradle.plugin.konan.tasks.KonanCacheTask
 import org.jetbrains.kotlin.gradle.plugin.konan.tasks.KonanCompileTask
 import org.jetbrains.kotlin.konan.target.*
@@ -17,7 +18,6 @@ import org.jetbrains.kotlin.konan.target.Architecture as TargetArchitecture
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     id("base")
     id("compile-to-bitcode")
@@ -40,7 +40,9 @@ dependencies {
 }
 
 if (HostManager.host == KonanTarget.MACOS_ARM64) {
-    project.configureJvmToolchain(JdkMajorVersion.JDK_17_0)
+    project.jvmToolchains {
+        jdkVersion = JdkMajorVersion.JDK_17_0
+    }
 }
 
 val breakpadLocationNoDependency = layout.buildDirectory.dir("breakpad")
@@ -113,6 +115,10 @@ bitcode {
             else -> emptyMap()
             }.map { "-D${it.key}=${it.value}" }
 
+        // todo: remove me when KT-87902 is done
+        val ignoreUnknownSdkAttributesInXcode27: List<String> =
+                if (target.family.isAppleFamily) listOf("-Wno-unknown-attributes") else emptyList()
+
         val clangArgsSpecificForKonanSources: List<String> = run {
             val konanOptions = listOfNotNull(
                     target.architecture.name.takeIf { target != KonanTarget.WATCHOS_ARM64 },
@@ -143,7 +149,7 @@ bitcode {
                     "USE_WINAPI_UNWIND=1".takeIf { target.supportsWinAPIUnwind() },
                     "USE_GCC_UNWIND=1".takeIf { target.supportsGccUnwind() }
             )
-            (konanOptions + otherOptions).map { "-D$it" } + fixBrokenMacroExpansionInXcode15_3
+            (konanOptions + otherOptions).map { "-D$it" } + fixBrokenMacroExpansionInXcode15_3 + ignoreUnknownSdkAttributesInXcode27
         }
 
         defaultCompilerArgs.addAll(listOfNotNull(
@@ -670,9 +676,8 @@ val stdlibBuildTask = tasks.register("stdlibBuildTask", KonanCompileTask::class)
             "-Xallow-kotlin-package",
             "-Xexplicit-api=strict",
             "-Xexpect-actual-classes",
-            "-Xcontext-parameters",
-            "-Xname-based-destructuring=complete",
-            "-Xcollection-literals",
+            *dogfoodedExperimentalFeatures.toTypedArray(),
+            redundantCliArgWarningSuppression,
             "-module-name", KOTLIN_NATIVE_STDLIB_NAME,
             "-opt-in=kotlin.RequiresOptIn",
             "-opt-in=kotlin.contracts.ExperimentalContracts",
@@ -682,18 +687,12 @@ val stdlibBuildTask = tasks.register("stdlibBuildTask", KonanCompileTask::class)
             "-Xstdlib-compilation",
             "-Xklib-relative-path-base=${rootDir.canonicalPath}",
 
-            // See addReturnValueCheckerInfo() in libraries/stdlib/build.gradle.kts:
+            // See libraries/stdlib/build.gradle.kts:
             "-Xreturn-value-checker=full",
+            "-Xcompanion-blocks",
 
             "-Xfragment-refines=nativeMain:nativeWasm,nativeMain:nativeWasmWasi,nativeMain:common,nativeWasmWasi:nativeWasm,nativeWasm:common,nativeWasm:commonNonJvm,commonNonJvm:common",
-            "-Xmanifest-native-targets=${platformManager.targetValues.joinToString(separator = ",") { it.visibleName }}",
-
-            // Between making a language feature stable and the next bootstrap, we need to keep providing the compiler argument.
-            // But this produces a warning
-            // "The argument ... is redundant for the current language version ..."
-            // in the bootstrap test and fails because of -Werror.
-            // To work around it, we suppress the warning.
-            "-Xwarning-level=REDUNDANT_CLI_ARG:disabled",
+            "-Xmanifest-native-targets=${platformManager.targetValues.filterNot { it.name in removedTargetNames }.joinToString(separator = ",") { it.visibleName }}",
     ))
 
     val common = sourceSets.create("common") {
@@ -755,6 +754,9 @@ cacheableTargetNames.forEach { targetName ->
             val cacheFlavor = cacheFlavor(targetName, withOptimizations)
             this.cacheDirectory.set(layout.buildDirectory.dir("cache/$targetName/$cacheFlavor"))
             this.cacheName.set(KOTLIN_NATIVE_STDLIB_NAME)
+            dependsOn(
+                    project.extensions.getByType<NativeDependenciesExtension>()
+                            .targetDependency(platformManager.targetByName(targetName)))
         }
     }
 }

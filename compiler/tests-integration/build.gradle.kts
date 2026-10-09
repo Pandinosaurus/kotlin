@@ -1,14 +1,11 @@
-import org.jetbrains.kotlin.testFederation.SmokeTestConfig
-import org.jetbrains.kotlin.testFederation.isSmokeTestMode
-import org.jetbrains.kotlin.testFederation.smokeTestConfig
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
+    id("test-coverage-convention")
 }
 
 val otherCompilerModules = CompilerModules.compilerModules.filter { it != path }
@@ -16,9 +13,6 @@ val otherCompilerModules = CompilerModules.compilerModules.filter { it != path }
 val antLauncherJar = configurations.create("antLauncherJar")
 
 dependencies {
-
-    testFixturesApi(project(":kotlin-script-runtime"))
-
     testFixturesApi(kotlinStdlib())
 
     testFixturesApi(kotlinTest())
@@ -34,6 +28,7 @@ dependencies {
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
     testFixturesApi(testFixtures(project(":compiler:fir:raw-fir:psi2fir")))
     testFixturesApi(testFixtures(project(":compiler:fir:raw-fir:light-tree2fir")))
+    testFixturesApi(testFixtures(project(":compiler:fir:raw-fir:mp-parsing2fir")))
     testFixturesApi(testFixtures(project(":compiler:fir:analysis-tests:legacy-fir-tests")))
     testFixturesApi(testFixtures(project(":generators:test-generator")))
     testFixturesApi(project(":compiler:ir.tree")) // used for deepCopyWithSymbols call that is removed by proguard from the compiler TODO: make it more straightforward
@@ -88,10 +83,7 @@ projectTests {
             JdkMajorVersion.JDK_17_0,
             JdkMajorVersion.JDK_21_0
         ),
-        javaLauncher = JdkMajorVersion.JDK_1_8,
         maxHeapSize = testMaxHeapSizeLarge,
-        // Use Parallel GC because this test runs on JDK 8.
-        garbageCollector = GarbageCollector.Parallel,
     ) {
         dependsOn(":dist")
         dependsOn(":kotlin-stdlib:compileKotlinWasmJs")
@@ -111,14 +103,10 @@ projectTests {
 
         /*
         This test is still using junit3 style tests, neither 'Category' nor 'Tag' mechanics are supported.
-        We declare smoke tests here, junit3 compliant.
+        We just run all tests as smoke tests.
         */
-        smokeTestConfig = SmokeTestConfig.RunAllTests
-        if (isSmokeTestMode.get()) {
-            filter {
-                includeTestsMatching("*SmokeTest")
-                includeTestsMatching("*CliTestGenerated$*")
-            }
+        testFederation {
+            smokeTests { includeAll() }
         }
     }
 
@@ -133,7 +121,6 @@ projectTests {
     testData(project(":compiler").isolated, "testData/loadJavaPackageAnnotations")
 
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withTestJar()
     withThirdPartyAnnotations()
     @OptIn(KotlinCompilerDistUsage::class)
@@ -153,4 +140,3 @@ projectTests {
     withScriptingPlugin()
 }
 
-testsJar()

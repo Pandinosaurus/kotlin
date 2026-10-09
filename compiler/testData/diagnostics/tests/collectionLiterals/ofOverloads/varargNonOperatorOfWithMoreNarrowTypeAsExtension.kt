@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +CollectionLiterals
+// RUN_PIPELINE_TILL: CODEGEN
 
 open class P
 class Q: P()

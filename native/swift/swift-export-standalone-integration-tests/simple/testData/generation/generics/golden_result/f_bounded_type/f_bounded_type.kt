@@ -1,4 +1,5 @@
 @file:kotlin.Suppress("DEPRECATION_ERROR")
+@file:kotlin.native.internal.objc.BindClassToObjCName(BaseClass::class, "14f_bounded_type9BaseClassC")
 @file:kotlin.native.internal.objc.BindClassToObjCName(ConcreteSelfReferencing::class, "14f_bounded_type23ConcreteSelfReferencingC")
 @file:kotlin.native.internal.objc.BindClassToObjCName(SelfReferencing::class, "14f_bounded_type15SelfReferencingC")
 @file:kotlin.native.internal.objc.BindClassToObjCName(MyComparable::class, "_f_bounded_type_MyComparable")
@@ -7,7 +8,6 @@ import kotlin.native.internal.objc.BindReverseBridgeToMethod
 import kotlin.native.internal.ImportedBridge
 import kotlinx.cinterop.*
 import kotlin.native.internal.ExportedBridge
-import kotlinx.cinterop.internal.convertBlockPtrToKotlinFunction
 
 @ImportedBridge("MyComparable_compareTo__TypesOfArguments__Swift_Optional_anyU20KotlinRuntimeSupport__KotlinBridgeable_____reverse_swift")
 internal external fun MyComparable_compareTo__TypesOfArguments__Swift_Optional_anyU20KotlinRuntimeSupport__KotlinBridgeable_____reverse_swift(self: kotlin.native.internal.NativePtr, other: kotlin.native.internal.NativePtr): Int
@@ -31,11 +31,18 @@ public fun SelfReferencing_compareTo__TypesOfArguments__f_bounded_type_SelfRefer
     return _result
 }
 
+@ExportedBridge("BaseClass_v_get")
+public fun BaseClass_v_get(self: kotlin.native.internal.NativePtr): kotlin.native.internal.NativePtr {
+    val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as BaseClass<*>
+    val _result = __self.v
+    return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
+}
+
 @ExportedBridge("MyComparable_compareTo__TypesOfArguments__Swift_Optional_anyU20KotlinRuntimeSupport__KotlinBridgeable___")
 public fun MyComparable_compareTo__TypesOfArguments__Swift_Optional_anyU20KotlinRuntimeSupport__KotlinBridgeable___(self: kotlin.native.internal.NativePtr, other: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as MyComparable<kotlin.Any?>
     val __other = if (other == kotlin.native.internal.NativePtr.NULL) null else kotlin.native.internal.ref.dereferenceExternalRCRef(other) as kotlin.Any
-    val _result = run { __self.compareTo(__other) }
+    val _result = __self.compareTo(__other)
     return _result
 }
 
@@ -43,7 +50,7 @@ public fun MyComparable_compareTo__TypesOfArguments__Swift_Optional_anyU20Kotlin
 public fun SelfReferencing_compareTo__TypesOfArguments__f_bounded_type_SelfReferencing__(self: kotlin.native.internal.NativePtr, other: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as MyComparable<kotlin.Any?>
     val __other = kotlin.native.internal.ref.dereferenceExternalRCRef(other) as SelfReferencing<*>
-    val _result = run { __self.compareTo(__other) }
+    val _result = __self.compareTo(__other)
     return _result
 }
 
@@ -51,19 +58,19 @@ public fun SelfReferencing_compareTo__TypesOfArguments__f_bounded_type_SelfRefer
 public fun SelfReferencing_compareTo__TypesOfArguments__f_bounded_type_SelfReferencing___direct(self: kotlin.native.internal.NativePtr, other: kotlin.native.internal.NativePtr): Int {
     val __self = kotlin.native.internal.ref.dereferenceExternalRCRef(self) as MyComparable<kotlin.Any?>
     val __other = kotlin.native.internal.ref.dereferenceExternalRCRef(other) as SelfReferencing<*>
-    val _result = run { __self.compareTo(__other) }
+    val _result = __self.compareTo(__other)
     return _result
 }
 
 @ExportedBridge("__root___ConcreteSelfReferencing_init_allocate")
 public fun __root___ConcreteSelfReferencing_init_allocate(): kotlin.native.internal.NativePtr {
-    val _result = run { kotlin.native.internal.createUninitializedInstance<ConcreteSelfReferencing>() }
+    val _result = kotlin.native.internal.createUninitializedInstance<ConcreteSelfReferencing>()
     return kotlin.native.internal.ref.createRetainedExternalRCRef(_result)
 }
 
 @ExportedBridge("__root___ConcreteSelfReferencing_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__")
 public fun __root___ConcreteSelfReferencing_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt: kotlin.native.internal.NativePtr): Boolean {
     val ____kt = kotlin.native.internal.ref.dereferenceExternalRCRef(__kt)!!
-    val _result = run { kotlin.native.internal.initInstance(____kt, ConcreteSelfReferencing()) }
-    return run { _result; true }
+    kotlin.native.internal.initInstance(____kt, ConcreteSelfReferencing())
+    return true
 }

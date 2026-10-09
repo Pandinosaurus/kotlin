@@ -262,7 +262,7 @@ class CocoaPodsGitIT : KGPBaseTest() {
                 defaultBuildTaskName,
                 defaultCinteropTaskName
             )
-            val anotherTarget = "MacosX64"
+            val anotherTarget = "MacosArm64"
             val anotherAppleTarget = "macos"
             val anotherFamily = "macos"
             buildGradleKts.addKotlinBlock(anotherTarget.replaceFirstChar { it.lowercase(Locale.getDefault()) } + "()")
@@ -298,7 +298,7 @@ class CocoaPodsGitIT : KGPBaseTest() {
                 assertTasksExecuted(defaultBuildTaskName)
             }
 
-            val anotherTarget = "MacosX64"
+            val anotherTarget = "MacosArm64"
             val anotherAppleTarget = "macos"
             val anotherTargetDefaultPodTaskName = podBuildFullTaskName(appleTarget = anotherAppleTarget)
             buildGradleKts.addCocoapodsBlock("osx.deploymentTarget = \"12.1\"")
@@ -568,7 +568,7 @@ class CocoaPodsGitIT : KGPBaseTest() {
                     async { repo to runCatching { client.get(repo).status }.recover { it }.getOrNull() }
                 }
                 .awaitAll()
-                .filter { [_, status] -> status != HttpStatusCode.OK }
+                .filter { (_, status) -> status != HttpStatusCode.OK }
             Assumptions.assumeTrue(nonAvailableRepos.isEmpty()) {
                 "The following repositories of ${repos.joinToString()} are not available: ${nonAvailableRepos.joinToString()}"
             }

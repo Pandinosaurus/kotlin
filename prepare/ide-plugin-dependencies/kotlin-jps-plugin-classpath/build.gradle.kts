@@ -1,7 +1,6 @@
 // This artifact is deprecated and will be remove in the near future. Use `kotlin-jps-plugin` instead
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
 }
 
@@ -13,6 +12,11 @@ idePluginPublishingLatch {
 
     publishProjectJars(
         embeddedDependencies + mavenDependencies + otherProjects,
-        libraryDependencies = listOf(commonDependency("org.jetbrains.kotlin:kotlin-reflect"), protobufFull())
+        libraryDependencies = listOf(
+            commonDependency("org.jetbrains.kotlin:kotlin-reflect"),
+            protobufFull(),
+            "com.google.guava:guava:${libs.versions.guava.get()}",
+            "com.google.guava:failureaccess:${libs.versions.failureaccess.get()}",
+        )
     )
 }

@@ -16,9 +16,16 @@ import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
+import org.jetbrains.kotlin.fir.resolve.ScopeSession
+import org.jetbrains.kotlin.fir.resolve.providers.FirProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
+import org.jetbrains.kotlin.fir.resolve.providers.firProvider
+import org.jetbrains.kotlin.fir.resolve.transformers.FirSupertypeResolverVisitor
+import org.jetbrains.kotlin.fir.resolve.transformers.SupertypeComputationSession
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
+import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.types.classId
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.name.ClassId
@@ -31,6 +38,9 @@ import java.util.concurrent.ConcurrentHashMap
  * Needed for parsing-level unit tests that use barely initialized sessions.
  */
 internal val FirSession.nullableSymbolProvider: FirSymbolProvider? by FirSession.nullableSessionComponentAccessor()
+
+/** Nullable variant of [org.jetbrains.kotlin.fir.resolve.providers.firProvider], for the same reason. */
+internal val FirSession.nullableFirProvider: FirProvider? by FirSession.nullableSessionComponentAccessor()
 
 /**
  * Per-session set of [ClassId]s currently being resolved by [cycleSafeClassLikeSymbol].
@@ -121,6 +131,15 @@ internal fun <R> FirSession.cycleGuardedSupertypeWalk(classId: ClassId, default:
     }
 }
 
+internal fun FirRegularClass.supertypeRefsForJavaResolution(session: FirSession): List<FirTypeRef> {
+    if (superTypeRefs.all { it is FirResolvedTypeRef }) return superTypeRefs
+    val containingFile = session.firProvider.getFirClassifierContainerFileIfAny(symbol) ?: return superTypeRefs
+    val visitor = FirSupertypeResolverVisitor(session, SupertypeComputationSession(), ScopeSession())
+    return visitor.withFile(containingFile) {
+        visitor.resolveSpecificClassLikeSupertypes(this, superTypeRefs, resolveRecursively = true)
+    }
+}
+
 /**
  * Per-session `ClassId -> List<ClassId>` cache of resolved direct-supertype `ClassId`s for
  * [directSupertypeClassIds]. A class's direct supertypes are a pure function of the class and
@@ -143,20 +162,15 @@ internal fun FirSession.registerJavaModelDirectSupertypeCacheIfAbsent() {
     }
 }
 
-/**
- * Memoizes [compute] per [classId] on the session. Only non-empty results are cached: an empty
- * result is what the cycle guards return for an in-flight [classId], so caching it could pin a
- * transient empty over a class that does have supertypes; recomputing an empty result is cheap.
- */
 internal fun FirSession.memoizedDirectSupertypeClassIds(
     classId: ClassId,
-    compute: () -> List<ClassId>,
+    compute: () -> List<ClassId>?,
 ): List<ClassId> {
-    val cache = javaModelDirectSupertypeCache?.classIdToSupertypes ?: return compute()
+    val cache = javaModelDirectSupertypeCache?.classIdToSupertypes ?: return compute().orEmpty()
     cache[classId]?.let { return it }
     val result = compute()
-    if (result.isNotEmpty()) cache[classId] = result
-    return result
+    if (result != null) cache[classId] = result
+    return result.orEmpty()
 }
 
 /**

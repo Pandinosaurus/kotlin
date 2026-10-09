@@ -1,0 +1,218 @@
+/*
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
+ */
+
+package org.jetbrains.kotlin.testFederation
+
+import org.gradle.api.Project
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.testing.AbstractTestTask
+import org.gradle.api.tasks.testing.Test
+import org.gradle.kotlin.dsl.create
+import org.gradle.kotlin.dsl.findByType
+import org.jetbrains.kotlin.testFederation.TestSubset.*
+import java.io.File
+
+/**
+ * Whether test federation is enabled for this project.
+ *
+ * Test Federation is typically enabled only in CI environments. Local test runs select all tests by default unless Test Federation is
+ * explicitly enabled through the corresponding Gradle property or environment variable. Other test filters still apply.
+ *
+ * This flag only affects the [TestFederationMode]/domain-derived fallback used by [testFederationSubsets]. It has no effect when
+ * `test.federation.subsets` is explicitly provided: an explicit subsets value always takes precedence, enabled or not.
+ */
+@DelicateTestFederationApi
+val Project.testFederationEnabled: Boolean
+    get() = providers.gradleProperty(TEST_FEDERATION_ENABLED_KEY).map { it.toBoolean() }
+        .orElse(providers.environmentVariable(TEST_FEDERATION_ENABLED_ENV_KEY).map { it.toBoolean() })
+        .getOrElse(false)
+
+
+/**
+ * Provides the [Domain]s to which this project belongs.
+ * Beware: While a project might belong to the provided list of domains, individual test tasks can override the list
+ * of domains.
+ * @see AbstractTestTask.testFederationDomains
+ */
+@DelicateTestFederationApi
+val Project.testFederationDomains: Provider<List<Domain>> by extensionProperty {
+    project.provider { repositoryPath(this.projectDir.toPath()).domains }
+}
+
+/**
+ * Provides the [Domain]s to which this Test task belongs to.
+ * This can be overridden.
+ *
+ * **example**: Make a test task belong to the 'Js' and 'Wasm' domains
+ * ```kotlin
+ * testTask {
+ *     testFederationDomains = listOf(Domain.Js, Domain.Wasm)
+ * }
+ * ```
+ */
+@DelicateTestFederationApi
+val AbstractTestTask.testFederationDomains: ListProperty<Domain> by extensionProperty {
+    project.objects.listProperty(Domain::class.java).value(project.testFederationDomains)
+}
+
+
+/**
+ * Provides the [TestFederationMode] assigned to this test task.
+ *
+ * A task uses [TestFederationMode.Full] when all tests in at least one of its domains are required for merging to master.
+ * Otherwise, the task selects a subset of tests. An explicitly configured mode takes precedence over this domain selection.
+ *
+ * If Test Federation is disabled, this provider always returns [TestFederationMode.Full],
+ * even when a different mode is explicitly configured. Test Federation is disabled by default for local development.
+ * Other test filters, including nightly filters, still apply.
+ *
+ * The mode that selects a subset of tests is [TestFederationMode.Smoke].
+ *
+ * NOTE: [TestFederationMode] does not select tests on its own anymore. It only exists as a legacy fallback signal consumed by
+ * [testFederationSubsets] when no `test.federation.subsets` value is explicitly requested. Test selection itself is driven entirely
+ * by test subsets — `TestFederationPostDiscoveryFilter` no longer reads [TestFederationMode] at all.
+ */
+@DelicateTestFederationApi
+val AbstractTestTask.testFederationMode: Provider<TestFederationMode> by extensionProperty property@{
+    project.provider {
+        /* Disabled Test Federation -> Always run in 'Full' Mode */
+        if (!project.testFederationEnabled) {
+            return@provider TestFederationMode.Full
+        }
+
+        /* External override by gradle property or environment variable shall be respected */
+        project.providers.gradleProperty(TEST_FEDERATION_MODE_KEY)
+            .orElse(project.providers.environmentVariable(TEST_FEDERATION_MODE_ENV_KEY))
+            .map(TestFederationMode::valueOf)
+            .orNull?.let { return@provider it }
+
+        null
+    }.orElse(
+        testFederationDomains.zip(project.testFederationAffectedDomains) { testFederationDomains, testFederationAffectedDomains ->
+            if (testFederationDomains.intersect(testFederationAffectedDomains).isNotEmpty()) TestFederationMode.Full
+            else TestFederationMode.Smoke
+        }
+    )
+}
+
+/**
+ * Provides which test subsets were requested for this test task.
+ *
+ * A test subset selects a portion of tests that would be normally selected by a test task's own filters
+ * (including the nightly filter). It may select some, all, or none of them.
+ *
+ * This value is resolved in the following order:
+ * 1. An explicit `test.federation.subsets` Gradle property or environment variable, if set
+ * 2. Otherwise, derived from [testFederationMode] and [testFederationChangedDomains]
+ *
+ * Custom configuration from the `testFederation { }` extension may change one subset to another.
+ */
+@DelicateTestFederationApi
+val Test.testFederationSubsets: Provider<Set<TestSubset>> by extensionProperty property@ {
+    val testFederationExtension = testFederationExtension
+
+    if (!project.testFederationEnabled) {
+        return@property project.providers.provider { setOf(AllTests) }
+    }
+
+    project.providers.gradleProperty(TEST_FEDERATION_SUBSETS_KEY)
+        .orElse(project.providers.environmentVariable(TEST_FEDERATION_SUBSETS_ENV_KEY))
+        .map { it.toTestSubsets() }
+        .orElse(
+            testFederationMode.zip(project.testFederationChangedDomains) { mode, changedDomains ->
+                when (mode) {
+                    TestFederationMode.Full -> setOf(AllTests)
+                    TestFederationMode.Smoke -> buildSet {
+                        add(SmokeTests)
+                        changedDomains.forEach { domain -> add(contractTestsSubsetOf(domain)) }
+                    }
+                }
+            }
+        )
+        .map { subsets ->
+            when {
+                SmokeTests in subsets && testFederationExtension.smokeTests.includeAll.get() -> setOf(AllTests)
+                else -> subsets
+            }
+        }
+}
+
+/**
+ * Provides changed file paths, either explicitly configured or inferred from the branch diff.
+ *
+ * If Test Federation is disabled, the returned list is empty.
+ */
+@DelicateTestFederationApi
+val Project.testFederationChangedFiles: Provider<List<String>> by extensionProperty property@{
+    if (!testFederationEnabled) return@property provider { emptyList() }
+    providers.gradleProperty(TEST_FEDERATION_CHANGED_FILES_KEY).map { raw -> raw.split(File.pathSeparatorChar) }
+        .orElse(featureBranchDiffService.map { it.diff })
+}
+
+/**
+ * Provides the domains whose full test runs are required for merging to master.
+ *
+ * An explicit full-run selection takes precedence. Otherwise, explicitly configured changed domains and their direct
+ * `mustRunAllTestsOnChangesIn` declarations are used. Without either override, the branch diff and commit-message requests are used.
+ *
+ * If Test Federation is disabled, this provider contains every entry in [Domain.entries]. This is the default for local development.
+ */
+@DelicateTestFederationApi
+val Project.testFederationAffectedDomains: Provider<Set<Domain>> by extensionProperty property@{
+    if (!project.testFederationEnabled) {
+        return@property provider { Domain.entries.toSet() }
+    }
+
+    /* Expand explicitly configured changed domains when no full-run selection is provided. */
+    val fromProvidedChangedDomains = (providers.gradleProperty(TEST_FEDERATION_CHANGED_DOMAINS_KEY))
+        .orElse(providers.environmentVariable(TEST_FEDERATION_CHANGED_DOMAINS_ENV_KEY))
+        .map { raw -> Domain.fromArgumentStringOrThrow(raw).withAffectedDependencies() }
+
+    (providers.gradleProperty(TEST_FEDERATION_AFFECTED_DOMAINS_KEY)
+        .orElse(providers.environmentVariable(TEST_FEDERATION_AFFECTED_DOMAINS_ENV_KEY)))
+        .map { argumentString -> Domain.fromArgumentStringOrThrow(argumentString) }
+        .orElse(fromProvidedChangedDomains)
+        .orElse(project.affectedDomainsService.map { it.affectedDomains })
+}
+
+@DelicateTestFederationApi
+val Project.testFederationChangedDomains: Provider<Set<Domain>> by extensionProperty property@{
+    if (!project.testFederationEnabled) {
+        return@property provider { Domain.entries.toSet() }
+    }
+
+    (providers.gradleProperty(TEST_FEDERATION_CHANGED_DOMAINS_KEY)
+        .orElse(providers.environmentVariable(TEST_FEDERATION_CHANGED_DOMAINS_ENV_KEY))
+        .orElse(providers.gradleProperty(TEST_FEDERATION_AFFECTED_DOMAINS_KEY))
+        .orElse(providers.environmentVariable(TEST_FEDERATION_AFFECTED_DOMAINS_ENV_KEY)))
+        .map { argumentString -> Domain.fromArgumentStringOrThrow(argumentString) }
+        .orElse(project.affectedDomainsService.map { it.changedDomains })
+}
+
+@DelicateTestFederationApi
+val Test.testFederationExtension: TestFederationExtension
+    get() = extensions.findByType<TestFederationExtension>()
+        ?: run {
+            val extension = extensions.create<TestFederationExtension>("testFederation")
+            // We add it to jvmArgumentProviders just to make Gradle process its @Inputs / @Nested annotations
+            jvmArgumentProviders.add(extension)
+            extension
+        }
+
+fun Test.testFederation(configure: TestFederationExtension.() -> Unit) {
+    testFederationExtension.configure()
+}
+
+/**
+ * Provides whether nightly tests are enabled for the current build.
+ *
+ * The value is `true` for nightly aggregates and `false` for non-nightly remote builds, such as master-based runs, regular aggregates, and
+ * safe-merge builds. It defaults to `true` so that nightly tests can be run locally without additional configuration.
+ */
+val Project.areNightlyTestsEnabled: Provider<Boolean>
+    get() = project.providers.gradleProperty("nightly").map { it.toBooleanStrict() }
+        .orElse(providers.environmentVariable("NIGHTLY").map { it.toBooleanStrict() })
+        .orElse(true)

@@ -5,63 +5,36 @@
 
 package org.jetbrains.kotlin.backend.wasm.lower
 
-import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageIssueSignificance
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageIssueSignificance
 import org.jetbrains.kotlin.backend.common.linkage.partial.reflectionTargetLinkageError
-import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.backend.common.lower.VariableRemapper
-import org.jetbrains.kotlin.backend.common.lower.addBoundValueAtOverride
-import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
-import org.jetbrains.kotlin.backend.common.lower.declarationsAtFunctionReferenceLowering
+import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
-import org.jetbrains.kotlin.ir.backend.js.lower.WebCallableReferenceLowering.Companion.FUNCTION_REFERENCE_IMPL
-import org.jetbrains.kotlin.ir.backend.js.lower.WebCallableReferenceLowering.Companion.GENERATED_MEMBER_IN_CALLABLE_REFERENCE
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.backend.js.JsStatementOrigins
+import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
+import org.jetbrains.kotlin.ir.backend.js.lower.WebCallableReferenceLowering.Companion.FUNCTION_REFERENCE_IMPL
+import org.jetbrains.kotlin.ir.backend.js.lower.WebCallableReferenceLowering.Companion.GENERATED_MEMBER_IN_CALLABLE_REFERENCE
 import org.jetbrains.kotlin.ir.backend.js.lower.getArity
 import org.jetbrains.kotlin.ir.backend.js.lower.getFlags
-import org.jetbrains.kotlin.ir.backend.js.utils.getInlineClassUnderlyingType
-import org.jetbrains.kotlin.ir.backend.js.utils.isInlineClass
-import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
-import org.jetbrains.kotlin.ir.builders.declarations.addFunction
-import org.jetbrains.kotlin.ir.builders.irBlockBody
-import org.jetbrains.kotlin.ir.builders.irDelegatingConstructorCall
-import org.jetbrains.kotlin.ir.builders.irGet
-import org.jetbrains.kotlin.ir.builders.irGetField
-import org.jetbrains.kotlin.ir.builders.irReturn
-import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrConstructor
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
-import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classOrFail
-import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.ir.util.isNullable
-import org.jetbrains.kotlin.ir.util.SYNTHETIC_OFFSET
-import org.jetbrains.kotlin.ir.util.createDispatchReceiverParameterWithClassParent
-import org.jetbrains.kotlin.ir.util.primaryConstructor
-import org.jetbrains.kotlin.ir.util.toIrConst
-import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.expressions.impl.*
-import org.jetbrains.kotlin.ir.symbols.*
+import org.jetbrains.kotlin.ir.expressions.impl.IrGetObjectValueImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrRawFunctionReferenceImpl
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrTransformer
-import org.jetbrains.kotlin.name.*
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 import org.jetbrains.kotlin.utils.memoryOptimizedPlus
-import kotlin.collections.plus
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSources.File as PLFile
 
 /**
@@ -262,27 +235,27 @@ class WasmCallableReferenceLowering(val backendContext: WasmBackendContext) : Fi
         return when {
             linkerError != null -> {
                 when (parameter.name.asString()) {
-                    "message" -> linkerError.toIrConst(context.irBuiltIns.stringType)
-                    "name" -> name.toIrConst(context.irBuiltIns.stringType)
+                    "message" -> JsIrBuilder.buildString(context.irBuiltIns.stringType, linkerError)
+                    "name" -> JsIrBuilder.buildString(context.irBuiltIns.stringType, name)
                     else -> irNull()
                 }
             }
             reflectionTargetSymbol != null -> {
                 when (parameter.name.asString()) {
                     "flags" -> {
-                        reference.getFlags().toIrConst(context.irBuiltIns.intType)
+                        JsIrBuilder.buildInt(context.irBuiltIns.intType, reference.getFlags())
                     }
                     "arity" -> {
-                        reference.getArity().toIrConst(context.irBuiltIns.intType)
+                        JsIrBuilder.buildInt(context.irBuiltIns.intType, reference.getArity())
                     }
                     "id" -> {
-                        reference.getId(backendContext).toIrConst(context.irBuiltIns.stringType)
+                        JsIrBuilder.buildString(context.irBuiltIns.stringType, reference.getId(backendContext))
                     }
                     "boundValueCount" -> {
-                        reference.boundValues.size.toIrConst(context.irBuiltIns.intType)
+                        JsIrBuilder.buildInt(context.irBuiltIns.intType, reference.boundValues.size)
                     }
                     "name" -> {
-                        name.toIrConst(context.irBuiltIns.stringType)
+                        JsIrBuilder.buildString(context.irBuiltIns.stringType, name)
                     }
                     else -> irNull()
                 }
@@ -291,29 +264,8 @@ class WasmCallableReferenceLowering(val backendContext: WasmBackendContext) : Fi
         }
     }
 
-    private fun IrType.eraseIfReferenceType(): IrType {
-        if (this.isPrimitiveType() || this.isUnsignedType()) return this
-        // Nullable types are boxed in Wasm, so they must be treated as reference types to avoid
-        // merging with the non-nullable variant. This applies particularly for the case of value
-        // classes which get inlined later.
-        if (this.isNullable()) return backendContext.irBuiltIns.anyNType
-        if (this.classifierOrNull is IrTypeParameterSymbol) {
-            // At the Wasm level, type parameters are passed as their upper bound, so erase them now
-            // to merge properly.
-            val typeParam = (this.classifierOrNull as IrTypeParameterSymbol).owner
-            return (typeParam.superTypes.firstOrNull() ?: backendContext.irBuiltIns.anyNType).eraseIfReferenceType()
-        }
-        val clazz = this.getClass() ?: return backendContext.irBuiltIns.anyNType
-        if (clazz.isInlineClass) {
-            val underlyingErased = getInlineClassUnderlyingType(clazz).eraseIfReferenceType()
-            return if (underlyingErased.isPrimitiveType() || underlyingErased.isUnsignedType()) {
-                this
-            } else {
-                backendContext.irBuiltIns.anyNType
-            }
-        }
-        return backendContext.irBuiltIns.anyNType
-    }
+    private fun IrType.eraseIfReferenceType(): IrType =
+        eraseIfReferenceType(backendContext.irBuiltIns.anyNType)
 
     override fun lower(irFile: IrFile) {
         // Clear the per-file cache for each new file
@@ -383,28 +335,6 @@ class WasmCallableReferenceLowering(val backendContext: WasmBackendContext) : Fi
                 shouldNotBeCalled()
             }
         }, null)
-    }
-
-    private fun IrType.toTypeSignatureCode(): String = when {
-        this.isInt() -> "I"
-        this.isLong() -> "J"
-        this.isFloat() -> "F"
-        this.isDouble() -> "D"
-        this.isBoolean() -> "Z"
-        this.isChar() -> "C"
-        this.isByte() -> "B"
-        this.isShort() -> "S"
-        this.isUInt() -> "UI"
-        this.isULong() -> "UJ"
-        this.isUByte() -> "UB"
-        this.isUShort() -> "US"
-        this.getClass()?.isInlineClass == true -> {
-            // Only reached for value classes that ultimately wrap a primitive (reference-wrapping
-            // value classes are erased to anyNType by eraseIfReferenceType, so they land in "A").
-            // Use the FQN to avoid clashes between same-named classes in different packages.
-            "V${this.classOrNull?.owner?.fqNameWhenAvailable?.asString()?.replace('.', '_') ?: this.classOrNull?.owner?.name?.asString() ?: "0"}"
-        }
-        else -> "A" // anyNType (reference type)
     }
 
     // This key must faithfully reflect the class type as both this lowering and the linker use this
@@ -671,7 +601,7 @@ class WasmCallableReferenceLowering(val backendContext: WasmBackendContext) : Fi
                     for (i in functionReference.boundValues.size until invokeFunction.parameters.size) {
                         val invokeParameter = invokeFunction.parameters[i]
                         val erasedParameter = this@apply.parameters[i]
-                        put(invokeParameter, irTemporary(irGet(erasedParameter).implicitCastTo(invokeParameter.type)))
+                        put(invokeParameter, irTemporary(irAs(irGet(erasedParameter), invokeParameter.type)))
                     }
                     for (i in functionReference.boundValues.indices) {
                         val invokeParameter = invokeFunction.parameters[i]

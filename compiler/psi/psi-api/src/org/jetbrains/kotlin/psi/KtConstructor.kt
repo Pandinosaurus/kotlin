@@ -3,6 +3,8 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:OptIn(KtImplementationDetail::class)
+
 package org.jetbrains.kotlin.psi
 
 import com.intellij.lang.ASTNode
@@ -36,6 +38,7 @@ import org.jetbrains.kotlin.psi.stubs.KotlinConstructorStub
  *
  * @param T the concrete constructor node type, used by the stub machinery
  */
+@SubclassOptInRequired(KtImplementationDetail::class)
 abstract class KtConstructor<T : KtConstructor<T>> : KtDeclarationStub<KotlinConstructorStub<T>>, KtFunction {
     @KtImplementationDetail
     protected constructor(node: ASTNode) : super(node)

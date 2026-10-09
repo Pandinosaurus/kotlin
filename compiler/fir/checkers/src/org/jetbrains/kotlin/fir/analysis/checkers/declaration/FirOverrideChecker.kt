@@ -135,6 +135,14 @@ sealed class FirOverrideChecker(mppKind: MppCheckerKind) : FirClassChecker(mppKi
         return overriddenSymbols.find { (it as? FirPropertySymbol)?.isVar == true }
     }
 
+    private fun FirPropertySymbol.checkLateinitVal(
+        overriddenSymbols: List<FirCallableSymbol<*>>,
+    ): FirCallableSymbol<*>? {
+        // 'val' is not allowed to override 'lateinit val'
+        if (isVar || isLateInit) return null
+        return overriddenSymbols.find { it is FirPropertySymbol && it.isLateInit && it.isVal }
+    }
+
     context(reporter: DiagnosticReporter, context: CheckerContext)
     private fun FirCallableSymbol<*>.checkVisibility(
         containingClass: FirClass,
@@ -257,7 +265,7 @@ sealed class FirOverrideChecker(mppKind: MppCheckerKind) : FirClassChecker(mppKi
     ) {
         for (valueParameterSymbol in valueParameterSymbols) {
             if (valueParameterSymbol.hasDefaultValue) {
-                reporter.reportOn(valueParameterSymbol.defaultValueSource, FirErrors.DEFAULT_VALUE_NOT_ALLOWED_IN_OVERRIDE)
+                reporter.reportOn(valueParameterSymbol.resolvedDefaultValueSource, FirErrors.DEFAULT_VALUE_NOT_ALLOWED_IN_OVERRIDE)
             }
         }
     }
@@ -353,6 +361,9 @@ sealed class FirOverrideChecker(mppKind: MppCheckerKind) : FirClassChecker(mppKi
         if (member is FirPropertySymbol && !member.isDelegated) {
             member.checkMutability(overriddenMemberSymbols)?.let {
                 reporter.reportVarOverriddenByVal(member, it)
+            }
+            member.checkLateinitVal(overriddenMemberSymbols)?.let {
+                reporter.reportLateinitOverriddenByVal(member, it)
             }
         }
 
@@ -476,6 +487,14 @@ sealed class FirOverrideChecker(mppKind: MppCheckerKind) : FirClassChecker(mppKi
         overridden: FirCallableSymbol<*>
     ) {
         reportOn(overriding.source, FirErrors.VAR_OVERRIDDEN_BY_VAL, overridden, overriding)
+    }
+
+    context(context: CheckerContext)
+    private fun DiagnosticReporter.reportLateinitOverriddenByVal(
+        overriding: FirCallableSymbol<*>,
+        overridden: FirCallableSymbol<*>
+    ) {
+        reportOn(overriding.source, FirErrors.LATEINIT_VAL_OVERRIDDEN_BY_VAL, overridden, overriding)
     }
 
     context(context: CheckerContext)

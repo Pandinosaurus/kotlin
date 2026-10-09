@@ -7,10 +7,10 @@ package org.jetbrains.kotlin.analysis.api.fir.components
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.parents
+import org.jetbrains.kotlin.analysis.api.fir.components.compilation.getNonLocalContainingOrThisDeclarationWithIrMetadata
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLResolutionFacade
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFir
 import org.jetbrains.kotlin.analysis.low.level.api.fir.compile.InlineLambdaArgument
-import org.jetbrains.kotlin.analysis.low.level.api.fir.element.builder.getNonLocalContainingOrThisDeclaration
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirFile
@@ -75,7 +75,7 @@ internal fun retrieveInlineStackData(
             depth
         )
         if (!stackIterator.hasNext()) {
-            firstNonInlineNonLocalFunInStack = previousExprPsi.getNonLocalContainingOrThisDeclaration()
+            firstNonInlineNonLocalFunInStack = previousExprPsi.getNonLocalContainingOrThisDeclarationWithIrMetadata()
         }
     }
 
@@ -168,7 +168,7 @@ private fun collectInlineLambdaParameters(
         override fun visitPropertyAccessExpression(propertyAccessExpression: FirPropertyAccessExpression) {
             propertyAccessExpression.acceptChildren(this)
             val valueParam = propertyAccessExpression.toResolvedCallableSymbol() as? FirValueParameterSymbol ?: return
-            if (valueParam.fir.isInlinable(session)) unsubstitutedInlineLambdaParameters.add(valueParam)
+            if (valueParam.isInlinable(session)) unsubstitutedInlineLambdaParameters.add(valueParam)
         }
     })
 }

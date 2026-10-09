@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.test.services.moduleStructure
 import org.jetbrains.kotlin.test.util.convertLineSeparators
 import org.jetbrains.kotlin.test.util.trimTrailingWhitespacesAndAddNewlineAtEOF
 import java.io.File
+import kotlin.collections.map
 
 /**
  * Validates target-specific IR dump files against the DUMP_IR_DIFFERENCE directive.
@@ -43,6 +44,7 @@ internal fun validateTargetSpecificDumpFile(
     directiveForIrDifference: ValueDirective<TargetBackend>,
     actualDump: String,
     isKotlinLikeDump: Boolean,
+    externalFilesDumps: MutableMap<File, String>,
 ) {
     val moduleStructure = testServices.moduleStructure
 
@@ -59,7 +61,9 @@ internal fun validateTargetSpecificDumpFile(
     val matchedBackend = testServices.getMatchedBackendFromDirective(directiveForIrDifference)
     if (matchedBackend != null) {
         val targetSpecificExtension = targetSpecificDumpExtension(baseDumpExtension, matchedBackend)
-        val patchBackendName = targetBackend.directChildOf(matchedBackend).name.lowercase()
+        // The patch's `+++ b/` label uses the matched backend name (the same one as in the patch file name), so that all backends
+        // sharing the same patch file (e.g., JKLIB reusing JVM's patch) produce identical patch content.
+        val patchBackendName = matchedBackend.name.lowercase()
         val normalizedActualDump = actualDump.trim { it <= ' ' }.convertLineSeparators().trimTrailingWhitespacesAndAddNewlineAtEOF()
         val targetSpecificFile = moduleStructure.getClassifiedDumpFile(targetSpecificExtension)
 
@@ -92,17 +96,26 @@ internal fun validateTargetSpecificDumpFile(
                 // When a used symbol's package is changed -> `*ir.<backend>.patch` is not empty, while `*kt.<backend>.patch` may legitimately be empty.
                 return
             }
-            assertions.fail {
-                "There are no $dumpDescription differences. Please remove $targetBackendDirectiveName from $directiveForIrDifference directive"
+            val externalFilesPatches = externalFilesDumps.map { [file, normalizedActualDump] ->
+                buildPatch(
+                    baseText = file.readText(),
+                    targetText = normalizedActualDump,
+                    targetBackendName = patchBackendName,
+                    mainFileName = file.name,
+                )
+            }
+            if (externalFilesPatches.all { it.isEmpty() }) {
+                assertions.fail {
+                    "There are no $dumpDescription differences. Please remove $targetBackendDirectiveName from $directiveForIrDifference directive"
+                }
+            }
+        } else {
+            assertions.assertEqualsToFile(targetSpecificFile, expectedPatch)
+            // Sanity check: patch application must result in the actual dump
+            checkTestInfrastructure(applyPatch(mainDump, expectedPatch) == normalizedActualDump) {
+                "Unable to reconstruct target-specific dump from patch: ${targetSpecificFile.absolutePath}"
             }
         }
-
-        assertions.assertEqualsToFile(targetSpecificFile, expectedPatch)
-        // Sanity check: patch application must result in the actual dump
-        checkTestInfrastructure(applyPatch(mainDump, expectedPatch) == normalizedActualDump) {
-            "Unable to reconstruct target-specific dump from patch: ${targetSpecificFile.absolutePath}"
-        }
-        return
     } else {
         val existingTargetSpecificFile = moduleStructure.findTargetSpecificPatchFile(targetBackend, baseDumpExtension)
         checkTestInfrastructure(existingTargetSpecificFile == null) {
@@ -181,23 +194,6 @@ private fun applyPatch(baseText: String, patchText: String): String {
 
     return patchedLines.joinToString(System.lineSeparator())
         .trim { it <= ' ' }.convertLineSeparators().trimTrailingWhitespacesAndAddNewlineAtEOF()
-}
-
-/**
- * Returns the direct child of [ancestor] in this backend's compatibility chain,
- * or this backend itself if it equals [ancestor].
- *
- * This determines the backend name for the patch's `+++ b/` line, ensuring that
- * backends sharing the same patch file (e.g., JKLIB reusing JVM_IR's patch)
- * produce identical patch content.
- */
-private fun TargetBackend.directChildOf(ancestor: TargetBackend): TargetBackend {
-    var current = this
-    while (current != TargetBackend.ANY) {
-        if (current.compatibleWith == ancestor) return current
-        current = current.compatibleWith
-    }
-    return this
 }
 
 internal fun TestServices.getMatchedBackendFromDirective(directive: ValueDirective<TargetBackend>): TargetBackend? {

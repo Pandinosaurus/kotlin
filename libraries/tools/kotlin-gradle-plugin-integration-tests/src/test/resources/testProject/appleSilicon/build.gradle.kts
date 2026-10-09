@@ -14,17 +14,9 @@ kotlin {
     iosSimulatorArm64()
     watchosArm64()
     watchosDeviceArm64()
-    watchosX64()
     watchosSimulatorArm64()
     tvosArm64()
-    tvosX64()
     tvosSimulatorArm64()
-
-    macosX64 {
-        binaries.executable {
-            entryPoint = "main"
-        }
-    }
 
     macosArm64 {
         binaries.executable {

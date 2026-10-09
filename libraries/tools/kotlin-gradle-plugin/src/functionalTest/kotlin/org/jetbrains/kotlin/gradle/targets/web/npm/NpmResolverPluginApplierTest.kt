@@ -57,6 +57,7 @@ sealed class NpmResolverPluginApplierTest(
      *
      * Add npm dependencies (both regular and file-based) to `commonMain`.
      */
+    @Suppress("DEPRECATION") // the deprecated npm(directory) declaration is covered on purpose
     private fun setupProject(
         configure: Project.() -> Unit = {},
     ): Project {
@@ -86,7 +87,7 @@ sealed class NpmResolverPluginApplierTest(
 
         project.kotlin {
             wasmWasi {
-                nodejs()
+                wasmtime()
                 binaries.executable()
             }
             wasmJs {
@@ -115,20 +116,6 @@ sealed class NpmResolverPluginApplierTest(
     //region test expected RequiresNpmDependenciesTasks
     // Basic verification tests to ensure the tests below run against the correct expected tasks for each target.
     @Test
-    fun `verify expected RequiresNpmDependenciesTasks for WasmWASI`() {
-        val project = setupProject()
-
-        testRequiresNpmDependenciesTasks(
-            project.multiplatformExtension.wasmWasi(),
-            listOf(
-                "wasmWasiNodeDevelopmentRun",
-                "wasmWasiNodeProductionRun",
-                "wasmWasiNodeTest",
-            )
-        )
-    }
-
-    @Test
     fun `verify expected RequiresNpmDependenciesTasks for WasmJS`() {
         val project = setupProject()
 
@@ -140,7 +127,6 @@ sealed class NpmResolverPluginApplierTest(
                 "wasmJsBrowserProductionRun",
                 "wasmJsBrowserProductionWebpack",
                 "wasmJsBrowserTest",
-                "wasmJsTestBundleAsEsm",
             )
         )
     }
@@ -157,7 +143,6 @@ sealed class NpmResolverPluginApplierTest(
                 "jsBrowserProductionRun",
                 "jsBrowserProductionWebpack",
                 "jsBrowserTest",
-                "prepareWebpackBundleForKotlinJsTests",
             )
         )
     }

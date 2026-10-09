@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.fir.java.declarations
 
+import org.jetbrains.kotlin.GeneratedDeclarationKey
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -149,16 +150,13 @@ class FirJavaClass @FirImplementationDetail internal constructor(
      * dispatcher needs for the binary-Java arm of supertype-walking, **without** going through
      * the lazy [superTypeRefs] enhancement (which is unsafe to read while the symbol's own
      * `SUPER_TYPES` resolution is on the stack.
-     *
-     * Returns an empty list when [javaClass] is null (no AST backing — the FirJavaClass was
-     * built directly with explicit `superTypeRefs` rather than lazily).
      */
-    private val directSupertypeClassIdsCache: List<ClassId> by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        val supertypes = javaClass?.supertypes ?: return@lazy emptyList()
-        supertypes.mapNotNull { (it.classifier as? JavaClass)?.classId }
+    private val directSupertypeClassIdsCache: List<ClassId>? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        val supertypes = javaClass?.supertypes ?: return@lazy null
+        supertypes.map { (it.classifier as? JavaClass)?.classId ?: return@lazy null }
     }
 
-    fun directSupertypeClassIds(): List<ClassId> = directSupertypeClassIdsCache
+    fun directSupertypeClassIds(): List<ClassId>? = directSupertypeClassIdsCache
 
     // returns original visibility to avoid triggering status transformers application
     // NB: according to the assertions in the [applyStatusTransformerExtensions] the transformers should not change the visibility
@@ -276,6 +274,7 @@ class FirJavaClass @FirImplementationDetail internal constructor(
 @FirBuilderDsl
 class FirJavaClassBuilder : FirRegularClassBuilder(), FirAnnotationContainerBuilder {
     var isFromSource: Boolean by Delegates.notNull()
+    var key: GeneratedDeclarationKey? = null
     var javaPackage: JavaPackage? = null
     lateinit var javaTypeParameterStack: MutableJavaTypeParameterStack
     val existingNestedClassifierNames: MutableList<Name> = mutableListOf()
@@ -303,7 +302,7 @@ class FirJavaClassBuilder : FirRegularClassBuilder(), FirAnnotationContainerBuil
             source,
             moduleData,
             name,
-            origin = javaOrigin(isFromSource),
+            origin = javaOrigin(isFromSource, key),
             annotationList,
             status as FirResolvedDeclarationStatusImpl,
             classKind,

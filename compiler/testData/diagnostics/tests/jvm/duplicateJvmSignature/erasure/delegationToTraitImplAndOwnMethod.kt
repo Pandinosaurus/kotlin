@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
 interface Foo<T> {
@@ -7,9 +7,9 @@ interface Foo<T> {
     }
 }
 
-<!CONFLICTING_JVM_DECLARATIONS!>class Bar(f: Foo<String>): Foo<String> by f {
-    <!CONFLICTING_JVM_DECLARATIONS!>fun foo(l: List<Int>) {}<!>
-}<!>
+class <!CONFLICTING_JVM_DECLARATIONS!>Bar(f: Foo<String>)<!>: Foo<String> by f {
+    <!CONFLICTING_JVM_DECLARATIONS!>fun foo(l: List<Int>)<!> {}
+}
 
 class BarOther(f: Foo<String>): Foo<String> by f {
     override fun foo(l: List<String>) {}

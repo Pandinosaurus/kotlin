@@ -51,6 +51,7 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.render
 import org.jetbrains.kotlinx.dataframe.impl.toCamelCaseByDelimiters
 import org.jetbrains.kotlinx.dataframe.plugin.DataFramePlugin
 import org.jetbrains.kotlinx.dataframe.plugin.extensions.FirDataFrameErrors.CAST_ERROR
@@ -202,7 +203,10 @@ private class Checker(
         val targetType = targetProjection.typeRef.coneType as? ConeClassLikeType ?: return null
         val targetSymbol = targetType.toSymbol()
         if (targetSymbol != null && !sessionHolder.session.predicateBasedProvider.matches(VALID_CAST_TARGET_PREDICATE, targetSymbol)) {
-            reporter.reportOn(source, CAST_TARGET_WARNING, targetType.renderReadable(), context)
+            // Avoiding diagnostic when intention of cast is to "erase" schema
+            if (!targetType.isAnyOrNullableAny) {
+                reporter.reportOn(source, CAST_TARGET_WARNING, targetType.renderReadable(), context)
+            }
         }
         return targetType
     }
@@ -219,7 +223,7 @@ private class Checker(
         reporter.reportOn(
             expression,
             MATERIALIZED_SCHEMA_ON_CAST,
-            source.toMaterializedSchema(targetType.renderReadable(), asDataClass),
+            source.toMaterializedSchema(targetType.classId.shortClassName.render(), asDataClass),
             context
         )
     }

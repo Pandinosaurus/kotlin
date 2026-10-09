@@ -1,5 +1,5 @@
-// LANGUAGE: +CompanionBlocks +CompanionExtensions +CollectionLiterals
-// RUN_PIPELINE_TILL: BACKEND
+// LANGUAGE: +CompanionBlocks +CompanionExtensions
+// RUN_PIPELINE_TILL: CODEGEN
 
 class HiddenSetInObject {
     companion object {

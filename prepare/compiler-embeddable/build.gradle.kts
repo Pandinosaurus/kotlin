@@ -1,13 +1,9 @@
-import org.gradle.kotlin.dsl.support.serviceOf
-
 description = "Kotlin Compiler (embeddable)"
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
 }
 
 val testCompilationClasspath = configurations.create("testCompilationClasspath")
@@ -20,10 +16,17 @@ val testCompilerClasspath = configurations.create("testCompilerClasspath") {
     }
 }
 
+val compilerDocumentation = configurations.create("compilerDocumentation") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
 dependencies {
+    add(compilerDocumentation.name, project(":kotlin-compiler")) {
+        isTransitive = false
+    }
     api(project(":compiler:build-tools:kotlin-build-tools-api"))
     runtimeOnly(kotlinStdlib())
-    runtimeOnly(project(":kotlin-script-runtime"))
     runtimeOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
     runtimeOnly(project(":kotlin-daemon-embeddable"))
     runtimeOnly(libs.kotlinx.coroutines.core) { isTransitive = false }
@@ -51,17 +54,11 @@ val runtimeJar = runtimeJar(embeddableCompiler()) {
 }
 
 val sourcesJar = sourcesJar {
-    val compilerTask = project(":kotlin-compiler").tasks.named<Jar>("sourcesJar")
-    dependsOn(compilerTask)
-    val archiveOperations = serviceOf<ArchiveOperations>()
-    from(compilerTask.map { it.archiveFile }.map { archiveOperations.zipTree(it) })
+    addEmbeddedSources("compilerDocumentation")
 }
 
 val javadocJar = javadocJar {
-    val compilerTask = project(":kotlin-compiler").tasks.named<Jar>("javadocJar")
-    dependsOn(compilerTask)
-    val archiveOperations = serviceOf<ArchiveOperations>()
-    from(compilerTask.map { it.archiveFile }.map { archiveOperations.zipTree(it) })
+    addEmbeddedJavadoc("compilerDocumentation")
 }
 
 publish {

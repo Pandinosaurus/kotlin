@@ -1,12 +1,21 @@
 // FULL_JDK
 // FIR_DUMP
 
+// This test installs a `Handler` on the loggers `@Log` generates, and `@Log` names a logger after the annotated
+// class, so the names below must stay unique across the whole box test data: `java.util.logging.LogManager` is
+// global to the JVM, box tests run concurrently in one, and a name shared with another test file means one shared
+// `Logger` and this test collecting that file's records. `logWithConfig.kt` and `fromLibrary.kt` declare classes
+// of the same names and sit in packages of their own for exactly that reason.
+//
+// This file stays in the root package because `assertEquals` does - see `testData/common.kt`.
+
 import lombok.extern.java.Log
 import lombok.AccessLevel
 import java.util.logging.Handler
 import java.util.logging.Level
 import java.util.logging.LogRecord
 import java.util.logging.Logger
+import kotlin.test.assertEquals
 
 val logMessages = mutableListOf<String>()
 
@@ -37,7 +46,7 @@ class LogExampleWithExistingCompanion {
     }
 }
 
-@Log
+<!LOG_PROPERTY_ALREADY_EXISTS!>@Log<!>
 class LogExampleWithExistingCompanionAndLogField {
     companion object MyCompanion {
         val log = "No log"
@@ -53,16 +62,6 @@ class LogExampleWithTopic {
     fun test() {
         log.addHandler(logHandler)
         log.info("Test LogExampleWithTopic")
-    }
-}
-
-class LogOnCompanion {
-    @Log
-    companion object {
-        fun test() {
-            log.addHandler(logHandler)
-            log.info("Check @Log on companion object")
-        }
     }
 }
 
@@ -137,7 +136,6 @@ fun box(): String {
     LogExampleWithExistingCompanion().test()
     assertEquals("No log", LogExampleWithExistingCompanionAndLogField().test())
     LogExampleWithTopic().test()
-    LogOnCompanion.test()
     LogOnNestedClass.Nested().test()
     LogOnInnerClass<String>().Inner().test()
     LogOnObject.test()
@@ -150,7 +148,6 @@ fun box(): String {
         "INFO: Test LogExample",
         "WARNING: Test LogExampleWithExistingCompanion",
         "INFO: Test LogExampleWithTopic",
-        "INFO: Check @Log on companion object",
         "INFO: Check @Log on nested class",
         "INFO: Check @Log on inner class",
         "INFO: Check @Log on object",

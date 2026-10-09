@@ -1,10 +1,10 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LATEST_LV_DIFFERENCE
 // IGNORE_DEXING
 class Aaa() {
     <!CONFLICTING_JVM_DECLARATIONS!>val a<!> = 1
-    @Deprecated("a", level = DeprecationLevel.HIDDEN)
-    <!CONFLICTING_JVM_DECLARATIONS!>val a<!> = 1
+    <!CONFLICTING_JVM_DECLARATIONS!>@Deprecated("a", level = DeprecationLevel.HIDDEN)
+    val a<!> = 1
 }
 
 /* GENERATED_FIR_TAGS: classDeclaration, integerLiteral, primaryConstructor, propertyDeclaration, stringLiteral */
